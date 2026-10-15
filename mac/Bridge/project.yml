@@ -42,5 +42,6 @@ targets:
       - target: Bridge
     settings:
       base:
+        PRODUCT_MODULE_NAME: BridgeTests
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Bridge.app/Contents/MacOS/Bridge"
         BUNDLE_LOADER: "$(TEST_HOST)"

@@ -14,6 +14,7 @@ import android.bluetooth.le.BluetoothLeAdvertiser
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import com.bridge.security.CertificateManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -61,10 +62,16 @@ class BlePeripheral(
     }
 
     private val identityJson: ByteArray by lazy {
+        val certFingerprint = try {
+            CertificateManager.getInstance().getFingerprint()
+        } catch (_: Exception) {
+            ""
+        }
         val json = buildJsonObject {
             put("deviceId", deviceId)
             put("deviceName", Build.MODEL)
             put("deviceType", "phone")
+            put("certificateFingerprint", certFingerprint)
         }
         json.toString().toByteArray(Charsets.UTF_8)
     }
@@ -75,6 +82,13 @@ class BlePeripheral(
             onConnectionStateChanged(ConnectionState.Error("Bluetooth not available or disabled"))
             return
         }
+
+        try {
+            CertificateManager.init(context).ensureCertificate()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize certificate", e)
+        }
+
         startL2capServer()
         setupGattServer()
         startAdvertising()
@@ -95,7 +109,7 @@ class BlePeripheral(
     private fun startL2capServer() {
         val adapter = bluetoothAdapter ?: return
         try {
-            val server = L2capServer(adapter) { connected ->
+            val server = L2capServer(adapter, deviceId) { connected ->
                 if (connected) {
                     stopAdvertising()
                     onConnectionStateChanged(ConnectionState.Connected("L2CAP peer"))

@@ -7,12 +7,59 @@ struct BridgePacket: @unchecked Sendable {
     let type: String
     let body: [String: Any]
 
-    /// Create a ping packet with the current timestamp.
     static func ping() -> BridgePacket {
         BridgePacket(
             id: Int64(Date().timeIntervalSince1970 * 1000),
             type: "bridge.ping",
             body: [:]
+        )
+    }
+
+    static func identity(
+        deviceId: String,
+        deviceName: String,
+        deviceType: String,
+        protocolVersion: Int,
+        certificateFingerprint: String,
+        incomingCapabilities: [String],
+        outgoingCapabilities: [String]
+    ) -> BridgePacket {
+        BridgePacket(
+            id: Int64(Date().timeIntervalSince1970 * 1000),
+            type: "bridge.identity",
+            body: [
+                "deviceId": deviceId,
+                "deviceName": deviceName,
+                "deviceType": deviceType,
+                "protocolVersion": protocolVersion,
+                "certificateFingerprint": certificateFingerprint,
+                "incomingCapabilities": incomingCapabilities,
+                "outgoingCapabilities": outgoingCapabilities
+            ]
+        )
+    }
+
+    static func pairRequest() -> BridgePacket {
+        BridgePacket(
+            id: Int64(Date().timeIntervalSince1970 * 1000),
+            type: "bridge.pair",
+            body: ["pair": true]
+        )
+    }
+
+    static func pairAccept() -> BridgePacket {
+        BridgePacket(
+            id: Int64(Date().timeIntervalSince1970 * 1000),
+            type: "bridge.pair",
+            body: ["pair": true]
+        )
+    }
+
+    static func pairReject() -> BridgePacket {
+        BridgePacket(
+            id: Int64(Date().timeIntervalSince1970 * 1000),
+            type: "bridge.pair",
+            body: ["pair": false]
         )
     }
 

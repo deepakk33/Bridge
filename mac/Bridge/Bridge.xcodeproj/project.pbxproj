@@ -7,13 +7,25 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		023A58E9796C719825E7D20C /* PingPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A05D2EFA77CC7611034C95F6 /* PingPacketTests.swift */; };
+		070D3638957E2EFB9E037671 /* TLSWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F8626B23D13052AC57460B7 /* TLSWrapper.swift */; };
+		0C93898C1A7925A1AB65584A /* PairPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F79D4CCAEAE96BBDD50FBC16 /* PairPacketTests.swift */; };
 		0CD81BE51B5BFC75197BAFAC /* PingHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = F23E809C7F4DC7042B7B1F41 /* PingHandler.swift */; };
 		1889F47FCC9FABE64A197470 /* BridgeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7F6AEAAFE8B7A3039814426 /* BridgeApp.swift */; };
 		20BD9B58BC5F9A95181F0888 /* BridgeConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B2AA0107B75FB36399DA686 /* BridgeConstants.swift */; };
+		2B3E105AD9ECD6573157ECD8 /* IdentityPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F277B0176220A76331FCC3 /* IdentityPacketTests.swift */; };
+		33C90C8F1A70A24E835CEE38 /* LinkStateMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EF6E3C9A5506A59F08CD765 /* LinkStateMachine.swift */; };
 		485444CDA174012426332C60 /* BLEManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0971CF85B05BD7A4B596D372 /* BLEManager.swift */; };
+		5E5054D22E7168E2B49CA7C8 /* PingWatchdog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BEC79646EB8C5C1774F379F /* PingWatchdog.swift */; };
+		69CF4BD0E971F9CC842F7214 /* TrustStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7EFB7EF978217A8DAB5F29A /* TrustStoreTests.swift */; };
+		8233CAFAD0D7B6A9F953D36F /* TrustStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84DAE9B943673867F6E91824 /* TrustStore.swift */; };
+		83FB28C1575F47D4535D342C /* CertificateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56B364144621CA738A409CA7 /* CertificateManager.swift */; };
 		9749CC395955B3C5BFA2C962 /* BridgePacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92405DBC9DC528F2C17A32E3 /* BridgePacket.swift */; };
+		A7F2F04FEA9A2BDE2F667E03 /* StatusPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23B445C6C77FD4607AD01C3E /* StatusPanel.swift */; };
+		A89163011205C65ADD146365 /* PairPromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64ABF32D683378EDAC5B5713 /* PairPromptView.swift */; };
 		B5A2F0CE74BED9F98B4E529B /* L2CAPChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AB7CD2CB8144D6D3D6BAEC5 /* L2CAPChannel.swift */; };
 		BBB52C374052D155182228CA /* BridgePacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABD9184A949EFAF49F053D20 /* BridgePacketTests.swift */; };
+		C16EFDA9255A73CD89193263 /* PairingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE0F8609FF6A4A8A9A0FD720 /* PairingManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -30,13 +42,25 @@
 		015E0581D699A8D25C81E072 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		0971CF85B05BD7A4B596D372 /* BLEManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEManager.swift; sourceTree = "<group>"; };
 		0AB7CD2CB8144D6D3D6BAEC5 /* L2CAPChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L2CAPChannel.swift; sourceTree = "<group>"; };
+		0EF6E3C9A5506A59F08CD765 /* LinkStateMachine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkStateMachine.swift; sourceTree = "<group>"; };
+		0F8626B23D13052AC57460B7 /* TLSWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TLSWrapper.swift; sourceTree = "<group>"; };
 		1D35F189A98B879024C07A7D /* BridgeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BridgeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		23B445C6C77FD4607AD01C3E /* StatusPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusPanel.swift; sourceTree = "<group>"; };
+		56B364144621CA738A409CA7 /* CertificateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CertificateManager.swift; sourceTree = "<group>"; };
 		58E003C57BDD9F417908C0C4 /* Bridge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Bridge.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5BEC79646EB8C5C1774F379F /* PingWatchdog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PingWatchdog.swift; sourceTree = "<group>"; };
+		64ABF32D683378EDAC5B5713 /* PairPromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairPromptView.swift; sourceTree = "<group>"; };
 		6B2AA0107B75FB36399DA686 /* BridgeConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeConstants.swift; sourceTree = "<group>"; };
+		84DAE9B943673867F6E91824 /* TrustStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrustStore.swift; sourceTree = "<group>"; };
 		92405DBC9DC528F2C17A32E3 /* BridgePacket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgePacket.swift; sourceTree = "<group>"; };
+		A05D2EFA77CC7611034C95F6 /* PingPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PingPacketTests.swift; sourceTree = "<group>"; };
+		A7EFB7EF978217A8DAB5F29A /* TrustStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrustStoreTests.swift; sourceTree = "<group>"; };
 		A7F6AEAAFE8B7A3039814426 /* BridgeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeApp.swift; sourceTree = "<group>"; };
 		ABD9184A949EFAF49F053D20 /* BridgePacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgePacketTests.swift; sourceTree = "<group>"; };
+		AE0F8609FF6A4A8A9A0FD720 /* PairingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingManager.swift; sourceTree = "<group>"; };
+		F1F277B0176220A76331FCC3 /* IdentityPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityPacketTests.swift; sourceTree = "<group>"; };
 		F23E809C7F4DC7042B7B1F41 /* PingHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PingHandler.swift; sourceTree = "<group>"; };
+		F79D4CCAEAE96BBDD50FBC16 /* PairPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairPacketTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -45,14 +69,30 @@
 			children = (
 				92405DBC9DC528F2C17A32E3 /* BridgePacket.swift */,
 				F23E809C7F4DC7042B7B1F41 /* PingHandler.swift */,
+				5BEC79646EB8C5C1774F379F /* PingWatchdog.swift */,
 			);
 			path = Protocol;
+			sourceTree = "<group>";
+		};
+		27AB0FD63B6961C52DBC216B /* Security */ = {
+			isa = PBXGroup;
+			children = (
+				56B364144621CA738A409CA7 /* CertificateManager.swift */,
+				AE0F8609FF6A4A8A9A0FD720 /* PairingManager.swift */,
+				0F8626B23D13052AC57460B7 /* TLSWrapper.swift */,
+				84DAE9B943673867F6E91824 /* TrustStore.swift */,
+			);
+			path = Security;
 			sourceTree = "<group>";
 		};
 		7880A0828D56D9C8265F8E2F /* BridgeTests */ = {
 			isa = PBXGroup;
 			children = (
 				ABD9184A949EFAF49F053D20 /* BridgePacketTests.swift */,
+				F1F277B0176220A76331FCC3 /* IdentityPacketTests.swift */,
+				F79D4CCAEAE96BBDD50FBC16 /* PairPacketTests.swift */,
+				A05D2EFA77CC7611034C95F6 /* PingPacketTests.swift */,
+				A7EFB7EF978217A8DAB5F29A /* TrustStoreTests.swift */,
 			);
 			name = BridgeTests;
 			path = Tests/BridgeTests;
@@ -65,9 +105,20 @@
 				015E0581D699A8D25C81E072 /* Info.plist */,
 				CA28928AB466A3B688E7E3F5 /* BLE */,
 				0178711234C6D8605BFFF919 /* Protocol */,
+				27AB0FD63B6961C52DBC216B /* Security */,
+				B1032852101FEFE64DF8E037 /* UI */,
 			);
 			name = Bridge;
 			path = Sources/Bridge;
+			sourceTree = "<group>";
+		};
+		B1032852101FEFE64DF8E037 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				64ABF32D683378EDAC5B5713 /* PairPromptView.swift */,
+				23B445C6C77FD4607AD01C3E /* StatusPanel.swift */,
+			);
+			path = UI;
 			sourceTree = "<group>";
 		};
 		C69B5C8EE7DF00C23A7FE005 = {
@@ -85,6 +136,7 @@
 				0971CF85B05BD7A4B596D372 /* BLEManager.swift */,
 				6B2AA0107B75FB36399DA686 /* BridgeConstants.swift */,
 				0AB7CD2CB8144D6D3D6BAEC5 /* L2CAPChannel.swift */,
+				0EF6E3C9A5506A59F08CD765 /* LinkStateMachine.swift */,
 			);
 			path = BLE;
 			sourceTree = "<group>";
@@ -181,6 +233,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				BBB52C374052D155182228CA /* BridgePacketTests.swift in Sources */,
+				2B3E105AD9ECD6573157ECD8 /* IdentityPacketTests.swift in Sources */,
+				0C93898C1A7925A1AB65584A /* PairPacketTests.swift in Sources */,
+				023A58E9796C719825E7D20C /* PingPacketTests.swift in Sources */,
+				69CF4BD0E971F9CC842F7214 /* TrustStoreTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -192,8 +248,16 @@
 				1889F47FCC9FABE64A197470 /* BridgeApp.swift in Sources */,
 				20BD9B58BC5F9A95181F0888 /* BridgeConstants.swift in Sources */,
 				9749CC395955B3C5BFA2C962 /* BridgePacket.swift in Sources */,
+				83FB28C1575F47D4535D342C /* CertificateManager.swift in Sources */,
 				B5A2F0CE74BED9F98B4E529B /* L2CAPChannel.swift in Sources */,
+				33C90C8F1A70A24E835CEE38 /* LinkStateMachine.swift in Sources */,
+				A89163011205C65ADD146365 /* PairPromptView.swift in Sources */,
+				C16EFDA9255A73CD89193263 /* PairingManager.swift in Sources */,
 				0CD81BE51B5BFC75197BAFAC /* PingHandler.swift in Sources */,
+				5E5054D22E7168E2B49CA7C8 /* PingWatchdog.swift in Sources */,
+				A7F2F04FEA9A2BDE2F667E03 /* StatusPanel.swift in Sources */,
+				070D3638957E2EFB9E037671 /* TLSWrapper.swift in Sources */,
+				8233CAFAD0D7B6A9F953D36F /* TrustStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -297,6 +361,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
+				PRODUCT_MODULE_NAME = BridgeTests;
 				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Bridge.app/Contents/MacOS/Bridge";
 			};
@@ -323,6 +388,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
+				PRODUCT_MODULE_NAME = BridgeTests;
 				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Bridge.app/Contents/MacOS/Bridge";
 			};

@@ -1,0 +1,60 @@
+{
+  "description": "Valid bridge.pair packets covering request, accept, reject cases",
+  "valid": [
+    {
+      "name": "pair_request",
+      "packet": {
+        "id": 1728000010000,
+        "type": "bridge.pair",
+        "body": {
+          "pair": true
+        }
+      },
+      "serialized": "{\"id\":1728000010000,\"type\":\"bridge.pair\",\"body\":{\"pair\":true}}\n"
+    },
+    {
+      "name": "pair_accept",
+      "packet": {
+        "id": 1728000011000,
+        "type": "bridge.pair",
+        "body": {
+          "pair": true
+        }
+      },
+      "serialized": "{\"id\":1728000011000,\"type\":\"bridge.pair\",\"body\":{\"pair\":true}}\n"
+    },
+    {
+      "name": "pair_reject",
+      "packet": {
+        "id": 1728000012000,
+        "type": "bridge.pair",
+        "body": {
+          "pair": false
+        }
+      },
+      "serialized": "{\"id\":1728000012000,\"type\":\"bridge.pair\",\"body\":{\"pair\":false}}\n"
+    },
+    {
+      "name": "unpair",
+      "packet": {
+        "id": 1728000013000,
+        "type": "bridge.pair",
+        "body": {
+          "pair": false
+        }
+      },
+      "serialized": "{\"id\":1728000013000,\"type\":\"bridge.pair\",\"body\":{\"pair\":false}}\n"
+    }
+  ],
+  "invalid": [
+    {
+      "name": "missing_pair_field",
+      "packet": {
+        "id": 1728000014000,
+        "type": "bridge.pair",
+        "body": {}
+      },
+      "reason": "pair boolean field is required"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "description": "Valid bridge.ping packets for iter-2 watchdog testing",
+  "valid": [
+    {
+      "name": "simple_ping",
+      "packet": {
+        "id": 1728000020000,
+        "type": "bridge.ping",
+        "body": {}
+      },
+      "serialized": "{\"id\":1728000020000,\"type\":\"bridge.ping\",\"body\":{}}\n"
+    },
+    {
+      "name": "ping_with_timestamp",
+      "packet": {
+        "id": 1728000021000,
+        "type": "bridge.ping",
+        "body": {}
+      },
+      "serialized": "{\"id\":1728000021000,\"type\":\"bridge.ping\",\"body\":{}}\n"
+    }
+  ]
+}

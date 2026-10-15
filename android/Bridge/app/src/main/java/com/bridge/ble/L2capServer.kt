@@ -3,12 +3,19 @@ package com.bridge.ble
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothServerSocket
 import android.bluetooth.BluetoothSocket
+import android.os.Build
 import android.util.Log
 import com.bridge.protocol.BridgePacket
 import com.bridge.protocol.PingHandler
+import com.bridge.protocol.PingWatchdog
+import com.bridge.security.CertificateManager
+import com.bridge.security.PairingManager
+import com.bridge.security.TrustStore
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.jsonPrimitive
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
@@ -16,6 +23,7 @@ import java.io.OutputStream
 
 class L2capServer(
     adapter: BluetoothAdapter,
+    private val deviceId: String,
     private val onConnectionChanged: (connected: Boolean) -> Unit
 ) {
 
@@ -29,6 +37,11 @@ class L2capServer(
     val psm: Int = serverSocket.psm
 
     private var activeSocket: BluetoothSocket? = null
+    private var pairingManager: PairingManager? = null
+    private val pingWatchdog = PingWatchdog()
+
+    private var peerDeviceId: String? = null
+    private var peerFingerprint: String? = null
 
     suspend fun acceptLoop() = withContext(Dispatchers.IO) {
         Log.i(TAG, "L2CAP accept loop started on PSM=$psm")
@@ -46,6 +59,11 @@ class L2capServer(
                 break
             } finally {
                 activeSocket = null
+                peerDeviceId = null
+                peerFingerprint = null
+                pairingManager?.reset()
+                pairingManager = null
+                pingWatchdog.stop()
                 onConnectionChanged(false)
             }
         }
@@ -56,15 +74,30 @@ class L2capServer(
             val reader = BufferedReader(InputStreamReader(socket.inputStream, Charsets.UTF_8))
             val outputStream = socket.outputStream
 
-            var bytesReceived = 0L
-            val startTime = System.currentTimeMillis()
+            pairingManager = PairingManager { packet -> send(packet, outputStream) }.also { pm ->
+                pm.onPairRequest = { deviceName, fingerprint ->
+                    Log.i(TAG, "Auto-accepting pair request from $deviceName (fp: $fingerprint)")
+                    pm.acceptPair()
+                }
+            }
+
+            sendIdentity(outputStream)
+
+            val scope = CoroutineScope(Dispatchers.IO)
+            pingWatchdog.start(
+                scope = scope,
+                sendPing = { send(BridgePacket.ping(), outputStream) },
+                onTimeout = {
+                    Log.w(TAG, "Watchdog timeout — closing connection")
+                    try { socket.close() } catch (_: IOException) {}
+                }
+            )
 
             var line = reader.readLine()
             while (line != null) {
-                bytesReceived += line.toByteArray(Charsets.UTF_8).size + 1
                 try {
                     val packet = BridgePacket.deserialize(line)
-                    Log.d(TAG, "Received packet: type=${packet.type}")
+                    pingWatchdog.packetReceived()
                     handlePacket(packet, outputStream)
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to parse packet: ${e.message}")
@@ -72,28 +105,71 @@ class L2capServer(
                 line = reader.readLine()
             }
 
-            val elapsed = System.currentTimeMillis() - startTime
-            Log.i(TAG, "Connection closed. Received $bytesReceived bytes in ${elapsed}ms")
+            Log.i(TAG, "Connection closed")
         } catch (e: IOException) {
             Log.e(TAG, "Connection error", e)
         } finally {
-            try {
-                socket.close()
-            } catch (e: IOException) {
-                Log.w(TAG, "Error closing socket", e)
-            }
+            pingWatchdog.stop()
+            try { socket.close() } catch (_: IOException) {}
         }
     }
 
     private fun handlePacket(packet: BridgePacket, outputStream: OutputStream) {
+        if (peerDeviceId != null && peerFingerprint != null) {
+            try {
+                val trusted = TrustStore.getInstance().isTrusted(peerDeviceId!!, peerFingerprint!!)
+                if (!trusted && packet.type != "bridge.identity" && packet.type != "bridge.pair") {
+                    Log.w(TAG, "Dropping packet from untrusted device: ${packet.type}")
+                    return
+                }
+            } catch (_: IllegalStateException) {}
+        }
+
         when (packet.type) {
             "bridge.ping" -> {
                 val response = PingHandler.handle(packet)
                 send(response, outputStream)
             }
-            else -> {
-                Log.w(TAG, "Unknown packet type: ${packet.type}")
-            }
+            "bridge.identity" -> handleIdentityPacket(packet)
+            "bridge.pair" -> pairingManager?.handlePairPacket(packet)
+            else -> Log.w(TAG, "Unknown packet type: ${packet.type}")
+        }
+    }
+
+    private fun handleIdentityPacket(packet: BridgePacket) {
+        val id = packet.body["deviceId"]?.jsonPrimitive?.content
+        val name = packet.body["deviceName"]?.jsonPrimitive?.content
+        val fp = packet.body["certificateFingerprint"]?.jsonPrimitive?.content
+
+        if (id == null || name == null || fp == null) {
+            Log.w(TAG, "Invalid identity packet")
+            return
+        }
+
+        peerDeviceId = id
+        peerFingerprint = fp
+        pairingManager?.setPeerIdentity(id, name, fp)
+        Log.i(TAG, "Peer identity: $name [$id]")
+    }
+
+    private fun sendIdentity(outputStream: OutputStream) {
+        try {
+            val certManager = CertificateManager.getInstance()
+            val fingerprint = certManager.getFingerprint()
+            val capabilities = listOf("bridge.ping", "bridge.pair")
+            val packet = BridgePacket.identity(
+                deviceId = deviceId,
+                deviceName = Build.MODEL,
+                deviceType = "phone",
+                protocolVersion = 1,
+                certificateFingerprint = fingerprint,
+                incomingCapabilities = capabilities,
+                outgoingCapabilities = capabilities
+            )
+            send(packet, outputStream)
+            Log.i(TAG, "Sent identity packet")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send identity", e)
         }
     }
 
@@ -102,22 +178,14 @@ class L2capServer(
             val bytes = packet.serialize()
             outputStream.write(bytes)
             outputStream.flush()
-            Log.d(TAG, "Sent packet: type=${packet.type}")
         } catch (e: IOException) {
             Log.e(TAG, "Failed to send packet", e)
         }
     }
 
     fun close() {
-        try {
-            activeSocket?.close()
-        } catch (e: IOException) {
-            Log.w(TAG, "Error closing active socket", e)
-        }
-        try {
-            serverSocket.close()
-        } catch (e: IOException) {
-            Log.w(TAG, "Error closing server socket", e)
-        }
+        pingWatchdog.stop()
+        try { activeSocket?.close() } catch (_: IOException) {}
+        try { serverSocket.close() } catch (_: IOException) {}
     }
 }

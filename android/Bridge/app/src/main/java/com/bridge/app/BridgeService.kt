@@ -14,6 +14,8 @@ import android.os.IBinder
 import android.util.Log
 import com.bridge.ble.BlePeripheral
 import com.bridge.ble.BridgeConstants
+import com.bridge.security.CertificateManager
+import com.bridge.security.TrustStore
 
 class BridgeService : Service() {
 
@@ -51,6 +53,15 @@ class BridgeService : Service() {
             buildNotification(),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
         )
+
+        CertificateManager.init(this)
+        TrustStore.init(this)
+
+        try {
+            CertificateManager.getInstance().ensureCertificate()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to init certificate", e)
+        }
 
         registerReceiver(
             bluetoothStateReceiver,
