@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Bridge</string>
+    <string name="notification_channel">Bridge Service</string>
+    <string name="notification_text">Bridge active</string>
+</resources>
