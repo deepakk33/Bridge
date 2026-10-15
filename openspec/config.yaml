@@ -1,0 +1,59 @@
+schema: spec-driven
+
+context: |
+  Project: Bridge — Android ↔ Mac direct-link tool
+
+  Tech stack:
+    Mac: Swift 6, SwiftUI menu bar app, Core Bluetooth, Network.framework, CoreWLAN
+    Android: Kotlin, foreground service (connectedDevice), NotificationListenerService
+    Protocol: KDE Connect wire format (JSON newline-delimited), 10 packet types
+    Build: Xcode (Mac), Gradle (Android), monorepo (/mac, /android, /protocol)
+    Signing: Self-signed Keychain certificate (Mac), sideload (Android)
+
+  Architecture:
+    - 4-tier transport: BLE L2CAP (always-on) → BT Classic RFCOMM → Wi-Fi LAN → Phone hotspot
+    - Mac is BLE central, phone is peripheral
+    - Mutual TLS with pinned self-signed certs
+    - No cloud, no accounts, no server
+
+  Target devices:
+    - MacBook Air M3, macOS 26.6.2
+    - Galaxy S25 5G, Android 16, One UI 8.5
+
+  Constraints:
+    - macOS: Local Network permission (NSLocalNetworkUsageDescription required), self-signed code signing
+    - Android: Foreground service type connectedDevice, clipboard blocked in background (ADB grant workaround),
+      NotificationListenerService needs manual enable
+
+  PRD: docs/PRD.md (full requirements and architecture)
+
+rules:
+  proposal:
+    - Reference the PRD section relevant to this iteration
+    - Include which transport tiers are involved
+    - List Android and Mac permissions needed
+  specs:
+    - Separate Mac and Android specs clearly
+    - Include packet types used in this iteration
+    - Note platform-specific constraints
+  design:
+    - Include sequence diagrams for key flows
+    - Note error handling and degradation paths
+    - Address both platforms
+  tasks:
+    - Each task should be completable in under 4 hours
+    - Include test tasks (unit + integration)
+    - Include manual device testing tasks
+    - Group by platform (Mac, Android, Shared)
+
+operations:
+  apply:
+    guidance:
+      - Follow the 6-phase iteration workflow defined in CLAUDE.md
+      - Write tests before marking implementation complete
+      - Test on real devices (MacBook Air M3 + Galaxy S25) before marking done
+  archive:
+    guidance:
+      - Summarize what works end-to-end after this iteration
+      - Note any degradation or known issues
+      - Update the iteration status in docs/ITERATIONS.md

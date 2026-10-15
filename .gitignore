@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+*.xcuserstate
+xcuserdata/
+DerivedData/
+build/
+
+# Android
+*.iml
+.gradle/
+local.properties
+android/.idea/
+android/build/
+android/app/build/
+
+# Xcode
+mac/*.xcworkspace/xcuserdata/
+mac/*.xcodeproj/xcuserdata/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build
+*.ipa
+*.apk
+*.aab
