@@ -1,0 +1,46 @@
+name: Bridge
+options:
+  bundleIdPrefix: com.bridge
+  deploymentTarget:
+    macOS: "15.0"
+  xcodeVersion: "16.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    PRODUCT_NAME: Bridge
+    PRODUCT_BUNDLE_IDENTIFIER: com.bridge.mac
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "Bridge Dev"
+    DEVELOPMENT_TEAM: ""
+    INFOPLIST_FILE: Sources/Bridge/Info.plist
+
+targets:
+  Bridge:
+    type: application
+    platform: macOS
+    sources:
+      - Sources/Bridge
+    resources:
+      - Resources
+    settings:
+      base:
+        INFOPLIST_FILE: Sources/Bridge/Info.plist
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+    info:
+      path: Sources/Bridge/Info.plist
+      properties:
+        LSUIElement: true
+        NSBluetoothAlwaysUsageDescription: "Bridge uses Bluetooth to connect to your Android phone."
+
+  BridgeTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Tests/BridgeTests
+    dependencies:
+      - target: Bridge
+    settings:
+      base:
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Bridge.app/Contents/MacOS/Bridge"
+        BUNDLE_LOADER: "$(TEST_HOST)"

@@ -1,0 +1,425 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0CD81BE51B5BFC75197BAFAC /* PingHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = F23E809C7F4DC7042B7B1F41 /* PingHandler.swift */; };
+		1889F47FCC9FABE64A197470 /* BridgeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7F6AEAAFE8B7A3039814426 /* BridgeApp.swift */; };
+		20BD9B58BC5F9A95181F0888 /* BridgeConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B2AA0107B75FB36399DA686 /* BridgeConstants.swift */; };
+		485444CDA174012426332C60 /* BLEManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0971CF85B05BD7A4B596D372 /* BLEManager.swift */; };
+		9749CC395955B3C5BFA2C962 /* BridgePacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92405DBC9DC528F2C17A32E3 /* BridgePacket.swift */; };
+		B5A2F0CE74BED9F98B4E529B /* L2CAPChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AB7CD2CB8144D6D3D6BAEC5 /* L2CAPChannel.swift */; };
+		BBB52C374052D155182228CA /* BridgePacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABD9184A949EFAF49F053D20 /* BridgePacketTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		F728E5BBC85D25BC45506094 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7AA7E210DD876E232348332D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 01BD799B74B4F20209F01FFF;
+			remoteInfo = Bridge;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		015E0581D699A8D25C81E072 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		0971CF85B05BD7A4B596D372 /* BLEManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEManager.swift; sourceTree = "<group>"; };
+		0AB7CD2CB8144D6D3D6BAEC5 /* L2CAPChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L2CAPChannel.swift; sourceTree = "<group>"; };
+		1D35F189A98B879024C07A7D /* BridgeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BridgeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		58E003C57BDD9F417908C0C4 /* Bridge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Bridge.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6B2AA0107B75FB36399DA686 /* BridgeConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeConstants.swift; sourceTree = "<group>"; };
+		92405DBC9DC528F2C17A32E3 /* BridgePacket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgePacket.swift; sourceTree = "<group>"; };
+		A7F6AEAAFE8B7A3039814426 /* BridgeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeApp.swift; sourceTree = "<group>"; };
+		ABD9184A949EFAF49F053D20 /* BridgePacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgePacketTests.swift; sourceTree = "<group>"; };
+		F23E809C7F4DC7042B7B1F41 /* PingHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PingHandler.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0178711234C6D8605BFFF919 /* Protocol */ = {
+			isa = PBXGroup;
+			children = (
+				92405DBC9DC528F2C17A32E3 /* BridgePacket.swift */,
+				F23E809C7F4DC7042B7B1F41 /* PingHandler.swift */,
+			);
+			path = Protocol;
+			sourceTree = "<group>";
+		};
+		7880A0828D56D9C8265F8E2F /* BridgeTests */ = {
+			isa = PBXGroup;
+			children = (
+				ABD9184A949EFAF49F053D20 /* BridgePacketTests.swift */,
+			);
+			name = BridgeTests;
+			path = Tests/BridgeTests;
+			sourceTree = "<group>";
+		};
+		7DC938314EF794B867060CCD /* Bridge */ = {
+			isa = PBXGroup;
+			children = (
+				A7F6AEAAFE8B7A3039814426 /* BridgeApp.swift */,
+				015E0581D699A8D25C81E072 /* Info.plist */,
+				CA28928AB466A3B688E7E3F5 /* BLE */,
+				0178711234C6D8605BFFF919 /* Protocol */,
+			);
+			name = Bridge;
+			path = Sources/Bridge;
+			sourceTree = "<group>";
+		};
+		C69B5C8EE7DF00C23A7FE005 = {
+			isa = PBXGroup;
+			children = (
+				7DC938314EF794B867060CCD /* Bridge */,
+				7880A0828D56D9C8265F8E2F /* BridgeTests */,
+				F32ABBBD9A860137980279A0 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		CA28928AB466A3B688E7E3F5 /* BLE */ = {
+			isa = PBXGroup;
+			children = (
+				0971CF85B05BD7A4B596D372 /* BLEManager.swift */,
+				6B2AA0107B75FB36399DA686 /* BridgeConstants.swift */,
+				0AB7CD2CB8144D6D3D6BAEC5 /* L2CAPChannel.swift */,
+			);
+			path = BLE;
+			sourceTree = "<group>";
+		};
+		F32ABBBD9A860137980279A0 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				58E003C57BDD9F417908C0C4 /* Bridge.app */,
+				1D35F189A98B879024C07A7D /* BridgeTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		01BD799B74B4F20209F01FFF /* Bridge */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C42B1A54D22B91E34796471E /* Build configuration list for PBXNativeTarget "Bridge" */;
+			buildPhases = (
+				B7ACD7B96F68BDDDA4EF2E93 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Bridge;
+			packageProductDependencies = (
+			);
+			productName = Bridge;
+			productReference = 58E003C57BDD9F417908C0C4 /* Bridge.app */;
+			productType = "com.apple.product-type.application";
+		};
+		3C16B18BF23EC2B58107A1CE /* BridgeTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E2314120B4C897F12F172FF7 /* Build configuration list for PBXNativeTarget "BridgeTests" */;
+			buildPhases = (
+				5B720C84D5B4612A4847F03F /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C2A35EF71440B390A31FCD83 /* PBXTargetDependency */,
+			);
+			name = BridgeTests;
+			packageProductDependencies = (
+			);
+			productName = BridgeTests;
+			productReference = 1D35F189A98B879024C07A7D /* BridgeTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		7AA7E210DD876E232348332D /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					01BD799B74B4F20209F01FFF = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Manual;
+					};
+					3C16B18BF23EC2B58107A1CE = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = 423CF7241FC0FBC16E1B522E /* Build configuration list for PBXProject "Bridge" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = C69B5C8EE7DF00C23A7FE005;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = F32ABBBD9A860137980279A0 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				01BD799B74B4F20209F01FFF /* Bridge */,
+				3C16B18BF23EC2B58107A1CE /* BridgeTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5B720C84D5B4612A4847F03F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BBB52C374052D155182228CA /* BridgePacketTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B7ACD7B96F68BDDDA4EF2E93 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				485444CDA174012426332C60 /* BLEManager.swift in Sources */,
+				1889F47FCC9FABE64A197470 /* BridgeApp.swift in Sources */,
+				20BD9B58BC5F9A95181F0888 /* BridgeConstants.swift in Sources */,
+				9749CC395955B3C5BFA2C962 /* BridgePacket.swift in Sources */,
+				B5A2F0CE74BED9F98B4E529B /* L2CAPChannel.swift in Sources */,
+				0CD81BE51B5BFC75197BAFAC /* PingHandler.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C2A35EF71440B390A31FCD83 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 01BD799B74B4F20209F01FFF /* Bridge */;
+			targetProxy = F728E5BBC85D25BC45506094 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		077C4FD0791317CCDA56EE17 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Sources/Bridge/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		653A598D55A9F41E7CF72598 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "Bridge Dev";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_FILE = Sources/Bridge/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bridge.mac;
+				PRODUCT_NAME = Bridge;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		7A367452EBE603B2E22169F8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Bridge.app/Contents/MacOS/Bridge";
+			};
+			name = Debug;
+		};
+		F0F7F6F628FC005496A35134 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Sources/Bridge/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		F809909717C1A9F677EC99F0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Bridge.app/Contents/MacOS/Bridge";
+			};
+			name = Release;
+		};
+		F89E7130B9329B368646360F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "Bridge Dev";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_FILE = Sources/Bridge/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bridge.mac;
+				PRODUCT_NAME = Bridge;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		423CF7241FC0FBC16E1B522E /* Build configuration list for PBXProject "Bridge" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				653A598D55A9F41E7CF72598 /* Debug */,
+				F89E7130B9329B368646360F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C42B1A54D22B91E34796471E /* Build configuration list for PBXNativeTarget "Bridge" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				077C4FD0791317CCDA56EE17 /* Debug */,
+				F0F7F6F628FC005496A35134 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E2314120B4C897F12F172FF7 /* Build configuration list for PBXNativeTarget "BridgeTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7A367452EBE603B2E22169F8 /* Debug */,
+				F809909717C1A9F677EC99F0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 7AA7E210DD876E232348332D /* Project object */;
+}

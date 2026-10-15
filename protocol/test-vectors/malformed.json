@@ -1,0 +1,35 @@
+{
+  "description": "Malformed packets that must be rejected",
+  "cases": [
+    {
+      "name": "missing_type",
+      "input": "{\"id\":1728000000000,\"body\":{}}\n",
+      "reason": "type field is required"
+    },
+    {
+      "name": "missing_id",
+      "input": "{\"type\":\"bridge.ping\",\"body\":{}}\n",
+      "reason": "id field is required"
+    },
+    {
+      "name": "missing_body",
+      "input": "{\"id\":1728000000000,\"type\":\"bridge.ping\"}\n",
+      "reason": "body field is required"
+    },
+    {
+      "name": "invalid_json",
+      "input": "{not valid json}\n",
+      "reason": "must be valid JSON"
+    },
+    {
+      "name": "empty_line",
+      "input": "\n",
+      "reason": "empty line is not a valid packet"
+    },
+    {
+      "name": "negative_id",
+      "input": "{\"id\":-1,\"type\":\"bridge.ping\",\"body\":{}}\n",
+      "reason": "id must be a positive timestamp"
+    }
+  ]
+}

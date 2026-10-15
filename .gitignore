@@ -27,3 +27,4 @@ mac/*.xcodeproj/xcuserdata/
 *.ipa
 *.apk
 *.aab
+.gradle/

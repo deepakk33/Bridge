@@ -1,0 +1,9 @@
+{
+  "description": "Valid bridge.ping packet",
+  "packet": {
+    "id": 1728000000000,
+    "type": "bridge.ping",
+    "body": {}
+  },
+  "serialized": "{\"id\":1728000000000,\"type\":\"bridge.ping\",\"body\":{}}\n"
+}
