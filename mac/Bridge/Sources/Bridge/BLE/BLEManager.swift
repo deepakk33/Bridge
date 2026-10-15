@@ -1,3 +1,4 @@
+import Combine
 @preconcurrency import CoreBluetooth
 import Foundation
 import os
@@ -5,10 +6,12 @@ import os
 @MainActor
 final class BLEManager: NSObject, ObservableObject {
     @Published var linkState: LinkStateMachine
+    @Published var currentLinkState: LinkState = .disconnected
     @Published var connectedDeviceName: String?
 
     let pairingManager = PairingManager()
     let pingWatchdog = PingWatchdog()
+    let notificationManager = NotificationManager.shared
 
     private var centralManager: CBCentralManager!
     private var discoveredPeripheral: CBPeripheral?
@@ -18,6 +21,7 @@ final class BLEManager: NSObject, ObservableObject {
     private var peerDeviceId: String?
     private var peerFingerprint: String?
     private var deviceId: String
+    private var pairingStateCancellable: AnyCancellable?
 
     private static let logger = Logger(subsystem: "com.bridge.mac", category: "BLEManager")
 
@@ -32,10 +36,18 @@ final class BLEManager: NSObject, ObservableObject {
             }()
 
         super.init()
+
+        pairingStateCancellable = pairingManager.objectWillChange.sink { [weak self] in
+            self?.objectWillChange.send()
+        }
+
         centralManager = CBCentralManager(delegate: self, queue: .main)
 
         pairingManager.configure { [weak self] packet in
             self?.sendPacket(packet)
+        }
+        notificationManager.configure { [weak self] packet in
+            self?.sendPacket(packet) ?? false
         }
     }
 
@@ -44,7 +56,7 @@ final class BLEManager: NSObject, ObservableObject {
             Self.logger.warning("Cannot scan: BT not powered on")
             return
         }
-        linkState.transition(to: .connecting)
+        transitionLink(to: .connecting)
         Self.logger.info("Scanning for Bridge service...")
         centralManager.scanForPeripherals(
             withServices: [BridgeConstants.serviceUUID],
@@ -63,11 +75,22 @@ final class BLEManager: NSObject, ObservableObject {
         connectedDeviceName = nil
         peerDeviceId = nil
         peerFingerprint = nil
-        linkState.transition(to: .disconnected)
+        transitionLink(to: .disconnected)
     }
 
-    func sendPacket(_ packet: BridgePacket) {
-        l2capChannel?.send(packet)
+    @discardableResult
+    func sendPacket(_ packet: BridgePacket) -> Bool {
+        guard let channel = l2capChannel else {
+            Self.logger.warning("sendPacket failed: no l2capChannel for \(packet.type)")
+            return false
+        }
+        channel.send(packet)
+        return true
+    }
+
+    private func transitionLink(to newState: LinkState) {
+        linkState.transition(to: newState)
+        currentLinkState = linkState.state
     }
 
     // MARK: - Connection flow
@@ -79,7 +102,7 @@ final class BLEManager: NSObject, ObservableObject {
         }
         discoveredPeripheral = peripheral
         peripheral.delegate = self
-        linkState.transition(to: .connecting)
+        transitionLink(to: .connecting)
         Self.logger.info("Connecting to \(peripheral.name ?? "unknown")...")
         centralManager.connect(peripheral, options: nil)
     }
@@ -96,7 +119,7 @@ final class BLEManager: NSObject, ObservableObject {
 
         guard centralManager.state == .poweredOn else { return }
 
-        linkState.transition(to: .connecting)
+        transitionLink(to: .connecting)
 
         if let peripheral = discoveredPeripheral {
             Self.logger.info("Disconnected. Pending reconnect...")
@@ -124,6 +147,12 @@ final class BLEManager: NSObject, ObservableObject {
             handleIdentityPacket(packet)
         case "bridge.pair":
             pairingManager.handlePairPacket(packet)
+        case "bridge.notification":
+            notificationManager.handleNotificationPacket(packet)
+        case "bridge.battery":
+            notificationManager.handleBatteryPacket(packet)
+        case "bridge.notification.reply", "bridge.notification.request":
+            Self.logger.info("Received \(packet.type) — not applicable on Mac side")
         default:
             Self.logger.info("Unhandled packet type: \(packet.type)")
         }
@@ -146,7 +175,11 @@ final class BLEManager: NSObject, ObservableObject {
     private func sendIdentity() async {
         do {
             let fingerprint = try await CertificateManager.shared.getFingerprint()
-            let capabilities = ["bridge.ping", "bridge.pair"]
+            let capabilities = [
+                "bridge.ping", "bridge.pair",
+                "bridge.notification", "bridge.notification.reply",
+                "bridge.notification.request", "bridge.battery"
+            ]
             let packet = BridgePacket.identity(
                 deviceId: deviceId,
                 deviceName: Host.current().localizedName ?? "Mac",
@@ -172,7 +205,7 @@ final class BLEManager: NSObject, ObservableObject {
                 Self.logger.warning("Watchdog timeout — closing channel")
                 self?.l2capChannel?.close()
                 self?.l2capChannel = nil
-                self?.linkState.transition(to: .connecting)
+                self?.transitionLink(to: .connecting)
                 self?.linkState.recordLastSeen()
                 if let peripheral = self?.discoveredPeripheral {
                     self?.centralManager.connect(peripheral, options: nil)
@@ -194,14 +227,14 @@ extension BLEManager: CBCentralManagerDelegate {
                 startScanning()
             case .poweredOff:
                 Self.logger.warning("Bluetooth powered off")
-                linkState.transition(to: .bluetoothOff)
+                transitionLink(to: .bluetoothOff)
                 connectedDeviceName = nil
             case .unauthorized:
                 Self.logger.error("Bluetooth unauthorized")
-                linkState.transition(to: .bluetoothOff)
+                transitionLink(to: .bluetoothOff)
             case .unsupported:
                 Self.logger.error("Bluetooth unsupported")
-                linkState.transition(to: .bluetoothOff)
+                transitionLink(to: .bluetoothOff)
             default:
                 Self.logger.info("Bluetooth state: \(central.state.rawValue)")
             }
@@ -363,7 +396,7 @@ extension BLEManager: CBPeripheralDelegate {
                 }
             }
             l2capChannel = wrapper
-            linkState.transition(to: .connected)
+            transitionLink(to: .connected)
 
             Task {
                 await sendIdentity()

@@ -1,0 +1,74 @@
+{
+  "description": "Valid bridge.notification packets for iter-3 notification mirroring",
+  "valid": [
+    {
+      "name": "notification_with_reply",
+      "packet": {
+        "id": 1697300000000,
+        "type": "bridge.notification",
+        "body": {
+          "id": "com.whatsapp|0|null|1234",
+          "appName": "WhatsApp",
+          "title": "Alice",
+          "text": "Hey, are you coming tonight?",
+          "actions": ["Reply", "Mark as read"],
+          "requestReplyId": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+        }
+      },
+      "expectedFields": {
+        "id": "com.whatsapp|0|null|1234",
+        "appName": "WhatsApp",
+        "title": "Alice",
+        "text": "Hey, are you coming tonight?",
+        "actions": ["Reply", "Mark as read"],
+        "requestReplyId": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+      }
+    },
+    {
+      "name": "notification_without_reply",
+      "packet": {
+        "id": 1697300001000,
+        "type": "bridge.notification",
+        "body": {
+          "id": "com.google.android.gm|0|null|5678",
+          "appName": "Gmail",
+          "title": "New email from Bob",
+          "text": "Meeting tomorrow at 10am",
+          "actions": ["Archive", "Delete"],
+          "requestReplyId": null
+        }
+      },
+      "expectedFields": {
+        "id": "com.google.android.gm|0|null|5678",
+        "appName": "Gmail",
+        "title": "New email from Bob",
+        "text": "Meeting tomorrow at 10am",
+        "actions": ["Archive", "Delete"],
+        "requestReplyId": null
+      }
+    },
+    {
+      "name": "notification_empty_text",
+      "packet": {
+        "id": 1697300002000,
+        "type": "bridge.notification",
+        "body": {
+          "id": "com.example.app|0|null|9999",
+          "appName": "Example",
+          "title": "Download complete",
+          "text": "",
+          "actions": [],
+          "requestReplyId": null
+        }
+      },
+      "expectedFields": {
+        "id": "com.example.app|0|null|9999",
+        "appName": "Example",
+        "title": "Download complete",
+        "text": "",
+        "actions": [],
+        "requestReplyId": null
+      }
+    }
+  ]
+}

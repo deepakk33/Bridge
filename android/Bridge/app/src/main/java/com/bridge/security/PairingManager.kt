@@ -40,6 +40,7 @@ class PairingManager(
     private val scope = CoroutineScope(Dispatchers.Main)
 
     var onPairRequest: ((deviceName: String, fingerprint: String) -> Unit)? = null
+    var onPairCompleted: (() -> Unit)? = null
 
     fun setPeerIdentity(deviceId: String, deviceName: String, fingerprint: String) {
         peerDeviceId = deviceId
@@ -52,6 +53,7 @@ class PairingManager(
             pairedDeviceId = deviceId
             pairedDeviceName = deviceName
             Log.i(TAG, "Already paired with $deviceName")
+            onPairCompleted?.invoke()
         }
     }
 
@@ -81,6 +83,7 @@ class PairingManager(
         pairedDeviceName = deviceName
         cancelTimeout()
         Log.i(TAG, "Accepted pair from $deviceName")
+        onPairCompleted?.invoke()
     }
 
     fun rejectPair() {
@@ -121,6 +124,7 @@ class PairingManager(
                 pairedDeviceName = deviceName
                 cancelTimeout()
                 Log.i(TAG, "Pair accepted by $deviceName")
+                onPairCompleted?.invoke()
             }
             State.UNPAIRED -> {
                 val deviceName = peerDeviceName ?: return

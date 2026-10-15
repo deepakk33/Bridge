@@ -1,21 +1,26 @@
 package com.bridge.app
 
 import android.Manifest
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.Gravity
+import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.bridge.notifications.BridgeNotificationListener
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var statusText: TextView
     private lateinit var deviceInfoText: TextView
+    private lateinit var notifAccessButton: Button
 
     private val requiredPermissions = buildList {
         add(Manifest.permission.BLUETOOTH_ADVERTISE)
@@ -64,9 +69,19 @@ class MainActivity : AppCompatActivity() {
             gravity = Gravity.CENTER
         }
 
+        notifAccessButton = Button(this).apply {
+            text = "Grant Notification Access"
+            setPadding(0, 16, 0, 0)
+            visibility = android.view.View.GONE
+            setOnClickListener {
+                startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            }
+        }
+
         layout.addView(titleText)
         layout.addView(statusText)
         layout.addView(deviceInfoText)
+        layout.addView(notifAccessButton)
 
         setContentView(layout)
 
@@ -91,5 +106,18 @@ class MainActivity : AppCompatActivity() {
         startForegroundService(intent)
         statusText.text = "Bridge active - advertising BLE"
         deviceInfoText.text = "Device: ${Build.MODEL}"
+        checkNotificationAccess()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkNotificationAccess()
+    }
+
+    private fun checkNotificationAccess() {
+        val cn = ComponentName(this, BridgeNotificationListener::class.java)
+        val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+        val enabled = flat?.contains(cn.flattenToString()) == true
+        notifAccessButton.visibility = if (enabled) android.view.View.GONE else android.view.View.VISIBLE
     }
 }

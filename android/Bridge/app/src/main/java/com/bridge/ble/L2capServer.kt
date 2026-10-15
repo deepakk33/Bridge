@@ -26,6 +26,10 @@ class L2capServer(
     private val deviceId: String,
     private val onConnectionChanged: (connected: Boolean) -> Unit
 ) {
+    var onNotificationReply: ((requestReplyId: String, message: String) -> Unit)? = null
+    var onNotificationRequest: ((cancel: String) -> Unit)? = null
+    var onBatteryReceived: ((currentCharge: Int, isCharging: Boolean) -> Unit)? = null
+    var onPairCompleted: (() -> Unit)? = null
 
     companion object {
         private const val TAG = "L2capServer"
@@ -73,12 +77,14 @@ class L2capServer(
         try {
             val reader = BufferedReader(InputStreamReader(socket.inputStream, Charsets.UTF_8))
             val outputStream = socket.outputStream
+            currentOutputStream = outputStream
 
             pairingManager = PairingManager { packet -> send(packet, outputStream) }.also { pm ->
                 pm.onPairRequest = { deviceName, fingerprint ->
                     Log.i(TAG, "Auto-accepting pair request from $deviceName (fp: $fingerprint)")
                     pm.acceptPair()
                 }
+                pm.onPairCompleted = { onPairCompleted?.invoke() }
             }
 
             sendIdentity(outputStream)
@@ -109,6 +115,7 @@ class L2capServer(
         } catch (e: IOException) {
             Log.e(TAG, "Connection error", e)
         } finally {
+            currentOutputStream = null
             pingWatchdog.stop()
             try { socket.close() } catch (_: IOException) {}
         }
@@ -131,7 +138,32 @@ class L2capServer(
                 send(response, outputStream)
             }
             "bridge.identity" -> handleIdentityPacket(packet)
-            "bridge.pair" -> pairingManager?.handlePairPacket(packet)
+            "bridge.pair" -> {
+                pairingManager?.handlePairPacket(packet)
+            }
+            "bridge.notification.reply" -> {
+                val replyId = packet.body["requestReplyId"]?.jsonPrimitive?.content
+                val message = packet.body["message"]?.jsonPrimitive?.content
+                if (replyId != null && message != null) {
+                    onNotificationReply?.invoke(replyId, message)
+                } else {
+                    Log.w(TAG, "Invalid notification.reply packet")
+                }
+            }
+            "bridge.notification.request" -> {
+                val cancel = packet.body["cancel"]?.jsonPrimitive?.content
+                if (cancel != null) {
+                    onNotificationRequest?.invoke(cancel)
+                } else {
+                    Log.w(TAG, "Invalid notification.request packet")
+                }
+            }
+            "bridge.notification" -> {
+                Log.d(TAG, "Received bridge.notification — not applicable on phone side")
+            }
+            "bridge.battery" -> {
+                Log.d(TAG, "Received bridge.battery — not applicable on phone side")
+            }
             else -> Log.w(TAG, "Unknown packet type: ${packet.type}")
         }
     }
@@ -156,7 +188,11 @@ class L2capServer(
         try {
             val certManager = CertificateManager.getInstance()
             val fingerprint = certManager.getFingerprint()
-            val capabilities = listOf("bridge.ping", "bridge.pair")
+            val capabilities = listOf(
+                "bridge.ping", "bridge.pair",
+                "bridge.notification", "bridge.notification.reply",
+                "bridge.notification.request", "bridge.battery"
+            )
             val packet = BridgePacket.identity(
                 deviceId = deviceId,
                 deviceName = Build.MODEL,
@@ -171,6 +207,16 @@ class L2capServer(
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send identity", e)
         }
+    }
+
+    private var currentOutputStream: OutputStream? = null
+
+    fun sendPacket(packet: BridgePacket) {
+        val os = currentOutputStream ?: run {
+            Log.w(TAG, "Cannot send packet: no active connection")
+            return
+        }
+        send(packet, os)
     }
 
     private fun send(packet: BridgePacket, outputStream: OutputStream) {

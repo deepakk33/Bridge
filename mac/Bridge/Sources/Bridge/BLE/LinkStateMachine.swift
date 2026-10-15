@@ -22,6 +22,10 @@ final class LinkStateMachine: ObservableObject {
 
         if newState == .connecting && oldState == .connected {
             lastSeen = Date()
+            NotificationCenter.default.post(name: .bridgeDisconnected, object: nil)
+        }
+        if newState == .disconnected && oldState == .connected {
+            NotificationCenter.default.post(name: .bridgeDisconnected, object: nil)
         }
         if newState == .connected {
             lastSeen = nil

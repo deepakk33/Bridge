@@ -1,0 +1,18 @@
+{
+  "description": "Valid bridge.notification.request packets for iter-3 notification dismiss",
+  "valid": [
+    {
+      "name": "cancel_notification",
+      "packet": {
+        "id": 1697300002000,
+        "type": "bridge.notification.request",
+        "body": {
+          "cancel": "com.whatsapp|0|null|1234"
+        }
+      },
+      "expectedFields": {
+        "cancel": "com.whatsapp|0|null|1234"
+      }
+    }
+  ]
+}

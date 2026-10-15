@@ -3,6 +3,7 @@ package com.bridge.protocol
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
@@ -88,6 +89,61 @@ data class BridgePacket(
             id = System.currentTimeMillis(),
             type = "bridge.pair",
             body = buildJsonObject { put("pair", false) }
+        )
+
+        fun notification(
+            id: String,
+            appName: String,
+            title: String,
+            text: String,
+            actions: List<String>,
+            requestReplyId: String?
+        ): BridgePacket = BridgePacket(
+            id = System.currentTimeMillis(),
+            type = "bridge.notification",
+            body = buildJsonObject {
+                put("id", id)
+                put("appName", appName)
+                put("title", title)
+                put("text", text)
+                putJsonArray("actions") {
+                    actions.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) }
+                }
+                if (requestReplyId != null) {
+                    put("requestReplyId", requestReplyId)
+                } else {
+                    put("requestReplyId", JsonNull)
+                }
+            }
+        )
+
+        fun notificationReply(
+            requestReplyId: String,
+            message: String
+        ): BridgePacket = BridgePacket(
+            id = System.currentTimeMillis(),
+            type = "bridge.notification.reply",
+            body = buildJsonObject {
+                put("requestReplyId", requestReplyId)
+                put("message", message)
+            }
+        )
+
+        fun notificationRequest(cancel: String): BridgePacket = BridgePacket(
+            id = System.currentTimeMillis(),
+            type = "bridge.notification.request",
+            body = buildJsonObject {
+                put("cancel", cancel)
+            }
+        )
+
+        fun battery(currentCharge: Int, isCharging: Boolean): BridgePacket = BridgePacket(
+            id = System.currentTimeMillis(),
+            type = "bridge.battery",
+            body = buildJsonObject {
+                put("currentCharge", currentCharge)
+                put("isCharging", isCharging)
+            }
         )
     }
 }

@@ -1,0 +1,35 @@
+{
+  "description": "Valid bridge.notification.reply packets for iter-3 reply flow",
+  "valid": [
+    {
+      "name": "simple_reply",
+      "packet": {
+        "id": 1697300001000,
+        "type": "bridge.notification.reply",
+        "body": {
+          "requestReplyId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+          "message": "Yes, on my way!"
+        }
+      },
+      "expectedFields": {
+        "requestReplyId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+        "message": "Yes, on my way!"
+      }
+    },
+    {
+      "name": "reply_with_emoji",
+      "packet": {
+        "id": 1697300002000,
+        "type": "bridge.notification.reply",
+        "body": {
+          "requestReplyId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "message": "Sounds good! 👍🎉"
+        }
+      },
+      "expectedFields": {
+        "requestReplyId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "message": "Sounds good! 👍🎉"
+      }
+    }
+  ]
+}

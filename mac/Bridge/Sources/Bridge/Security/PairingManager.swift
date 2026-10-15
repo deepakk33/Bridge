@@ -40,12 +40,19 @@ final class PairingManager: ObservableObject {
         if TrustStore.shared.isTrusted(deviceId: deviceId, fingerprint: fingerprint) {
             state = .paired(deviceId: deviceId, deviceName: deviceName)
             Self.logger.info("Already paired with \(deviceName)")
+        } else if TrustStore.shared.isEmpty {
+            Self.logger.info("Auto-pairing with \(deviceName) (trust store empty)")
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                self.requestPairing()
+            }
         }
     }
 
     func requestPairing() {
         guard let name = peerDeviceName else { return }
-        sendPacket?(BridgePacket.pairRequest())
+        let packet = BridgePacket.pairRequest()
+        sendPacket?(packet)
         state = .awaitingResponse(deviceName: name)
         startTimeout()
         Self.logger.info("Sent pair request to \(name)")

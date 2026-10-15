@@ -1,0 +1,50 @@
+{
+  "description": "Valid bridge.battery packets for iter-3 battery status",
+  "valid": [
+    {
+      "name": "battery_charging",
+      "packet": {
+        "id": 1697300003000,
+        "type": "bridge.battery",
+        "body": {
+          "currentCharge": 72,
+          "isCharging": true
+        }
+      },
+      "expectedFields": {
+        "currentCharge": 72,
+        "isCharging": true
+      }
+    },
+    {
+      "name": "battery_low",
+      "packet": {
+        "id": 1697300004000,
+        "type": "bridge.battery",
+        "body": {
+          "currentCharge": 12,
+          "isCharging": false
+        }
+      },
+      "expectedFields": {
+        "currentCharge": 12,
+        "isCharging": false
+      }
+    },
+    {
+      "name": "battery_full",
+      "packet": {
+        "id": 1697300005000,
+        "type": "bridge.battery",
+        "body": {
+          "currentCharge": 100,
+          "isCharging": true
+        }
+      },
+      "expectedFields": {
+        "currentCharge": 100,
+        "isCharging": true
+      }
+    }
+  ]
+}

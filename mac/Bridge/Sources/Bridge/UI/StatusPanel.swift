@@ -2,6 +2,7 @@ import SwiftUI
 
 struct StatusPanel: View {
     @ObservedObject var bleManager: BLEManager
+    @ObservedObject var batteryState: PhoneBatteryState
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -31,7 +32,7 @@ struct StatusPanel: View {
 
     @ViewBuilder
     private var statusSection: some View {
-        switch bleManager.linkState.state {
+        switch bleManager.currentLinkState {
         case .connected:
             if let name = bleManager.connectedDeviceName {
                 Label(name, systemImage: "link.circle.fill")
@@ -64,6 +65,16 @@ struct StatusPanel: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+
+        if bleManager.currentLinkState == .connected, let level = batteryState.level {
+            HStack(spacing: 4) {
+                Image(systemName: batteryState.sfSymbol)
+                    .foregroundStyle(batteryState.tintColor)
+                Text("Phone: \(level)%")
+                    .font(.caption)
+            }
+            .foregroundStyle(batteryState.tintColor)
+        }
     }
 
     @ViewBuilder
@@ -74,8 +85,7 @@ struct StatusPanel: View {
             }
         }
 
-        if case .unpaired = bleManager.pairingManager.state,
-           bleManager.linkState.state == .connected {
+        if case .unpaired = bleManager.pairingManager.state {
             Button("Pair") {
                 bleManager.pairingManager.requestPairing()
             }

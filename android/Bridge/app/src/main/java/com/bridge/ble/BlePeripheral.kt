@@ -94,6 +94,30 @@ class BlePeripheral(
         startAdvertising()
     }
 
+    fun sendPacket(packet: com.bridge.protocol.BridgePacket) {
+        l2capServer?.sendPacket(packet)
+    }
+
+    fun setNotificationReplyHandler(handler: (requestReplyId: String, message: String) -> Unit) {
+        l2capServer?.onNotificationReply = handler
+    }
+
+    fun setNotificationRequestHandler(handler: (cancel: String) -> Unit) {
+        l2capServer?.onNotificationRequest = handler
+    }
+
+    fun setOnConnectHandler(handler: () -> Unit) {
+        onConnectHandler = handler
+    }
+
+    fun setOnPairCompletedHandler(handler: () -> Unit) {
+        l2capServer?.onPairCompleted = handler
+        onPairCompletedHandler = handler
+    }
+
+    private var onConnectHandler: (() -> Unit)? = null
+    private var onPairCompletedHandler: (() -> Unit)? = null
+
     fun stop() {
         stopAdvertising()
         l2capJob?.cancel()
@@ -113,12 +137,14 @@ class BlePeripheral(
                 if (connected) {
                     stopAdvertising()
                     onConnectionStateChanged(ConnectionState.Connected("L2CAP peer"))
+                    onConnectHandler?.invoke()
                 } else {
                     onConnectionStateChanged(ConnectionState.Advertising)
                     startAdvertising()
                 }
             }
             l2capServer = server
+            server.onPairCompleted = onPairCompletedHandler
             psm = server.psm
             Log.i(TAG, "L2CAP server started on PSM=$psm")
 

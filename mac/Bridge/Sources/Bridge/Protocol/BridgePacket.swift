@@ -63,6 +63,63 @@ struct BridgePacket: @unchecked Sendable {
         )
     }
 
+    static func notification(
+        id notifId: String,
+        appName: String,
+        title: String,
+        text: String,
+        actions: [String],
+        requestReplyId: String?
+    ) -> BridgePacket {
+        var body: [String: Any] = [
+            "id": notifId,
+            "appName": appName,
+            "title": title,
+            "text": text,
+            "actions": actions
+        ]
+        if let requestReplyId {
+            body["requestReplyId"] = requestReplyId
+        } else {
+            body["requestReplyId"] = NSNull()
+        }
+        return BridgePacket(
+            id: Int64(Date().timeIntervalSince1970 * 1000),
+            type: "bridge.notification",
+            body: body
+        )
+    }
+
+    static func notificationReply(requestReplyId: String, message: String) -> BridgePacket {
+        BridgePacket(
+            id: Int64(Date().timeIntervalSince1970 * 1000),
+            type: "bridge.notification.reply",
+            body: [
+                "requestReplyId": requestReplyId,
+                "message": message
+            ]
+        )
+    }
+
+    static func notificationRequest(cancel notifId: String) -> BridgePacket {
+        BridgePacket(
+            id: Int64(Date().timeIntervalSince1970 * 1000),
+            type: "bridge.notification.request",
+            body: ["cancel": notifId]
+        )
+    }
+
+    static func battery(currentCharge: Int, isCharging: Bool) -> BridgePacket {
+        BridgePacket(
+            id: Int64(Date().timeIntervalSince1970 * 1000),
+            type: "bridge.battery",
+            body: [
+                "currentCharge": currentCharge,
+                "isCharging": isCharging
+            ]
+        )
+    }
+
     // MARK: - Serialization
 
     /// Serialize to newline-delimited JSON bytes.

@@ -10,12 +10,19 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
+import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
+import com.bridge.battery.BatteryMonitor
 import com.bridge.ble.BlePeripheral
 import com.bridge.ble.BridgeConstants
+import com.bridge.notifications.BridgeNotificationListener
+import com.bridge.protocol.BridgePacket
 import com.bridge.security.CertificateManager
 import com.bridge.security.TrustStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 class BridgeService : Service() {
 
@@ -24,6 +31,8 @@ class BridgeService : Service() {
     }
 
     private var blePeripheral: BlePeripheral? = null
+    private var batteryMonitor: BatteryMonitor? = null
+    private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private val bluetoothStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -73,6 +82,50 @@ class BridgeService : Service() {
             Log.i(TAG, "Connection state: $state")
         }
         blePeripheral?.start()
+
+        BridgeNotificationListener.packetSender = { packet ->
+            blePeripheral?.sendPacket(packet)
+        }
+
+        blePeripheral?.setNotificationReplyHandler { requestReplyId, message ->
+            handleNotificationReply(requestReplyId, message)
+        }
+        blePeripheral?.setNotificationRequestHandler { cancel ->
+            BridgeNotificationListener.instance?.cancelNotificationByKey(cancel)
+                ?: Log.w(TAG, "Cannot cancel notification: listener not active")
+        }
+
+        batteryMonitor = BatteryMonitor(this) { packet ->
+            blePeripheral?.sendPacket(packet)
+        }
+        batteryMonitor?.start(serviceScope)
+
+        blePeripheral?.setOnPairCompletedHandler {
+            batteryMonitor?.sendInitialBattery()
+        }
+    }
+
+    private fun handleNotificationReply(requestReplyId: String, message: String) {
+        val cached = BridgeNotificationListener.getCachedAction(requestReplyId)
+        if (cached == null) {
+            Log.d(TAG, "Stale requestReplyId: $requestReplyId — dropping reply")
+            return
+        }
+
+        try {
+            val intent = Intent()
+            val bundle = Bundle()
+            for (ri in cached.remoteInputs) {
+                bundle.putCharSequence(ri.resultKey, message)
+            }
+            android.app.RemoteInput.addResultsToIntent(cached.remoteInputs, intent, bundle)
+            cached.action.actionIntent.send(this, 0, intent)
+            Log.i(TAG, "Reply delivered for $requestReplyId")
+
+            BridgeNotificationListener.instance?.cancelNotificationByKey(cached.notificationKey)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to deliver reply", e)
+        }
     }
 
     private fun restartBlePeripheral() {
@@ -90,6 +143,8 @@ class BridgeService : Service() {
 
     override fun onDestroy() {
         Log.i(TAG, "BridgeService destroyed")
+        batteryMonitor?.stop()
+        batteryMonitor = null
         unregisterReceiver(bluetoothStateReceiver)
         blePeripheral?.stop()
         blePeripheral = null
