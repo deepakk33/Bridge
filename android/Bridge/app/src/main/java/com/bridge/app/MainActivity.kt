@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -14,6 +15,7 @@ import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.bridge.clipboard.ClipboardBridge
 import com.bridge.notifications.BridgeNotificationListener
 
 class MainActivity : AppCompatActivity() {
@@ -21,6 +23,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var deviceInfoText: TextView
     private lateinit var notifAccessButton: Button
+    private lateinit var clipboardStatusText: TextView
+    private lateinit var sendClipboardButton: Button
 
     private val requiredPermissions = buildList {
         add(Manifest.permission.BLUETOOTH_ADVERTISE)
@@ -78,10 +82,24 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        clipboardStatusText = TextView(this).apply {
+            textSize = 14f
+            gravity = Gravity.CENTER
+            setPadding(0, 24, 0, 0)
+        }
+
+        sendClipboardButton = Button(this).apply {
+            text = "Send Clipboard to Mac"
+            setPadding(0, 16, 0, 0)
+            setOnClickListener { sendClipboardToMac() }
+        }
+
         layout.addView(titleText)
         layout.addView(statusText)
         layout.addView(deviceInfoText)
         layout.addView(notifAccessButton)
+        layout.addView(clipboardStatusText)
+        layout.addView(sendClipboardButton)
 
         setContentView(layout)
 
@@ -111,7 +129,43 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        BridgeService.clipboardBridge?.activityContext = this
         checkNotificationAccess()
+        updateClipboardStatus()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        BridgeService.clipboardBridge?.activityContext = null
+    }
+
+    private fun updateClipboardStatus() {
+        val appOps = getSystemService(android.app.AppOpsManager::class.java)
+        val hasBgAccess = appOps.unsafeCheckOpNoThrow(
+            "android:read_clipboard",
+            android.os.Process.myUid(),
+            packageName
+        ) == android.app.AppOpsManager.MODE_ALLOWED
+
+        if (hasBgAccess) {
+            clipboardStatusText.text = "Clipboard: Both directions"
+            clipboardStatusText.setTextColor(Color.parseColor("#4CAF50"))
+        } else {
+            clipboardStatusText.text = "Clipboard: Mac to phone only\n" +
+                "Run scripts/adb-grant-clipboard.sh for full sync"
+            clipboardStatusText.setTextColor(Color.parseColor("#FF9800"))
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            BridgeService.clipboardBridge?.sendClipboardFromActivity(this)
+        }
+    }
+
+    private fun sendClipboardToMac() {
+        BridgeService.clipboardBridge?.sendClipboardFromActivity(this)
     }
 
     private fun checkNotificationAccess() {

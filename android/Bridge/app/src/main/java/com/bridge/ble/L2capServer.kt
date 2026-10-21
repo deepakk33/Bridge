@@ -30,6 +30,9 @@ class L2capServer(
     var onNotificationRequest: ((cancel: String) -> Unit)? = null
     var onBatteryReceived: ((currentCharge: Int, isCharging: Boolean) -> Unit)? = null
     var onPairCompleted: (() -> Unit)? = null
+    var onClipboardReceived: ((BridgePacket) -> Unit)? = null
+    var onClipboardConnectReceived: ((BridgePacket) -> Unit)? = null
+    var onLinkReady: (() -> Unit)? = null
 
     companion object {
         private const val TAG = "L2capServer"
@@ -88,6 +91,8 @@ class L2capServer(
             }
 
             sendIdentity(outputStream)
+            Log.i(TAG, "Link ready, firing onLinkReady (handler=${onLinkReady != null})")
+            onLinkReady?.invoke()
 
             val scope = CoroutineScope(Dispatchers.IO)
             pingWatchdog.start(
@@ -158,6 +163,12 @@ class L2capServer(
                     Log.w(TAG, "Invalid notification.request packet")
                 }
             }
+            "bridge.clipboard" -> {
+                onClipboardReceived?.invoke(packet)
+            }
+            "bridge.clipboard.connect" -> {
+                onClipboardConnectReceived?.invoke(packet)
+            }
             "bridge.notification" -> {
                 Log.d(TAG, "Received bridge.notification — not applicable on phone side")
             }
@@ -191,7 +202,8 @@ class L2capServer(
             val capabilities = listOf(
                 "bridge.ping", "bridge.pair",
                 "bridge.notification", "bridge.notification.reply",
-                "bridge.notification.request", "bridge.battery"
+                "bridge.notification.request", "bridge.battery",
+                "bridge.clipboard", "bridge.clipboard.connect"
             )
             val packet = BridgePacket.identity(
                 deviceId = deviceId,
@@ -216,14 +228,19 @@ class L2capServer(
             Log.w(TAG, "Cannot send packet: no active connection")
             return
         }
+        Log.i(TAG, "sendPacket: type=${packet.type}")
         send(packet, os)
     }
+
+    private val writeLock = Any()
 
     private fun send(packet: BridgePacket, outputStream: OutputStream) {
         try {
             val bytes = packet.serialize()
-            outputStream.write(bytes)
-            outputStream.flush()
+            synchronized(writeLock) {
+                outputStream.write(bytes)
+                outputStream.flush()
+            }
         } catch (e: IOException) {
             Log.e(TAG, "Failed to send packet", e)
         }

@@ -120,6 +120,25 @@ struct BridgePacket: @unchecked Sendable {
         )
     }
 
+    static func clipboard(content: String) -> BridgePacket {
+        BridgePacket(
+            id: Int64(Date().timeIntervalSince1970 * 1000),
+            type: "bridge.clipboard",
+            body: ["content": content]
+        )
+    }
+
+    static func clipboardConnect(content: String, timestamp: Int64) -> BridgePacket {
+        BridgePacket(
+            id: Int64(Date().timeIntervalSince1970 * 1000),
+            type: "bridge.clipboard.connect",
+            body: [
+                "content": content,
+                "timestamp": timestamp
+            ]
+        )
+    }
+
     // MARK: - Serialization
 
     /// Serialize to newline-delimited JSON bytes.

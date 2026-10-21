@@ -12,6 +12,7 @@ final class BLEManager: NSObject, ObservableObject {
     let pairingManager = PairingManager()
     let pingWatchdog = PingWatchdog()
     let notificationManager = NotificationManager.shared
+    let clipboardMonitor = ClipboardMonitor()
 
     private var centralManager: CBCentralManager!
     private var discoveredPeripheral: CBPeripheral?
@@ -48,6 +49,13 @@ final class BLEManager: NSObject, ObservableObject {
         }
         notificationManager.configure { [weak self] packet in
             self?.sendPacket(packet) ?? false
+        }
+
+        Task {
+            await clipboardMonitor.configure { [weak self] packet in
+                self?.sendPacket(packet)
+            }
+            await clipboardMonitor.start()
         }
     }
 
@@ -151,6 +159,10 @@ final class BLEManager: NSObject, ObservableObject {
             notificationManager.handleNotificationPacket(packet)
         case "bridge.battery":
             notificationManager.handleBatteryPacket(packet)
+        case "bridge.clipboard":
+            Task { await clipboardMonitor.handleClipboardPacket(packet) }
+        case "bridge.clipboard.connect":
+            Task { await clipboardMonitor.handleClipboardConnectPacket(packet) }
         case "bridge.notification.reply", "bridge.notification.request":
             Self.logger.info("Received \(packet.type) — not applicable on Mac side")
         default:
@@ -178,7 +190,8 @@ final class BLEManager: NSObject, ObservableObject {
             let capabilities = [
                 "bridge.ping", "bridge.pair",
                 "bridge.notification", "bridge.notification.reply",
-                "bridge.notification.request", "bridge.battery"
+                "bridge.notification.request", "bridge.battery",
+                "bridge.clipboard", "bridge.clipboard.connect"
             ]
             let packet = BridgePacket.identity(
                 deviceId: deviceId,
@@ -401,6 +414,8 @@ extension BLEManager: CBPeripheralDelegate {
             Task {
                 await sendIdentity()
                 startWatchdog()
+                let connectPacket = await clipboardMonitor.makeConnectPacket()
+                sendPacket(connectPacket)
             }
         }
     }

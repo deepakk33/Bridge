@@ -1,0 +1,50 @@
+{
+  "description": "Valid bridge.clipboard.connect packets for iter-4 reconnect sync",
+  "valid": [
+    {
+      "name": "clipboard_connect_normal",
+      "packet": {
+        "id": 1697300000000,
+        "type": "bridge.clipboard.connect",
+        "body": {
+          "content": "last copied text",
+          "timestamp": 1697299999500
+        }
+      },
+      "expectedFields": {
+        "content": "last copied text",
+        "timestamp": 1697299999500
+      }
+    },
+    {
+      "name": "clipboard_connect_zero_timestamp",
+      "packet": {
+        "id": 1697300001000,
+        "type": "bridge.clipboard.connect",
+        "body": {
+          "content": "unknown when copied",
+          "timestamp": 0
+        }
+      },
+      "expectedFields": {
+        "content": "unknown when copied",
+        "timestamp": 0
+      }
+    },
+    {
+      "name": "clipboard_connect_empty_content",
+      "packet": {
+        "id": 1697300002000,
+        "type": "bridge.clipboard.connect",
+        "body": {
+          "content": "",
+          "timestamp": 1697300002000
+        }
+      },
+      "expectedFields": {
+        "content": "",
+        "timestamp": 1697300002000
+      }
+    }
+  ]
+}

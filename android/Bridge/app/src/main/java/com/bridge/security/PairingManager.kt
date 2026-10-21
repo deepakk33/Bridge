@@ -134,7 +134,8 @@ class PairingManager(
                 onPairRequest?.invoke(deviceName, fingerprint)
             }
             State.PAIRED -> {
-                Log.i(TAG, "Already paired, ignoring pair request")
+                Log.i(TAG, "Already paired, re-accepting pair request (peer may have lost trust store)")
+                acceptPair()
             }
         }
     }
