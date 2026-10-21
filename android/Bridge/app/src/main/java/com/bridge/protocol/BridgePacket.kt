@@ -145,5 +145,22 @@ data class BridgePacket(
                 put("isCharging", isCharging)
             }
         )
+
+        fun clipboard(content: String): BridgePacket = BridgePacket(
+            id = System.currentTimeMillis(),
+            type = "bridge.clipboard",
+            body = buildJsonObject {
+                put("content", content)
+            }
+        )
+
+        fun clipboardConnect(content: String, timestamp: Long): BridgePacket = BridgePacket(
+            id = System.currentTimeMillis(),
+            type = "bridge.clipboard.connect",
+            body = buildJsonObject {
+                put("content", content)
+                put("timestamp", timestamp)
+            }
+        )
     }
 }

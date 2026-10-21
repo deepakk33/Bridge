@@ -1,0 +1,57 @@
+{
+  "description": "Valid bridge.clipboard packets for iter-4 clipboard sync",
+  "valid": [
+    {
+      "name": "clipboard_normal",
+      "packet": {
+        "id": 1697300000000,
+        "type": "bridge.clipboard",
+        "body": {
+          "content": "Hello from the other side"
+        }
+      },
+      "expectedFields": {
+        "content": "Hello from the other side"
+      }
+    },
+    {
+      "name": "clipboard_url",
+      "packet": {
+        "id": 1697300001000,
+        "type": "bridge.clipboard",
+        "body": {
+          "content": "https://example.com/path?q=test&lang=en"
+        }
+      },
+      "expectedFields": {
+        "content": "https://example.com/path?q=test&lang=en"
+      }
+    },
+    {
+      "name": "clipboard_multiline",
+      "packet": {
+        "id": 1697300002000,
+        "type": "bridge.clipboard",
+        "body": {
+          "content": "line one\nline two\nline three"
+        }
+      },
+      "expectedFields": {
+        "content": "line one\nline two\nline three"
+      }
+    },
+    {
+      "name": "clipboard_unicode",
+      "packet": {
+        "id": 1697300003000,
+        "type": "bridge.clipboard",
+        "body": {
+          "content": "日本語テスト 🎉"
+        }
+      },
+      "expectedFields": {
+        "content": "日本語テスト 🎉"
+      }
+    }
+  ]
+}

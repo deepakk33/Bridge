@@ -15,19 +15,21 @@
 		20BD9B58BC5F9A95181F0888 /* BridgeConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B2AA0107B75FB36399DA686 /* BridgeConstants.swift */; };
 		2B3E105AD9ECD6573157ECD8 /* IdentityPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F277B0176220A76331FCC3 /* IdentityPacketTests.swift */; };
 		33C90C8F1A70A24E835CEE38 /* LinkStateMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EF6E3C9A5506A59F08CD765 /* LinkStateMachine.swift */; };
+		46A3F0836126741F2EB48F7D /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82F25AD4EC1B195EEF0212A4 /* NotificationManager.swift */; };
 		485444CDA174012426332C60 /* BLEManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0971CF85B05BD7A4B596D372 /* BLEManager.swift */; };
+		515E1D5A875306FAD192C882 /* NotificationPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81D97DF5382C0F8F6ADAC758 /* NotificationPacketTests.swift */; };
 		5E5054D22E7168E2B49CA7C8 /* PingWatchdog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BEC79646EB8C5C1774F379F /* PingWatchdog.swift */; };
 		69CF4BD0E971F9CC842F7214 /* TrustStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7EFB7EF978217A8DAB5F29A /* TrustStoreTests.swift */; };
 		8233CAFAD0D7B6A9F953D36F /* TrustStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84DAE9B943673867F6E91824 /* TrustStore.swift */; };
 		83FB28C1575F47D4535D342C /* CertificateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56B364144621CA738A409CA7 /* CertificateManager.swift */; };
 		9749CC395955B3C5BFA2C962 /* BridgePacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92405DBC9DC528F2C17A32E3 /* BridgePacket.swift */; };
+		9752467E7B12213672547F27 /* ClipboardPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 352D3EE8282E7F7AC124CB70 /* ClipboardPacketTests.swift */; };
 		A7F2F04FEA9A2BDE2F667E03 /* StatusPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23B445C6C77FD4607AD01C3E /* StatusPanel.swift */; };
 		A89163011205C65ADD146365 /* PairPromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64ABF32D683378EDAC5B5713 /* PairPromptView.swift */; };
+		A9E76F0A9BAF79469D4D80DB /* ClipboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58B0DE230D96A2A95E6F0C64 /* ClipboardMonitor.swift */; };
 		B5A2F0CE74BED9F98B4E529B /* L2CAPChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AB7CD2CB8144D6D3D6BAEC5 /* L2CAPChannel.swift */; };
 		BBB52C374052D155182228CA /* BridgePacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABD9184A949EFAF49F053D20 /* BridgePacketTests.swift */; };
 		C16EFDA9255A73CD89193263 /* PairingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE0F8609FF6A4A8A9A0FD720 /* PairingManager.swift */; };
-		D1A2B3C4E5F60718293A4B5C /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2B3C4D5E6F70829304B5C6D /* NotificationManager.swift */; };
-		E3C4D5E6F7081930415C6D7E /* NotificationPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4D5E6F70819203051C6D7E8 /* NotificationPacketTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -48,11 +50,15 @@
 		0F8626B23D13052AC57460B7 /* TLSWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TLSWrapper.swift; sourceTree = "<group>"; };
 		1D35F189A98B879024C07A7D /* BridgeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BridgeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		23B445C6C77FD4607AD01C3E /* StatusPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusPanel.swift; sourceTree = "<group>"; };
+		352D3EE8282E7F7AC124CB70 /* ClipboardPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardPacketTests.swift; sourceTree = "<group>"; };
 		56B364144621CA738A409CA7 /* CertificateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CertificateManager.swift; sourceTree = "<group>"; };
+		58B0DE230D96A2A95E6F0C64 /* ClipboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitor.swift; sourceTree = "<group>"; };
 		58E003C57BDD9F417908C0C4 /* Bridge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Bridge.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5BEC79646EB8C5C1774F379F /* PingWatchdog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PingWatchdog.swift; sourceTree = "<group>"; };
 		64ABF32D683378EDAC5B5713 /* PairPromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairPromptView.swift; sourceTree = "<group>"; };
 		6B2AA0107B75FB36399DA686 /* BridgeConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeConstants.swift; sourceTree = "<group>"; };
+		81D97DF5382C0F8F6ADAC758 /* NotificationPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPacketTests.swift; sourceTree = "<group>"; };
+		82F25AD4EC1B195EEF0212A4 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		84DAE9B943673867F6E91824 /* TrustStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrustStore.swift; sourceTree = "<group>"; };
 		92405DBC9DC528F2C17A32E3 /* BridgePacket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgePacket.swift; sourceTree = "<group>"; };
 		A05D2EFA77CC7611034C95F6 /* PingPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PingPacketTests.swift; sourceTree = "<group>"; };
@@ -61,9 +67,7 @@
 		ABD9184A949EFAF49F053D20 /* BridgePacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgePacketTests.swift; sourceTree = "<group>"; };
 		AE0F8609FF6A4A8A9A0FD720 /* PairingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingManager.swift; sourceTree = "<group>"; };
 		F1F277B0176220A76331FCC3 /* IdentityPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityPacketTests.swift; sourceTree = "<group>"; };
-		D2B3C4D5E6F70829304B5C6D /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		F23E809C7F4DC7042B7B1F41 /* PingHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PingHandler.swift; sourceTree = "<group>"; };
-		F4D5E6F70819203051C6D7E8 /* NotificationPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPacketTests.swift; sourceTree = "<group>"; };
 		F79D4CCAEAE96BBDD50FBC16 /* PairPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairPacketTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -93,8 +97,9 @@
 			isa = PBXGroup;
 			children = (
 				ABD9184A949EFAF49F053D20 /* BridgePacketTests.swift */,
+				352D3EE8282E7F7AC124CB70 /* ClipboardPacketTests.swift */,
 				F1F277B0176220A76331FCC3 /* IdentityPacketTests.swift */,
-				F4D5E6F70819203051C6D7E8 /* NotificationPacketTests.swift */,
+				81D97DF5382C0F8F6ADAC758 /* NotificationPacketTests.swift */,
 				F79D4CCAEAE96BBDD50FBC16 /* PairPacketTests.swift */,
 				A05D2EFA77CC7611034C95F6 /* PingPacketTests.swift */,
 				A7EFB7EF978217A8DAB5F29A /* TrustStoreTests.swift */,
@@ -103,21 +108,14 @@
 			path = Tests/BridgeTests;
 			sourceTree = "<group>";
 		};
-		A1B2C3D4E5F6071829304B5C /* Notifications */ = {
-			isa = PBXGroup;
-			children = (
-				D2B3C4D5E6F70829304B5C6D /* NotificationManager.swift */,
-			);
-			path = Notifications;
-			sourceTree = "<group>";
-		};
 		7DC938314EF794B867060CCD /* Bridge */ = {
 			isa = PBXGroup;
 			children = (
 				A7F6AEAAFE8B7A3039814426 /* BridgeApp.swift */,
 				015E0581D699A8D25C81E072 /* Info.plist */,
 				CA28928AB466A3B688E7E3F5 /* BLE */,
-				A1B2C3D4E5F6071829304B5C /* Notifications */,
+				D898E58722832329C9097C3A /* Clipboard */,
+				C1E16CADCEC467C535BF9C4D /* Notifications */,
 				0178711234C6D8605BFFF919 /* Protocol */,
 				27AB0FD63B6961C52DBC216B /* Security */,
 				B1032852101FEFE64DF8E037 /* UI */,
@@ -133,6 +131,14 @@
 				23B445C6C77FD4607AD01C3E /* StatusPanel.swift */,
 			);
 			path = UI;
+			sourceTree = "<group>";
+		};
+		C1E16CADCEC467C535BF9C4D /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				82F25AD4EC1B195EEF0212A4 /* NotificationManager.swift */,
+			);
+			path = Notifications;
 			sourceTree = "<group>";
 		};
 		C69B5C8EE7DF00C23A7FE005 = {
@@ -153,6 +159,14 @@
 				0EF6E3C9A5506A59F08CD765 /* LinkStateMachine.swift */,
 			);
 			path = BLE;
+			sourceTree = "<group>";
+		};
+		D898E58722832329C9097C3A /* Clipboard */ = {
+			isa = PBXGroup;
+			children = (
+				58B0DE230D96A2A95E6F0C64 /* ClipboardMonitor.swift */,
+			);
+			path = Clipboard;
 			sourceTree = "<group>";
 		};
 		F32ABBBD9A860137980279A0 /* Products */ = {
@@ -247,10 +261,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				BBB52C374052D155182228CA /* BridgePacketTests.swift in Sources */,
+				9752467E7B12213672547F27 /* ClipboardPacketTests.swift in Sources */,
 				2B3E105AD9ECD6573157ECD8 /* IdentityPacketTests.swift in Sources */,
+				515E1D5A875306FAD192C882 /* NotificationPacketTests.swift in Sources */,
 				0C93898C1A7925A1AB65584A /* PairPacketTests.swift in Sources */,
 				023A58E9796C719825E7D20C /* PingPacketTests.swift in Sources */,
-				E3C4D5E6F7081930415C6D7E /* NotificationPacketTests.swift in Sources */,
 				69CF4BD0E971F9CC842F7214 /* TrustStoreTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -264,9 +279,10 @@
 				20BD9B58BC5F9A95181F0888 /* BridgeConstants.swift in Sources */,
 				9749CC395955B3C5BFA2C962 /* BridgePacket.swift in Sources */,
 				83FB28C1575F47D4535D342C /* CertificateManager.swift in Sources */,
+				A9E76F0A9BAF79469D4D80DB /* ClipboardMonitor.swift in Sources */,
 				B5A2F0CE74BED9F98B4E529B /* L2CAPChannel.swift in Sources */,
 				33C90C8F1A70A24E835CEE38 /* LinkStateMachine.swift in Sources */,
-				D1A2B3C4E5F60718293A4B5C /* NotificationManager.swift in Sources */,
+				46A3F0836126741F2EB48F7D /* NotificationManager.swift in Sources */,
 				A89163011205C65ADD146365 /* PairPromptView.swift in Sources */,
 				C16EFDA9255A73CD89193263 /* PairingManager.swift in Sources */,
 				0CD81BE51B5BFC75197BAFAC /* PingHandler.swift in Sources */,

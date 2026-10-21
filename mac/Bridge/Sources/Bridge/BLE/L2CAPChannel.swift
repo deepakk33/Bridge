@@ -137,6 +137,7 @@ final class L2CAPChannel: NSObject, @unchecked Sendable {
             let bytesRead = inputStream.read(&buffer, maxLength: Self.bufferSize)
             if bytesRead > 0 {
                 readBuffer.append(contentsOf: buffer[0..<bytesRead])
+                Self.logger.info("Read \(bytesRead) bytes, buffer now \(self.readBuffer.count)")
                 processBuffer()
             } else if bytesRead < 0 {
                 Self.logger.error("Stream read error: \(inputStream.streamError?.localizedDescription ?? "unknown")")
@@ -157,9 +158,11 @@ final class L2CAPChannel: NSObject, @unchecked Sendable {
 
             do {
                 let packet = try BridgePacket.deserialize(from: Data(lineData))
+                Self.logger.info("Parsed packet: \(packet.type)")
                 onPacketReceived?(packet)
             } catch {
-                Self.logger.warning("Failed to parse packet: \(error.localizedDescription)")
+                let preview = String(data: Data(lineData.prefix(80)), encoding: .utf8) ?? "binary"
+                Self.logger.warning("Failed to parse packet (\(lineData.count) bytes): \(error.localizedDescription) preview: \(preview)")
             }
         }
     }

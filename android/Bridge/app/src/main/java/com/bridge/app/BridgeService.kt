@@ -16,6 +16,8 @@ import android.util.Log
 import com.bridge.battery.BatteryMonitor
 import com.bridge.ble.BlePeripheral
 import com.bridge.ble.BridgeConstants
+import com.bridge.clipboard.ClipboardBridge
+import com.bridge.clipboard.ClipboardTileService
 import com.bridge.notifications.BridgeNotificationListener
 import com.bridge.protocol.BridgePacket
 import com.bridge.security.CertificateManager
@@ -28,11 +30,28 @@ class BridgeService : Service() {
 
     companion object {
         private const val TAG = "BridgeService"
+        var clipboardBridge: ClipboardBridge? = null
+            private set
     }
 
     private var blePeripheral: BlePeripheral? = null
     private var batteryMonitor: BatteryMonitor? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    private val clipboardTestReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val testText = intent.getStringExtra("text")
+            if (testText != null) {
+                Log.i(TAG, "Clipboard test: setting and sending '$testText'")
+                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("Bridge", testText))
+                blePeripheral?.sendPacket(BridgePacket.clipboard(testText))
+            } else {
+                Log.i(TAG, "Clipboard test broadcast received")
+                clipboardBridge?.sendCurrentClipboard()
+            }
+        }
+    }
 
     private val bluetoothStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -80,6 +99,10 @@ class BridgeService : Service() {
 
         blePeripheral = BlePeripheral(this) { state ->
             Log.i(TAG, "Connection state: $state")
+            val str = state.toString()
+            if (str.contains("Disconnected") || str.contains("Advertising")) {
+                clipboardBridge?.onConnectionLost()
+            }
         }
         blePeripheral?.start()
 
@@ -100,8 +123,38 @@ class BridgeService : Service() {
         }
         batteryMonitor?.start(serviceScope)
 
+        clipboardBridge = ClipboardBridge(this) { packet ->
+            blePeripheral?.sendPacket(packet)
+        }
+        clipboardBridge?.start()
+
+        ClipboardTileService.packetSender = { packet ->
+            blePeripheral?.sendPacket(packet)
+        }
+
+        blePeripheral?.setClipboardHandler { packet ->
+            clipboardBridge?.handleClipboardPacket(packet)
+        }
+        blePeripheral?.setClipboardConnectHandler { packet ->
+            clipboardBridge?.handleClipboardConnectPacket(packet)
+        }
+
         blePeripheral?.setOnPairCompletedHandler {
             batteryMonitor?.sendInitialBattery()
+        }
+        registerReceiver(
+            clipboardTestReceiver,
+            IntentFilter("com.bridge.SEND_CLIPBOARD"),
+            RECEIVER_EXPORTED
+        )
+
+        blePeripheral?.setOnConnectHandler {
+            Log.i(TAG, "onConnectHandler fired, sending clipboard.connect")
+            clipboardBridge?.onConnectionReady()
+            val connectPacket = clipboardBridge?.makeConnectPacket()
+            if (connectPacket != null) {
+                blePeripheral?.sendPacket(connectPacket)
+            }
         }
     }
 
@@ -143,6 +196,10 @@ class BridgeService : Service() {
 
     override fun onDestroy() {
         Log.i(TAG, "BridgeService destroyed")
+        try { unregisterReceiver(clipboardTestReceiver) } catch (_: Exception) {}
+        clipboardBridge?.stop()
+        clipboardBridge = null
+        ClipboardTileService.packetSender = null
         batteryMonitor?.stop()
         batteryMonitor = null
         unregisterReceiver(bluetoothStateReceiver)

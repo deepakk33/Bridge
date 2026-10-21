@@ -137,7 +137,8 @@ final class PairingManager: ObservableObject {
             Self.logger.info("Incoming pair request from \(deviceName)")
 
         case .paired:
-            Self.logger.info("Already paired, ignoring pair request")
+            Self.logger.info("Already paired, re-accepting pair request (peer may have lost trust store)")
+            acceptIncomingPair()
         }
     }
 
