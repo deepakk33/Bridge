@@ -28,3 +28,5 @@ mac/*.xcodeproj/xcuserdata/
 *.apk
 *.aab
 .gradle/
+mac/Bridge/.build/
+mac/Bridge/.dd/

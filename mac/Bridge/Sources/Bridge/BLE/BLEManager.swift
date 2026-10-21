@@ -13,6 +13,7 @@ final class BLEManager: NSObject, ObservableObject {
     let pingWatchdog = PingWatchdog()
     let notificationManager = NotificationManager.shared
     let clipboardMonitor = ClipboardMonitor()
+    let fileReceiver = FileReceiveController()
 
     private var centralManager: CBCentralManager!
     private var discoveredPeripheral: CBPeripheral?
@@ -175,8 +176,6 @@ final class BLEManager: NSObject, ObservableObject {
     private func handleShareRequest(_ packet: BridgePacket) {
         let filename = packet.body["filename"] as? String ?? "file"
         Self.logger.info("Incoming file '\(filename)' payloadSize=\(packet.payloadSize) port=\(packet.payloadPort ?? -1)")
-        // The receive/download flow (mDNS resolve + PayloadClient, or RFCOMM) runs
-        // on real hardware; surface the request so the UI can save the file.
         NotificationCenter.default.post(
             name: .bridgeShareRequestReceived,
             object: nil,
@@ -185,6 +184,13 @@ final class BLEManager: NSObject, ObservableObject {
                 "payloadSize": packet.payloadSize,
                 "port": packet.payloadPort ?? -1
             ]
+        )
+        // Fetch the payload over the out-of-band channel (mDNS + TCP) and save it.
+        fileReceiver.receive(
+            filename: filename,
+            payloadSize: Int(packet.payloadSize),
+            port: packet.payloadPort,
+            host: packet.payloadHost
         )
     }
 

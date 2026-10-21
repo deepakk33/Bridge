@@ -35,6 +35,7 @@
 		A7F2F04FEA9A2BDE2F667E03 /* StatusPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23B445C6C77FD4607AD01C3E /* StatusPanel.swift */; };
 		A89163011205C65ADD146365 /* PairPromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64ABF32D683378EDAC5B5713 /* PairPromptView.swift */; };
 		A9E76F0A9BAF79469D4D80DB /* ClipboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58B0DE230D96A2A95E6F0C64 /* ClipboardMonitor.swift */; };
+		AB56E43D6635A30755912592 /* FileReceiveController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE1964FFF4DA8D88BFABA20D /* FileReceiveController.swift */; };
 		B5A2F0CE74BED9F98B4E529B /* L2CAPChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AB7CD2CB8144D6D3D6BAEC5 /* L2CAPChannel.swift */; };
 		B60E645A6215EC13A9A12D03 /* LinkHealth.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE74C495F299579D0791A25 /* LinkHealth.swift */; };
 		BBB52C374052D155182228CA /* BridgePacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABD9184A949EFAF49F053D20 /* BridgePacketTests.swift */; };
@@ -92,6 +93,7 @@
 		ABD9184A949EFAF49F053D20 /* BridgePacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgePacketTests.swift; sourceTree = "<group>"; };
 		AE0F8609FF6A4A8A9A0FD720 /* PairingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingManager.swift; sourceTree = "<group>"; };
 		B0F2494F49F91DB6543D7611 /* PayloadChannelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayloadChannelTests.swift; sourceTree = "<group>"; };
+		CE1964FFF4DA8D88BFABA20D /* FileReceiveController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileReceiveController.swift; sourceTree = "<group>"; };
 		F14A7876264A29DA1B376782 /* PermissionChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionChecker.swift; sourceTree = "<group>"; };
 		F1F277B0176220A76331FCC3 /* IdentityPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityPacketTests.swift; sourceTree = "<group>"; };
 		F23E809C7F4DC7042B7B1F41 /* PingHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PingHandler.swift; sourceTree = "<group>"; };
@@ -162,6 +164,7 @@
 		8F1FA94302F79A2138D4821D /* FileTransfer */ = {
 			isa = PBXGroup;
 			children = (
+				CE1964FFF4DA8D88BFABA20D /* FileReceiveController.swift */,
 				9AAD4D7391D72CAFC163F99B /* FileTransferManager.swift */,
 				2F85314029FB0E73B710FCBC /* MdnsBrowser.swift */,
 				69FC0E53777F564A0AE74EC3 /* PayloadClient.swift */,
@@ -336,6 +339,7 @@
 				9749CC395955B3C5BFA2C962 /* BridgePacket.swift in Sources */,
 				83FB28C1575F47D4535D342C /* CertificateManager.swift in Sources */,
 				A9E76F0A9BAF79469D4D80DB /* ClipboardMonitor.swift in Sources */,
+				AB56E43D6635A30755912592 /* FileReceiveController.swift in Sources */,
 				F9178A7945E521ABDB6C670C /* FileTransferManager.swift in Sources */,
 				B5A2F0CE74BED9F98B4E529B /* L2CAPChannel.swift in Sources */,
 				B60E645A6215EC13A9A12D03 /* LinkHealth.swift in Sources */,

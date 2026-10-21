@@ -5,6 +5,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
@@ -163,7 +164,8 @@ data class BridgePacket(
             filename: String,
             fileSize: Long,
             payloadSize: Long,
-            port: Int?
+            port: Int?,
+            host: String? = null
         ): BridgePacket = BridgePacket(
             id = System.currentTimeMillis(),
             type = "bridge.share.request",
@@ -175,6 +177,7 @@ data class BridgePacket(
                     if (port != null) {
                         putJsonObject("payloadTransferInfo") {
                             put("port", port)
+                            if (host != null) put("host", host)
                         }
                     }
                 }
@@ -208,3 +211,11 @@ val BridgePacket.payloadPort: Int?
 /** True when this share request carries a file body to fetch. */
 val BridgePacket.hasPayload: Boolean
     get() = payloadSize > 0
+
+/** Sender IP for the out-of-band payload connection, when provided. */
+val BridgePacket.payloadHost: String?
+    get() {
+        if (payloadSize <= 0) return null
+        val info = body["payloadTransferInfo"]?.jsonObject ?: return null
+        return info["host"]?.jsonPrimitive?.contentOrNull
+    }

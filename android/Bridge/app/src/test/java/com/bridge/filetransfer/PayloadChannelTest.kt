@@ -24,7 +24,7 @@ class PayloadChannelTest {
         val received = client.fetch()
         val served = serving.await()
 
-        assertEquals(payload.size, served)
+        assertEquals(payload.size.toLong(), served)
         assertArrayEquals(payload, received)
         assertArrayEquals(sha256(payload), sha256(received))
     }

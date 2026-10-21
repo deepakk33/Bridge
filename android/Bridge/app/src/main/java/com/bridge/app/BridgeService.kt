@@ -20,6 +20,7 @@ import com.bridge.ble.BridgeConstants
 import com.bridge.clipboard.ClipboardBridge
 import com.bridge.clipboard.ClipboardTileService
 import com.bridge.filetransfer.FileTransferCoordinator
+import com.bridge.filetransfer.TransferNotifier
 import com.bridge.notifications.BridgeNotificationListener
 import com.bridge.permissions.PermissionStatusChecker
 import com.bridge.protocol.BridgePacket
@@ -211,20 +212,17 @@ class BridgeService : Service() {
     }
 
     private fun sendSharedFile(path: String, name: String) {
-        serviceScope.launch(Dispatchers.IO) {
-            val file = File(path)
-            val bytes = try {
-                file.readBytes()
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not read shared file", e)
-                null
-            } ?: return@launch
-            Log.i(TAG, "Sending shared file $name (${bytes.size} bytes)")
-            val nsd = getSystemService(Context.NSD_SERVICE) as? NsdManager
-            val coordinator = FileTransferCoordinator(nsd) { blePeripheral?.sendPacket(it) }
-            coordinator.sendFile(serviceScope, name, bytes, sharedNetworkAvailable = isWifiConnected())
-            runCatching { file.delete() }
+        val file = File(path)
+        if (!file.exists() || file.length() == 0L) {
+            Log.w(TAG, "Shared file missing or empty: $path")
+            return
         }
+        Log.i(TAG, "Sending shared file $name (${file.length()} bytes)")
+        val nsd = getSystemService(Context.NSD_SERVICE) as? NsdManager
+        val notifier = TransferNotifier(applicationContext)
+        val coordinator = FileTransferCoordinator(nsd, notifier) { blePeripheral?.sendPacket(it) }
+        // Coordinator streams the file off disk and deletes it when done.
+        coordinator.sendFile(serviceScope, name, file, sharedNetworkAvailable = isWifiConnected())
     }
 
     private fun isWifiConnected(): Boolean {

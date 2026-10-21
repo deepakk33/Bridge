@@ -185,6 +185,17 @@ struct BridgePacket: @unchecked Sendable {
         payloadSize > 0
     }
 
+    /// Sender IP for the out-of-band payload connection, when provided.
+    var payloadHost: String? {
+        guard payloadSize > 0,
+              let info = body["payloadTransferInfo"] as? [String: Any],
+              let host = info["host"] as? String,
+              !host.isEmpty else {
+            return nil
+        }
+        return host
+    }
+
     // MARK: - Serialization
 
     /// Serialize to newline-delimited JSON bytes.
