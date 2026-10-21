@@ -37,4 +37,4 @@
 - [x] 6.1 Run `openspec validate --change iter-6-notification-filter` clean. Verify: validation passes with no errors.
 - [x] 6.2 Run full Android test suite — no regressions across iter-1..iter-5. Verify: `./gradlew test` green.
 - [x] 6.3 Update `docs/ITERATIONS.md` with iter-6 layman + technical summary and known issues (deny-by-default quiet-until-allowed behavior, OTP redaction). Verify: section added.
-- [ ] 6.4 Archive the change: `openspec archive iter-6-notification-filter`. Verify: change moved to `openspec/changes/archive/` and `notifications/filter` spec synced to `openspec/specs/`.
+- [x] 6.4 Archive the change: `openspec archive iter-6-notification-filter`. Verify: change moved to `openspec/changes/archive/` and `notifications/filter` spec synced to `openspec/specs/`.
