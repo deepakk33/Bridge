@@ -15,8 +15,11 @@ import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import android.net.Uri
 import com.bridge.clipboard.ClipboardBridge
 import com.bridge.notifications.BridgeNotificationListener
+import com.bridge.permissions.PermissionStatus
+import com.bridge.permissions.PermissionStatusChecker
 
 class MainActivity : AppCompatActivity() {
 
@@ -25,6 +28,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var notifAccessButton: Button
     private lateinit var clipboardStatusText: TextView
     private lateinit var sendClipboardButton: Button
+    private lateinit var permissionStatusText: TextView
+    private lateinit var batteryOptButton: Button
 
     private val requiredPermissions = buildList {
         add(Manifest.permission.BLUETOOTH_ADVERTISE)
@@ -94,12 +99,32 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener { sendClipboardToMac() }
         }
 
+        permissionStatusText = TextView(this).apply {
+            textSize = 14f
+            gravity = Gravity.CENTER
+            setPadding(0, 32, 0, 0)
+        }
+
+        batteryOptButton = Button(this).apply {
+            text = "Disable Battery Optimization"
+            setPadding(0, 16, 0, 0)
+            visibility = android.view.View.GONE
+            setOnClickListener {
+                startActivity(
+                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                        .setData(Uri.parse("package:$packageName"))
+                )
+            }
+        }
+
         layout.addView(titleText)
         layout.addView(statusText)
         layout.addView(deviceInfoText)
         layout.addView(notifAccessButton)
         layout.addView(clipboardStatusText)
         layout.addView(sendClipboardButton)
+        layout.addView(permissionStatusText)
+        layout.addView(batteryOptButton)
 
         setContentView(layout)
 
@@ -132,6 +157,16 @@ class MainActivity : AppCompatActivity() {
         BridgeService.clipboardBridge?.activityContext = this
         checkNotificationAccess()
         updateClipboardStatus()
+        updatePermissionStatus()
+    }
+
+    private fun updatePermissionStatus() {
+        val checker = PermissionStatusChecker(this)
+        val items = checker.all()
+        permissionStatusText.text = items.joinToString("\n") { "${it.name}: ${it.status.label}" }
+        batteryOptButton.visibility =
+            if (checker.batteryOptimization() == PermissionStatus.GRANTED)
+                android.view.View.GONE else android.view.View.VISIBLE
     }
 
     override fun onPause() {

@@ -32,6 +32,9 @@ targets:
       properties:
         LSUIElement: true
         NSBluetoothAlwaysUsageDescription: "Bridge uses Bluetooth to connect to your Android phone."
+        NSLocalNetworkUsageDescription: "Bridge uses the local network to transfer large files to your Android phone over Wi-Fi."
+        NSBonjourServices:
+          - _bridge._tcp
 
   BridgeTests:
     type: bundle.unit-test

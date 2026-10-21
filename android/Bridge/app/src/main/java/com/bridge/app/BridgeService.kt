@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
+import android.net.nsd.NsdManager
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
@@ -18,18 +19,28 @@ import com.bridge.ble.BlePeripheral
 import com.bridge.ble.BridgeConstants
 import com.bridge.clipboard.ClipboardBridge
 import com.bridge.clipboard.ClipboardTileService
+import com.bridge.filetransfer.FileReceiver
+import com.bridge.filetransfer.FileTransferCoordinator
+import com.bridge.filetransfer.TransferNotifier
 import com.bridge.notifications.BridgeNotificationListener
+import com.bridge.permissions.PermissionStatusChecker
 import com.bridge.protocol.BridgePacket
 import com.bridge.security.CertificateManager
 import com.bridge.security.TrustStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import java.io.File
 
 class BridgeService : Service() {
 
     companion object {
         private const val TAG = "BridgeService"
+        const val ACTION_SEND_FILE = "com.bridge.ACTION_SEND_FILE"
+        const val EXTRA_FILE_PATH = "com.bridge.EXTRA_FILE_PATH"
+        const val EXTRA_FILE_NAME = "com.bridge.EXTRA_FILE_NAME"
+        private const val PERMISSION_WARNING_NOTIFICATION_ID = 2
         var clipboardBridge: ClipboardBridge? = null
             private set
     }
@@ -139,6 +150,11 @@ class BridgeService : Service() {
             clipboardBridge?.handleClipboardConnectPacket(packet)
         }
 
+        blePeripheral?.setShareRequestHandler { packet ->
+            FileReceiver(applicationContext, TransferNotifier(applicationContext))
+                .receive(serviceScope, packet)
+        }
+
         blePeripheral?.setOnPairCompletedHandler {
             batteryMonitor?.sendInitialBattery()
         }
@@ -156,6 +172,8 @@ class BridgeService : Service() {
                 blePeripheral?.sendPacket(connectPacket)
             }
         }
+
+        checkPermissionsOnStart()
     }
 
     private fun handleNotificationReply(requestReplyId: String, message: String) {
@@ -191,7 +209,58 @@ class BridgeService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.i(TAG, "BridgeService onStartCommand")
+        if (intent?.action == ACTION_SEND_FILE) {
+            val path = intent.getStringExtra(EXTRA_FILE_PATH)
+            val name = intent.getStringExtra(EXTRA_FILE_NAME) ?: "file"
+            if (path != null) sendSharedFile(path, name)
+        }
         return START_STICKY
+    }
+
+    private fun sendSharedFile(path: String, name: String) {
+        val file = File(path)
+        if (!file.exists() || file.length() == 0L) {
+            Log.w(TAG, "Shared file missing or empty: $path")
+            return
+        }
+        Log.i(TAG, "Sending shared file $name (${file.length()} bytes)")
+        val nsd = getSystemService(Context.NSD_SERVICE) as? NsdManager
+        val notifier = TransferNotifier(applicationContext)
+        val coordinator = FileTransferCoordinator(nsd, notifier) { blePeripheral?.sendPacket(it) }
+        // Coordinator streams the file off disk and deletes it when done.
+        coordinator.sendFile(serviceScope, name, file, sharedNetworkAvailable = isWifiConnected())
+    }
+
+    private fun isWifiConnected(): Boolean {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val net = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(net) ?: return false
+        return caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
+    }
+
+    private fun checkPermissionsOnStart() {
+        val checker = PermissionStatusChecker(this)
+        if (checker.notificationAccess() != com.bridge.permissions.PermissionStatus.GRANTED) {
+            postPermissionWarning()
+        }
+    }
+
+    private fun postPermissionWarning() {
+        val notification = Notification.Builder(this, BridgeConstants.NOTIFICATION_CHANNEL_ID)
+            .setContentTitle("Bridge cannot mirror notifications")
+            .setContentText("Tap to grant Notification Access.")
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentIntent(
+                android.app.PendingIntent.getActivity(
+                    this, 0,
+                    Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"),
+                    android.app.PendingIntent.FLAG_IMMUTABLE
+                )
+            )
+            .setAutoCancel(true)
+            .build()
+        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+            .notify(PERMISSION_WARNING_NOTIFICATION_ID, notification)
     }
 
     override fun onDestroy() {

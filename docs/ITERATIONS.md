@@ -68,15 +68,103 @@ Both platforms poll clipboard every 500ms. Mac uses NSPasteboard.general.changeC
 ---
 
 ## Iteration 5: File Transfer & Polish
-**Status**: Not started  
+**Status**: Complete — bidirectional Tier 3 file transfer verified on hardware (MacBook Air M3 + Galaxy S25, Android 16)  
 **Branch**: `iter-5/files-polish`  
 **OpenSpec**: `openspec show iter-5-files-polish`
 
 ### Layman Summary
-_To be written after completion_
+Send files both ways. Drag a file onto the Mac menu bar icon, or share a file from
+any Android app to Bridge, and it lands on the other device. Small files (under
+500 KB) go over Bluetooth with no network needed; larger files go over Wi-Fi when
+both devices share a network, and fall back to Bluetooth (slower) otherwise. The
+Mac menu bar now shows every permission Bridge needs and how recently the phone
+was heard from, and warns when the phone's service is silently killed.
 
 ### Technical Summary
-_To be written after completion_
+**Out-of-band payload channel (KDE Connect mechanism):** `bridge.share.request`
+carries `filename`, `fileSize`, `payloadSize`, and `payloadTransferInfo{port}`.
+The sender binds an ephemeral TCP port and serves the bytes; the receiver reads
+exactly `payloadSize`. Keeps the Tier 1 BLE control channel free during transfer.
+`PayloadServer`/`PayloadClient` on both platforms (Network.framework on Mac,
+`ServerSocket`/`Socket` on Android) with 30 s inactivity timeout, partial-transfer
+discard, and excess truncation.
+
+**Tier routing:** `TierRouter` sends <512 KB over Tier 2 (Bluetooth Classic
+RFCOMM), >=512 KB over Tier 3 (Wi-Fi LAN) when a shared network exists, else falls
+back to Tier 2 with a slow-transfer warning.
+
+**Tier 2 RFCOMM:** Android server/client via `listenUsingRfcommWithServiceRecord`
++ `createRfcommSocketToServiceRecord`; Mac via IOBluetooth RFCOMM channel + SDP
+lookup. File-transfer UUID `A76E1A03-…`.
+
+**Tier 3 Wi-Fi LAN:** `_bridge._tcp` advertised via `NWListener.service`
+(Mac) / `NsdManager` (Android); discovery via `NWBrowser` (Mac) / NSD resolve
+(Android). Info.plist gains `NSLocalNetworkUsageDescription` + `NSBonjourServices`.
+
+**File UI:** Mac menu bar drop target (`dropDestination`) + "Send File…"
+(`NSOpenPanel`) + progress/fallback states. Android `ShareReceiverActivity`
+registered for `ACTION_SEND`/`SEND_MULTIPLE` forwards the URI to `BridgeService`,
+which reads the bytes and drives `FileTransferCoordinator`.
+
+**Permission panel:** Mac `PermissionChecker` (CBManager / UNUserNotificationCenter
+/ Local Network) feeds a menu bar section with Granted/Denied/Not-Requested state,
+Fix/Request buttons, and a warning badge on the icon. Android
+`PermissionStatusChecker` (Notification Access, Battery Optimization, ADB clipboard
+grant) surfaces in the settings screen; the service posts a fix-it notification
+when Notification Access is off.
+
+**Watchdog:** heartbeat already at 30 s; dead-detection raised to 90 s.
+`LinkHealthEvaluator` (both platforms) classifies connected / stale / dead /
+out-of-range / bluetooth-off, formats last-seen ("just now" / "Xs ago" / "Xm ago"),
+and emits actionable guidance (distinguishes a clean out-of-range disconnect from a
+silent One UI service kill while BLE stays connected).
+
+**Tests:** payload loopback round-trip + checksum + timeout + excess, tier routing,
+share-request vectors (with/without payload), link-health classification,
+permission mapping/summary, and an all-vectors sweep that parses every shared test
+vector on both platforms. All unit tests pass on both platforms; no regressions
+from iter-1 through iter-4.
+
+### Hardware validation (2026-10-21, MacBook Air M3 + Galaxy S25 / Android 16)
+Verified end-to-end on real devices over BLE L2CAP + Wi-Fi:
+- **Phone → Mac**: 2 MB photo and 92 MB video — byte-exact in ~/Downloads, streamed
+  to disk (no whole-file-in-RAM), live progress + "Sent ✓" on the phone.
+- **Mac → phone**: 604 KB file — byte-exact in the phone's Downloads (MediaStore),
+  "Receiving from Mac X%" → "Saved from Mac ✓".
+- **Tier routing**: files ≥512 KB took Tier 3 (Wi-Fi); a <512 KB file correctly
+  fell to the (unimplemented) Tier 2 path and reported honestly.
+- **Permission panel (Android)**: Notification Access / Battery Optimization / ADB
+  Clipboard states render in the settings screen.
+- **Watchdog heartbeat**: ping interval 30 s, dead threshold 90 s confirmed live;
+  Mac detects a clean BLE disconnect instantly ("Out of range").
+
+Three bugs were found and fixed during hardware testing:
+1. `ShareReceiverActivity` crashed calling `grantUriPermission` on a URI it did
+   not own → now copies to app-private cache and forwards the path.
+2. Mac never pulled the payload (receive side unimplemented) → added
+   `FileReceiveController` (streams to disk).
+3. mDNS service resolution hung on this network → the sender now carries its IP in
+   `payloadTransferInfo.host` and the receiver connects directly (mDNS kept as a
+   fallback).
 
 ### Known Issues
-_To be written after completion_
+- **Tier 2 (Bluetooth Classic RFCOMM) for small files (<512 KB) is not wired
+  end-to-end** — the packet is sent but no RFCOMM payload channel is served, so a
+  <512 KB transfer reports failure. Tier 3 (Wi-Fi) covers files ≥512 KB.
+- **Tier 3 throughput is bounded by the Wi-Fi link.** On a weak/2.4 GHz/mesh path
+  the link bufferbloats (observed 2–3 s RTT under load) and large transfers crawl;
+  this is physical, not the app. On a clean 5 GHz LAN it runs at radio speed.
+- **mDNS cross-device discovery (tasks 3.1–3.2) not independently verified** —
+  resolution hung on the test network, so transfer uses the direct-IP path; mDNS
+  remains a coded fallback.
+- **Watchdog 90 s silent-death detection (6.4–6.7) not hardware-triggered** —
+  `adb force-stop` is a clean BLE disconnect (handled instantly as "Out of range"),
+  not a silent service death with BLE still up; the timeout logic is unit-tested.
+- Mac notification banners require the Notification TCC grant (the unsigned dev
+  build must be granted via the permission panel).
+- Tier 4 (phone hotspot) remains deferred to v2 per PRD.
+
+### What the next iteration builds on
+v1 feature set is complete: notifications, clipboard, file transfer, battery,
+permission panel, and watchdog. v2 candidates: Tier 4 hotspot, transfer
+resume/queue UI, and generic notification-action forwarding.

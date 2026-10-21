@@ -13,6 +13,7 @@ final class BLEManager: NSObject, ObservableObject {
     let pingWatchdog = PingWatchdog()
     let notificationManager = NotificationManager.shared
     let clipboardMonitor = ClipboardMonitor()
+    let fileReceiver = FileReceiveController()
 
     private var centralManager: CBCentralManager!
     private var discoveredPeripheral: CBPeripheral?
@@ -163,11 +164,34 @@ final class BLEManager: NSObject, ObservableObject {
             Task { await clipboardMonitor.handleClipboardPacket(packet) }
         case "bridge.clipboard.connect":
             Task { await clipboardMonitor.handleClipboardConnectPacket(packet) }
+        case "bridge.share.request":
+            handleShareRequest(packet)
         case "bridge.notification.reply", "bridge.notification.request":
             Self.logger.info("Received \(packet.type) — not applicable on Mac side")
         default:
             Self.logger.info("Unhandled packet type: \(packet.type)")
         }
+    }
+
+    private func handleShareRequest(_ packet: BridgePacket) {
+        let filename = packet.body["filename"] as? String ?? "file"
+        Self.logger.info("Incoming file '\(filename)' payloadSize=\(packet.payloadSize) port=\(packet.payloadPort ?? -1)")
+        NotificationCenter.default.post(
+            name: .bridgeShareRequestReceived,
+            object: nil,
+            userInfo: [
+                "filename": filename,
+                "payloadSize": packet.payloadSize,
+                "port": packet.payloadPort ?? -1
+            ]
+        )
+        // Fetch the payload over the out-of-band channel (mDNS + TCP) and save it.
+        fileReceiver.receive(
+            filename: filename,
+            payloadSize: Int(packet.payloadSize),
+            port: packet.payloadPort,
+            host: packet.payloadHost
+        )
     }
 
     private func handleIdentityPacket(_ packet: BridgePacket) {

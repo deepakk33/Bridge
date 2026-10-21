@@ -2,19 +2,36 @@ import SwiftUI
 
 @main
 struct BridgeApp: App {
-    @StateObject private var bleManager = BLEManager()
+    @StateObject private var bleManager: BLEManager
     @StateObject private var batteryState = PhoneBatteryState()
+    @StateObject private var permissions = PermissionChecker()
+    @StateObject private var fileTransfer: FileTransferManager
 
     init() {
         NotificationManager.shared.requestPermission()
+        let manager = BLEManager()
+        _bleManager = StateObject(wrappedValue: manager)
+        _fileTransfer = StateObject(wrappedValue: FileTransferManager(sendPacket: { packet in
+            _ = manager.sendPacket(packet)
+        }))
     }
 
     var body: some Scene {
         MenuBarExtra {
-            StatusPanel(bleManager: bleManager, batteryState: batteryState)
+            StatusPanel(
+                bleManager: bleManager,
+                batteryState: batteryState,
+                permissions: permissions,
+                fileTransfer: fileTransfer
+            )
+            .onAppear { permissions.refresh() }
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: menuBarIcon)
+                if permissions.hasDeniedPermission {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.yellow)
+                }
                 if bleManager.currentLinkState == .connected,
                    let level = batteryState.level {
                     Image(systemName: batteryState.sfSymbol)

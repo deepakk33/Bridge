@@ -1,0 +1,40 @@
+{
+  "description": "Valid bridge.share.request packets with no payload body (metadata only). payloadSize absent or 0, payloadTransferInfo absent.",
+  "valid": [
+    {
+      "name": "share_request_metadata_only",
+      "packet": {
+        "id": 1697300003000,
+        "type": "bridge.share.request",
+        "body": {
+          "filename": "empty.txt",
+          "fileSize": 0
+        }
+      },
+      "expectedFields": {
+        "filename": "empty.txt",
+        "fileSize": 0,
+        "payloadSize": 0,
+        "hasPayload": false
+      }
+    },
+    {
+      "name": "share_request_zero_payload",
+      "packet": {
+        "id": 1697300004000,
+        "type": "bridge.share.request",
+        "body": {
+          "filename": "placeholder.dat",
+          "fileSize": 0,
+          "payloadSize": 0
+        }
+      },
+      "expectedFields": {
+        "filename": "placeholder.dat",
+        "fileSize": 0,
+        "payloadSize": 0,
+        "hasPayload": false
+      }
+    }
+  ]
+}

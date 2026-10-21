@@ -5,8 +5,14 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 
 @Serializable
 data class BridgePacket(
@@ -154,6 +160,30 @@ data class BridgePacket(
             }
         )
 
+        fun shareRequest(
+            filename: String,
+            fileSize: Long,
+            payloadSize: Long,
+            port: Int?,
+            host: String? = null
+        ): BridgePacket = BridgePacket(
+            id = System.currentTimeMillis(),
+            type = "bridge.share.request",
+            body = buildJsonObject {
+                put("filename", filename)
+                put("fileSize", fileSize)
+                if (payloadSize > 0) {
+                    put("payloadSize", payloadSize)
+                    if (port != null) {
+                        putJsonObject("payloadTransferInfo") {
+                            put("port", port)
+                            if (host != null) put("host", host)
+                        }
+                    }
+                }
+            }
+        )
+
         fun clipboardConnect(content: String, timestamp: Long): BridgePacket = BridgePacket(
             id = System.currentTimeMillis(),
             type = "bridge.clipboard.connect",
@@ -164,3 +194,28 @@ data class BridgePacket(
         )
     }
 }
+
+/** Byte count of the out-of-band payload (0 when metadata-only). */
+val BridgePacket.payloadSize: Long
+    get() = body["payloadSize"]?.jsonPrimitive?.longOrNull ?: 0L
+
+/** TCP port the sender is listening on, or null when there is no payload. */
+val BridgePacket.payloadPort: Int?
+    get() {
+        if (payloadSize <= 0) return null
+        val info = body["payloadTransferInfo"]?.jsonObject ?: return null
+        val port = info["port"]?.jsonPrimitive?.intOrNull ?: return null
+        return if (port > 0) port else null
+    }
+
+/** True when this share request carries a file body to fetch. */
+val BridgePacket.hasPayload: Boolean
+    get() = payloadSize > 0
+
+/** Sender IP for the out-of-band payload connection, when provided. */
+val BridgePacket.payloadHost: String?
+    get() {
+        if (payloadSize <= 0) return null
+        val info = body["payloadTransferInfo"]?.jsonObject ?: return null
+        return info["host"]?.jsonPrimitive?.contentOrNull
+    }

@@ -1,0 +1,68 @@
+{
+  "description": "Valid bridge.share.request packets for iter-5 file transfer (with out-of-band payload)",
+  "valid": [
+    {
+      "name": "share_request_small_file",
+      "packet": {
+        "id": 1697300000000,
+        "type": "bridge.share.request",
+        "body": {
+          "filename": "screenshot.png",
+          "fileSize": 204800,
+          "payloadSize": 204800,
+          "payloadTransferInfo": {
+            "port": 39721
+          }
+        }
+      },
+      "expectedFields": {
+        "filename": "screenshot.png",
+        "fileSize": 204800,
+        "payloadSize": 204800,
+        "port": 39721
+      }
+    },
+    {
+      "name": "share_request_large_file",
+      "packet": {
+        "id": 1697300001000,
+        "type": "bridge.share.request",
+        "body": {
+          "filename": "video.mp4",
+          "fileSize": 104857600,
+          "payloadSize": 104857600,
+          "payloadTransferInfo": {
+            "port": 51234
+          }
+        }
+      },
+      "expectedFields": {
+        "filename": "video.mp4",
+        "fileSize": 104857600,
+        "payloadSize": 104857600,
+        "port": 51234
+      }
+    },
+    {
+      "name": "share_request_exact_threshold",
+      "packet": {
+        "id": 1697300002000,
+        "type": "bridge.share.request",
+        "body": {
+          "filename": "document.pdf",
+          "fileSize": 512000,
+          "payloadSize": 512000,
+          "payloadTransferInfo": {
+            "port": 40000
+          }
+        }
+      },
+      "expectedFields": {
+        "filename": "document.pdf",
+        "fileSize": 512000,
+        "payloadSize": 512000,
+        "port": 40000
+      }
+    }
+  ]
+}

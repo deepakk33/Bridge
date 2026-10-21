@@ -10,7 +10,7 @@ import kotlinx.coroutines.launch
 
 class PingWatchdog(
     private val pingIntervalMs: Long = 30_000,
-    private val watchdogTimeoutMs: Long = 60_000
+    private val watchdogTimeoutMs: Long = 90_000
 ) {
     companion object {
         private const val TAG = "PingWatchdog"

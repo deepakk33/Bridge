@@ -32,6 +32,7 @@ class L2capServer(
     var onPairCompleted: (() -> Unit)? = null
     var onClipboardReceived: ((BridgePacket) -> Unit)? = null
     var onClipboardConnectReceived: ((BridgePacket) -> Unit)? = null
+    var onShareRequest: ((BridgePacket) -> Unit)? = null
     var onLinkReady: (() -> Unit)? = null
 
     companion object {
@@ -169,6 +170,9 @@ class L2capServer(
             "bridge.clipboard.connect" -> {
                 onClipboardConnectReceived?.invoke(packet)
             }
+            "bridge.share.request" -> {
+                onShareRequest?.invoke(packet)
+            }
             "bridge.notification" -> {
                 Log.d(TAG, "Received bridge.notification — not applicable on phone side")
             }
@@ -203,7 +207,8 @@ class L2capServer(
                 "bridge.ping", "bridge.pair",
                 "bridge.notification", "bridge.notification.reply",
                 "bridge.notification.request", "bridge.battery",
-                "bridge.clipboard", "bridge.clipboard.connect"
+                "bridge.clipboard", "bridge.clipboard.connect",
+                "bridge.share.request"
             )
             val packet = BridgePacket.identity(
                 deviceId = deviceId,

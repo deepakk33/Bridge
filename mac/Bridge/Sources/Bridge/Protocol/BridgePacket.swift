@@ -139,6 +139,66 @@ struct BridgePacket: @unchecked Sendable {
         )
     }
 
+    static func shareRequest(
+        filename: String,
+        fileSize: Int64,
+        payloadSize: Int64,
+        port: Int?,
+        host: String? = nil
+    ) -> BridgePacket {
+        var body: [String: Any] = [
+            "filename": filename,
+            "fileSize": fileSize
+        ]
+        if payloadSize > 0 {
+            body["payloadSize"] = payloadSize
+            if let port {
+                var info: [String: Any] = ["port": port]
+                if let host { info["host"] = host }
+                body["payloadTransferInfo"] = info
+            }
+        }
+        return BridgePacket(
+            id: Int64(Date().timeIntervalSince1970 * 1000),
+            type: "bridge.share.request",
+            body: body
+        )
+    }
+
+    // MARK: - Share request accessors
+
+    /// Byte count of the out-of-band payload (0 when metadata-only).
+    var payloadSize: Int64 {
+        (body["payloadSize"] as? NSNumber)?.int64Value ?? 0
+    }
+
+    /// TCP port the sender is listening on, or nil when there is no payload.
+    var payloadPort: Int? {
+        guard payloadSize > 0,
+              let info = body["payloadTransferInfo"] as? [String: Any],
+              let port = (info["port"] as? NSNumber)?.intValue,
+              port > 0 else {
+            return nil
+        }
+        return port
+    }
+
+    /// True when this share request carries a file body to fetch.
+    var hasPayload: Bool {
+        payloadSize > 0
+    }
+
+    /// Sender IP for the out-of-band payload connection, when provided.
+    var payloadHost: String? {
+        guard payloadSize > 0,
+              let info = body["payloadTransferInfo"] as? [String: Any],
+              let host = info["host"] as? String,
+              !host.isEmpty else {
+            return nil
+        }
+        return host
+    }
+
     // MARK: - Serialization
 
     /// Serialize to newline-delimited JSON bytes.

@@ -22,5 +22,11 @@
 	<true/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Bridge uses Bluetooth to connect to your Android phone.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_bridge._tcp</string>
+	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Bridge uses the local network to transfer large files to your Android phone over Wi-Fi.</string>
 </dict>
 </plist>
