@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		017961800877FA510F290145 /* TransferTier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26E3CC2C1D526E810F1C97F7 /* TransferTier.swift */; };
 		023A58E9796C719825E7D20C /* PingPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A05D2EFA77CC7611034C95F6 /* PingPacketTests.swift */; };
+		0474A61D51135F61A67EEABC /* MdnsBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F85314029FB0E73B710FCBC /* MdnsBrowser.swift */; };
 		070D3638957E2EFB9E037671 /* TLSWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F8626B23D13052AC57460B7 /* TLSWrapper.swift */; };
 		0C93898C1A7925A1AB65584A /* PairPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F79D4CCAEAE96BBDD50FBC16 /* PairPacketTests.swift */; };
 		0CD81BE51B5BFC75197BAFAC /* PingHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = F23E809C7F4DC7042B7B1F41 /* PingHandler.swift */; };
@@ -17,6 +18,7 @@
 		2B3E105AD9ECD6573157ECD8 /* IdentityPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F277B0176220A76331FCC3 /* IdentityPacketTests.swift */; };
 		2BCFC4D3F72C5E1A49D456AD /* PayloadChannelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0F2494F49F91DB6543D7611 /* PayloadChannelTests.swift */; };
 		33C90C8F1A70A24E835CEE38 /* LinkStateMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EF6E3C9A5506A59F08CD765 /* LinkStateMachine.swift */; };
+		45BE58D3A566578C6AF1D21A /* RfcommTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0625614490E1D2FC9525C0DD /* RfcommTransfer.swift */; };
 		46A3F0836126741F2EB48F7D /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82F25AD4EC1B195EEF0212A4 /* NotificationManager.swift */; };
 		485444CDA174012426332C60 /* BLEManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0971CF85B05BD7A4B596D372 /* BLEManager.swift */; };
 		515E1D5A875306FAD192C882 /* NotificationPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81D97DF5382C0F8F6ADAC758 /* NotificationPacketTests.swift */; };
@@ -50,6 +52,7 @@
 
 /* Begin PBXFileReference section */
 		015E0581D699A8D25C81E072 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		0625614490E1D2FC9525C0DD /* RfcommTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RfcommTransfer.swift; sourceTree = "<group>"; };
 		0971CF85B05BD7A4B596D372 /* BLEManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEManager.swift; sourceTree = "<group>"; };
 		0AB7CD2CB8144D6D3D6BAEC5 /* L2CAPChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L2CAPChannel.swift; sourceTree = "<group>"; };
 		0EF6E3C9A5506A59F08CD765 /* LinkStateMachine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkStateMachine.swift; sourceTree = "<group>"; };
@@ -58,6 +61,7 @@
 		20416889391F161180DE2CC6 /* PayloadServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayloadServer.swift; sourceTree = "<group>"; };
 		23B445C6C77FD4607AD01C3E /* StatusPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusPanel.swift; sourceTree = "<group>"; };
 		26E3CC2C1D526E810F1C97F7 /* TransferTier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferTier.swift; sourceTree = "<group>"; };
+		2F85314029FB0E73B710FCBC /* MdnsBrowser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MdnsBrowser.swift; sourceTree = "<group>"; };
 		352D3EE8282E7F7AC124CB70 /* ClipboardPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardPacketTests.swift; sourceTree = "<group>"; };
 		56B364144621CA738A409CA7 /* CertificateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CertificateManager.swift; sourceTree = "<group>"; };
 		58B0DE230D96A2A95E6F0C64 /* ClipboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitor.swift; sourceTree = "<group>"; };
@@ -143,8 +147,10 @@
 		8F1FA94302F79A2138D4821D /* FileTransfer */ = {
 			isa = PBXGroup;
 			children = (
+				2F85314029FB0E73B710FCBC /* MdnsBrowser.swift */,
 				69FC0E53777F564A0AE74EC3 /* PayloadClient.swift */,
 				20416889391F161180DE2CC6 /* PayloadServer.swift */,
+				0625614490E1D2FC9525C0DD /* RfcommTransfer.swift */,
 				26E3CC2C1D526E810F1C97F7 /* TransferTier.swift */,
 			);
 			path = FileTransfer;
@@ -311,6 +317,7 @@
 				A9E76F0A9BAF79469D4D80DB /* ClipboardMonitor.swift in Sources */,
 				B5A2F0CE74BED9F98B4E529B /* L2CAPChannel.swift in Sources */,
 				33C90C8F1A70A24E835CEE38 /* LinkStateMachine.swift in Sources */,
+				0474A61D51135F61A67EEABC /* MdnsBrowser.swift in Sources */,
 				46A3F0836126741F2EB48F7D /* NotificationManager.swift in Sources */,
 				A89163011205C65ADD146365 /* PairPromptView.swift in Sources */,
 				C16EFDA9255A73CD89193263 /* PairingManager.swift in Sources */,
@@ -318,6 +325,7 @@
 				FFB59835A37FB80721011E42 /* PayloadServer.swift in Sources */,
 				0CD81BE51B5BFC75197BAFAC /* PingHandler.swift in Sources */,
 				5E5054D22E7168E2B49CA7C8 /* PingWatchdog.swift in Sources */,
+				45BE58D3A566578C6AF1D21A /* RfcommTransfer.swift in Sources */,
 				A7F2F04FEA9A2BDE2F667E03 /* StatusPanel.swift in Sources */,
 				070D3638957E2EFB9E037671 /* TLSWrapper.swift in Sources */,
 				017961800877FA510F290145 /* TransferTier.swift in Sources */,

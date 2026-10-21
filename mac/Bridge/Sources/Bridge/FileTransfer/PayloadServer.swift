@@ -19,6 +19,7 @@ final class PayloadServer: @unchecked Sendable {
 
     private let payload: Data
     private let timeout: TimeInterval
+    private let advertiseBonjour: Bool
     private let listener: NWListener
     private let queue = DispatchQueue(label: "com.bridge.mac.payloadserver")
 
@@ -30,10 +31,19 @@ final class PayloadServer: @unchecked Sendable {
     /// - Parameters:
     ///   - payload: the exact bytes to serve.
     ///   - timeout: inactivity timeout before aborting (default 30s per spec).
-    init(payload: Data, timeout: TimeInterval = 30) throws {
+    /// - Parameter advertiseBonjour: when true (Tier 3), publishes the listening
+    ///   port as an `_bridge._tcp` mDNS service so a LAN peer can discover it.
+    init(payload: Data, timeout: TimeInterval = 30, advertiseBonjour: Bool = false) throws {
         self.payload = payload
         self.timeout = timeout
+        self.advertiseBonjour = advertiseBonjour
         self.listener = try NWListener(using: .tcp, on: .any)
+        if advertiseBonjour {
+            self.listener.service = NWListener.Service(
+                name: Host.current().localizedName ?? "Bridge",
+                type: BridgeConstants.fileTransferBonjourType
+            )
+        }
     }
 
     /// Bind and begin listening. `onReady` reports the OS-assigned ephemeral port
