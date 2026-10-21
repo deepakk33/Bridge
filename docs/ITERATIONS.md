@@ -68,7 +68,7 @@ Both platforms poll clipboard every 500ms. Mac uses NSPasteboard.general.changeC
 ---
 
 ## Iteration 5: File Transfer & Polish
-**Status**: Complete (device-dependent paths pending hardware validation)  
+**Status**: Complete — bidirectional Tier 3 file transfer verified on hardware (MacBook Air M3 + Galaxy S25, Android 16)  
 **Branch**: `iter-5/files-polish`  
 **OpenSpec**: `openspec show iter-5-files-polish`
 
@@ -125,15 +125,43 @@ permission mapping/summary, and an all-vectors sweep that parses every shared te
 vector on both platforms. All unit tests pass on both platforms; no regressions
 from iter-1 through iter-4.
 
+### Hardware validation (2026-10-21, MacBook Air M3 + Galaxy S25 / Android 16)
+Verified end-to-end on real devices over BLE L2CAP + Wi-Fi:
+- **Phone → Mac**: 2 MB photo and 92 MB video — byte-exact in ~/Downloads, streamed
+  to disk (no whole-file-in-RAM), live progress + "Sent ✓" on the phone.
+- **Mac → phone**: 604 KB file — byte-exact in the phone's Downloads (MediaStore),
+  "Receiving from Mac X%" → "Saved from Mac ✓".
+- **Tier routing**: files ≥512 KB took Tier 3 (Wi-Fi); a <512 KB file correctly
+  fell to the (unimplemented) Tier 2 path and reported honestly.
+- **Permission panel (Android)**: Notification Access / Battery Optimization / ADB
+  Clipboard states render in the settings screen.
+- **Watchdog heartbeat**: ping interval 30 s, dead threshold 90 s confirmed live;
+  Mac detects a clean BLE disconnect instantly ("Out of range").
+
+Three bugs were found and fixed during hardware testing:
+1. `ShareReceiverActivity` crashed calling `grantUriPermission` on a URI it did
+   not own → now copies to app-private cache and forwards the path.
+2. Mac never pulled the payload (receive side unimplemented) → added
+   `FileReceiveController` (streams to disk).
+3. mDNS service resolution hung on this network → the sender now carries its IP in
+   `payloadTransferInfo.host` and the receiver connects directly (mDNS kept as a
+   fallback).
+
 ### Known Issues
-- **Device-dependent paths not yet validated on hardware** (no paired Mac+S25 in
-  the build environment): RFCOMM throughput (tasks 2.6), cross-device mDNS
-  discovery (3.1–3.4), and the end-to-end transfer/reconnect integration tests
-  (7.1–7.6, 7.8). Logic and framing are implemented and unit-tested on loopback;
-  real-radio verification is the remaining step.
-- Mac receive-side download flow surfaces incoming `bridge.share.request` via
-  NotificationCenter but the full mDNS-resolve + `PayloadClient` save path runs on
-  hardware; auto-save directory UI is minimal.
+- **Tier 2 (Bluetooth Classic RFCOMM) for small files (<512 KB) is not wired
+  end-to-end** — the packet is sent but no RFCOMM payload channel is served, so a
+  <512 KB transfer reports failure. Tier 3 (Wi-Fi) covers files ≥512 KB.
+- **Tier 3 throughput is bounded by the Wi-Fi link.** On a weak/2.4 GHz/mesh path
+  the link bufferbloats (observed 2–3 s RTT under load) and large transfers crawl;
+  this is physical, not the app. On a clean 5 GHz LAN it runs at radio speed.
+- **mDNS cross-device discovery (tasks 3.1–3.2) not independently verified** —
+  resolution hung on the test network, so transfer uses the direct-IP path; mDNS
+  remains a coded fallback.
+- **Watchdog 90 s silent-death detection (6.4–6.7) not hardware-triggered** —
+  `adb force-stop` is a clean BLE disconnect (handled instantly as "Out of range"),
+  not a silent service death with BLE still up; the timeout logic is unit-tested.
+- Mac notification banners require the Notification TCC grant (the unsigned dev
+  build must be granted via the permission panel).
 - Tier 4 (phone hotspot) remains deferred to v2 per PRD.
 
 ### What the next iteration builds on

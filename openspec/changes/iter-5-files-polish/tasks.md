@@ -28,19 +28,19 @@
 
 - [ ] 3.1 Android: register mDNS service `_bridge._tcp` via NsdManager when initiating a Tier 3 transfer. Include transfer port in TXT record. Deregister after transfer. Verify: Mac's `dns-sd -B _bridge._tcp` discovers the service.
 - [ ] 3.2 Mac: register mDNS service `_bridge._tcp` via NWBrowser/NWListener when initiating a Tier 3 transfer. Verify: Android's NsdManager discovers the service.
-- [ ] 3.3 Implement Tier 3 sender on both platforms: bind TCP server on ephemeral port, advertise via mDNS, serve file bytes over the TCP connection. Verify: cross-platform test — Mac sends 1 MB file, Android receives with correct checksum.
-- [ ] 3.4 Implement Tier 3 receiver on both platforms: discover mDNS service, resolve to IP + port, connect, read `payloadSize` bytes. Verify: cross-platform test — Android sends 1 MB file, Mac receives with correct checksum.
-- [ ] 3.5 Wire Tier 3 into the payload channel: when `payloadSize >= 512000` bytes and both devices share a network, use Wi-Fi LAN TCP. Verify: sending a 2 MB file on the same Wi-Fi uses Tier 3.
+- [x] 3.3 Implement Tier 3 sender on both platforms: bind TCP server on ephemeral port, advertise via mDNS, serve file bytes over the TCP connection. Verify: cross-platform test — Mac sends 1 MB file, Android receives with correct checksum.
+- [x] 3.4 Implement Tier 3 receiver on both platforms: discover mDNS service, resolve to IP + port, connect, read `payloadSize` bytes. Verify: cross-platform test — Android sends 1 MB file, Mac receives with correct checksum.
+- [x] 3.5 Wire Tier 3 into the payload channel: when `payloadSize >= 512000` bytes and both devices share a network, use Wi-Fi LAN TCP. Verify: sending a 2 MB file on the same Wi-Fi uses Tier 3.
 - [ ] 3.6 Implement Tier 3 to Tier 2 fallback: when Tier 3 is unavailable (no shared network, mDNS timeout after 5 seconds), fall back to Tier 2 with a user-visible warning. Verify: with Wi-Fi off on one device, a 2 MB file transfers over RFCOMM and a warning is shown.
 - [x] 3.7 Verify Info.plist has `NSLocalNetworkUsageDescription` and `NSBonjourServices` includes `_bridge._tcp`. Verify: Mac prompts for Local Network permission on first Tier 3 transfer attempt.
 
 ## 4. File Drop UI
 
 - [ ] 4.1 Mac: add drop target to NSStatusBarButton (menu bar icon). Accept file URLs via NSItemProvider. Verify: dragging a file onto the menu bar icon highlights it and triggers a send.
-- [ ] 4.2 Mac: implement send flow — on drop, determine file size, select tier, send `bridge.share.request` over control channel, open payload channel. Show progress in menu bar dropdown. Verify: dropping a 100 KB PNG sends it to the phone and shows progress.
-- [ ] 4.3 Mac: implement receive flow — incoming `bridge.share.request` shows a save dialog (or auto-saves to configured directory). Verify: phone sends a file, Mac shows save dialog, file saves correctly.
-- [ ] 4.4 Android: implement share intent receiver. Register Bridge as a share target for all file types. On share, send `bridge.share.request` over control channel and serve file via payload channel. Verify: sharing a photo from Gallery to Bridge sends it to the Mac.
-- [ ] 4.5 Android: implement receive flow — incoming `bridge.share.request` saves file to Downloads and posts a notification with an "Open" action. Verify: Mac sends a file, phone notification appears, tapping "Open" opens the file.
+- [x] 4.2 Mac: implement send flow — on drop, determine file size, select tier, send `bridge.share.request` over control channel, open payload channel. Show progress in menu bar dropdown. Verify: dropping a 100 KB PNG sends it to the phone and shows progress.
+- [x] 4.3 Mac: implement receive flow — incoming `bridge.share.request` shows a save dialog (or auto-saves to configured directory). Verify: phone sends a file, Mac shows save dialog, file saves correctly.
+- [x] 4.4 Android: implement share intent receiver. Register Bridge as a share target for all file types. On share, send `bridge.share.request` over control channel and serve file via payload channel. Verify: sharing a photo from Gallery to Bridge sends it to the Mac.
+- [x] 4.5 Android: implement receive flow — incoming `bridge.share.request` saves file to Downloads and posts a notification with an "Open" action. Verify: Mac sends a file, phone notification appears, tapping "Open" opens the file.
 - [ ] 4.6 Mac: add file picker as secondary send option in menu bar dropdown ("Send File..." menu item). Verify: clicking opens a file picker, selecting a file triggers the same send flow as drag-and-drop.
 
 ## 5. Permission Panel
@@ -54,8 +54,8 @@
 
 ## 6. Watchdog & Heartbeat
 
-- [ ] 6.1 Mac: implement heartbeat timer — send `bridge.ping` if no packet sent or received in 30 seconds. Reset timer on any packet. Verify: idle connection shows a ping every ~30 seconds in packet log.
-- [ ] 6.2 Android: implement matching heartbeat timer — send `bridge.ping` if idle for 30 seconds. Verify: idle connection shows pings from both sides.
+- [x] 6.1 Mac: implement heartbeat timer — send `bridge.ping` if no packet sent or received in 30 seconds. Reset timer on any packet. Verify: idle connection shows a ping every ~30 seconds in packet log.
+- [x] 6.2 Android: implement matching heartbeat timer — send `bridge.ping` if idle for 30 seconds. Verify: idle connection shows pings from both sides.
 - [x] 6.3 Mac: track last-seen timestamp (updated on every received packet). Display in menu bar as relative time ("just now", "Xs ago", "Xm ago"). Verify: menu bar shows updating last-seen time that matches packet log.
 - [ ] 6.4 Mac: implement dead connection detection — if no packet received for 90 seconds, mark link as dead. Distinguish from clean BLE disconnect (out of range). Verify: killing the Android service (adb shell am force-stop) triggers "Connection lost" in menu bar within 90 seconds while BLE stays technically connected.
 - [ ] 6.5 Mac: display actionable guidance in dropdown when connection is lost. Include "phone service may have been killed" message and instruction to open Bridge on the phone. Verify: force-stopping Android service shows the guidance message.
