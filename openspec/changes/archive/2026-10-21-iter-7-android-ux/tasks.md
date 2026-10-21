@@ -34,13 +34,13 @@
 
 ## 7. Manual Device Testing (Galaxy S25, Android 16)
 
-- [ ] 7.1 Confirm FGS notification is icon-only, silent, collapsed, and non-dismissable. Verify: observe in the shade.
-- [ ] 7.2 Confirm the new launcher icon appears in the launcher and recents. Verify: visual check.
-- [ ] 7.3 Walk the connect action through all three states (unpaired → pair, paired+disconnected → reconnect, connected → status). Verify: each transition behaves and the label updates live.
-- [ ] 7.4 Verify the redesigned screen in light and dark mode; status card, sections, and clipboard/notification entry points all work. Verify: visual + functional check.
+- [x] 7.1 Confirm FGS notification is icon-only, silent, collapsed, and non-dismissable. Verify: observe in the shade.
+- [x] 7.2 Confirm the new launcher icon appears in the launcher and recents. Verify: visual check.
+- [x] 7.3 Walk the connect action through all three states (unpaired → pair, paired+disconnected → reconnect, connected → status). Verify: each transition behaves and the label updates live.
+- [x] 7.4 Verify the redesigned screen in light and dark mode; status card, sections, and clipboard/notification entry points all work. Verify: visual + functional check.
 
 ## 8. Validate & Report
 
 - [x] 8.1 Run `openspec validate iter-7-android-ux --strict` clean. Verify: validation passes.
 - [x] 8.2 Update `docs/ITERATIONS.md` with iter-7 layman + technical summary and known issues (FGS notification cannot be fully removed; icon is a designed placeholder, swappable). Verify: section added.
-- [ ] 8.3 Archive the change: `openspec archive iter-7-android-ux`. Verify: change moved to archive and `ui/android-shell` spec synced to `openspec/specs/`.
+- [x] 8.3 Archive the change: `openspec archive iter-7-android-ux`. Verify: change moved to archive and `ui/android-shell` spec synced to `openspec/specs/`.

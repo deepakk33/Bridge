@@ -257,9 +257,9 @@ Per-app allow state and the seen-apps UI are a base for future per-app rules
 is the next planned change.
 
 ## Iteration 7: Android UX Shell
-**Status**: Implemented — automated tests pass, debug APK builds; manual device validation on Galaxy S25 pending
+**Status**: Complete — automated tests pass, hardware-validated on Galaxy S25 / Android 16
 **Branch**: `worktree-iter-7+android-ux`
-**OpenSpec**: `openspec show iter-7-android-ux`
+**OpenSpec**: `openspec show iter-7-android-ux` (archived)
 
 ### Layman Summary
 The Android app got a real face. The home screen is now a clean card layout: a
@@ -306,19 +306,37 @@ only the FGS notification moved to the new MIN channel. RecyclerView/ConstraintL
 were not added — RecyclerView was already a dependency (iter-6) and the layout uses
 `LinearLayout`/`NestedScrollView` + Material cards, so ConstraintLayout was unneeded.
 
+### Hardware validation (2026-10-21, Galaxy S25 SM-S931B / Android 16)
+Debug APK installed over ADB against a live MacBook Bridge link; states driven by
+toggling the phone's Bluetooth and observed via screenshots + `dumpsys notification`
++ logcat:
+- **FGS notification (7.1)** — `dumpsys` record: `channel=bridge_service_min_channel`,
+  `contentView=null`, no title/text, `sound=null` + `FLAG_MUTE_HAPTIC`,
+  `ONGOING|NO_CLEAR`, icon = `ic_notification`. In the shade it collapsed into the
+  "N more notifications" bucket at the bottom with no status-bar icon.
+- **Launcher icon (7.2)** — recents showed the new blue suspension-bridge adaptive
+  icon, distinct from the monochrome chain.
+- **Connect action (7.3)** — live link showed toolbar **CONNECTED** (no-op) + green
+  pill; disabling Bluetooth flipped it to **PAIR MAC** + grey "No Mac paired" +
+  "Last seen 2 minutes ago" with the screen open (no reopen); re-enabling Bluetooth
+  reconnected and flipped it back to **CONNECTED** live. All three states observed.
+- **Light/dark (7.4)** — status card + section cards render correctly in both themes.
+
+**On-device caveat:** the channel is created at `IMPORTANCE_MIN` (`mOriginalImp=1`),
+but Android floors a `connectedDevice` FGS notification's effective importance to
+`LOW` (`importance=2`). The status-bar icon is still suppressed and the entry sinks
+to the bottom of the shade — the quietest allowed form, as the proposal noted.
+
 ### Known Issues
 - **FGS notification cannot be fully removed.** Android requires a notification for a
   `connectedDevice` foreground service; `IMPORTANCE_MIN` + content-less is the
-  quietest allowed form.
+  quietest allowed form. Effective importance is floored to `LOW` by the platform.
 - **Launcher icon is a designed placeholder.** A vector suspension-bridge glyph chosen
   without user input; trivially swappable.
 - **"Pair Mac" is advertising-only on the phone side.** Pairing is Mac-initiated
   (the phone auto-accepts the iter-2 handshake), so the action ensures the service is
   running and BLE is advertising so the Mac can discover and pair; it cannot
   unilaterally initiate from the phone.
-- **Manual device validation pending.** Automated tests pass and the debug APK builds,
-  but the on-device walk-through (icon, silent notification, live label transitions,
-  light/dark) has not yet been run on the Galaxy S25.
 
 ### What the next iteration builds on
 A reusable card-based visual system and a single `LinkState` the UI binds to; future
