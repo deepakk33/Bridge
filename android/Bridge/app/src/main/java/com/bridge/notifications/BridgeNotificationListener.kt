@@ -50,9 +50,12 @@ class BridgeNotificationListener : NotificationListenerService() {
         val notificationKey: String
     )
 
+    private val filterStore by lazy { NotificationFilterStore.init(applicationContext) }
+
     override fun onCreate() {
         super.onCreate()
         instance = this
+        NotificationFilterStore.init(applicationContext)
         Log.i(TAG, "NotificationListener created")
     }
 
@@ -67,9 +70,22 @@ class BridgeNotificationListener : NotificationListenerService() {
 
         val notification = sbn.notification ?: return
 
-        if (notification.flags and Notification.FLAG_ONGOING_EVENT != 0) return
-        if (notification.flags and Notification.FLAG_FOREGROUND_SERVICE != 0) return
-        if (notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
+        // iter-3 structural skips (ongoing / foreground-service / group-summary).
+        if (NotificationGate.isStructuralSkip(
+                isOngoing = notification.flags and Notification.FLAG_ONGOING_EVENT != 0,
+                isForegroundService = notification.flags and Notification.FLAG_FOREGROUND_SERVICE != 0,
+                isGroupSummary = notification.flags and Notification.FLAG_GROUP_SUMMARY != 0
+            )
+        ) return
+
+        // iter-6: record the app as seen (so it can be toggled on later) BEFORE the
+        // gate, then drop unless master mute is off and the app is explicitly allowed.
+        filterStore.recordSeen(sbn.packageName)
+        if (!filterStore.shouldForward(sbn.packageName)) {
+            Log.i(TAG, "Filtered out ${sbn.packageName} (muted=${filterStore.isMuted()}, allowed=${filterStore.isAllowed(sbn.packageName)})")
+            return
+        }
+        Log.i(TAG, "Forwarding notification from ${sbn.packageName}")
 
         val extras = notification.extras ?: Bundle()
         val notifId = sbn.key

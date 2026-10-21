@@ -18,6 +18,7 @@ import androidx.core.content.ContextCompat
 import android.net.Uri
 import com.bridge.clipboard.ClipboardBridge
 import com.bridge.notifications.BridgeNotificationListener
+import com.bridge.notifications.NotificationFilterActivity
 import com.bridge.permissions.PermissionStatus
 import com.bridge.permissions.PermissionStatusChecker
 
@@ -26,6 +27,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var deviceInfoText: TextView
     private lateinit var notifAccessButton: Button
+    private lateinit var notifFilterButton: Button
     private lateinit var clipboardStatusText: TextView
     private lateinit var sendClipboardButton: Button
     private lateinit var permissionStatusText: TextView
@@ -87,6 +89,14 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        notifFilterButton = Button(this).apply {
+            text = "Notification Filter"
+            setPadding(0, 16, 0, 0)
+            setOnClickListener {
+                startActivity(Intent(this@MainActivity, NotificationFilterActivity::class.java))
+            }
+        }
+
         clipboardStatusText = TextView(this).apply {
             textSize = 14f
             gravity = Gravity.CENTER
@@ -121,6 +131,7 @@ class MainActivity : AppCompatActivity() {
         layout.addView(statusText)
         layout.addView(deviceInfoText)
         layout.addView(notifAccessButton)
+        layout.addView(notifFilterButton)
         layout.addView(clipboardStatusText)
         layout.addView(sendClipboardButton)
         layout.addView(permissionStatusText)
