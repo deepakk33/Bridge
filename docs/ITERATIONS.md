@@ -172,7 +172,7 @@ resume/queue UI, and generic notification-action forwarding.
 ---
 
 ## Iteration 6: Notification Filter
-**Status**: Implemented — automated tests pass; manual device test (5.1–5.5) pending on hardware
+**Status**: Complete — automated tests pass, hardware-validated on Galaxy S25 / Android 16
 **Branch**: `worktree-iter-6-notification-filter`
 **OpenSpec**: `openspec show iter-6-notification-filter`
 
@@ -217,10 +217,33 @@ synchronous accessors. Full `./gradlew test` green, `assembleDebug` builds, no
 regressions across iter-1..iter-5. `grep -c QUERY_ALL_PACKAGES AndroidManifest.xml`
 = 0.
 
+### Hardware validation (2026-10-21, Galaxy S25 SM-S931B / Android 16)
+Driven over ADB; forwarding decisions read from the listener log and the persisted
+`bridge_notification_filter.xml`:
+- **5.1 deny-by-default** — with an empty allow-set, `com.nextbillion.groww` and the
+  shell-posted notification were both `Filtered out (allowed=false)` and both
+  recorded in `seen_packages`. No `allowed_packages` key present.
+- **5.2 allow one app** — toggling "Shell" on in the real UI wrote
+  `allowed_packages={com.android.shell}`; the next shell post logged `Forwarding`,
+  while a non-allowed real app (`com.axis.mobile`) in the same window was
+  `Filtered out`.
+- **5.3 master mute** — enabling mute (`master_mute=true`) filtered the allowed
+  shell app (`muted=true, allowed=true`); turning it off restored `Forwarding`.
+- **5.4 persistence** — survived an app force-stop (fresh PID reloaded the allow-set
+  and forwarded) and a full device reboot: the notification listener was rebound by
+  the system without reopening the app, loaded the persisted allow-set, forwarded
+  the allowed app and filtered a non-allowed one (`com.samsung.android.app.routines`).
+- The filter UI rendered correctly: master-mute header switch, per-app rows with
+  icon + label + switch, all off by default.
+
+A one-line `Forwarding` / `Filtered out` log in `BridgeNotificationListener` was
+added during validation and kept — low-noise and operationally useful.
+
 ### Known Issues
-- **Manual device test (5.1–5.5) not yet run** — needs the Galaxy S25; code and
-  automated tests are complete.
-- **OTP/2FA body redaction (documented degradation, not fixed):** on Android 15/16
+- **OTP/2FA body redaction — documented degradation, not reproduced this session.**
+  `cmd notification post` cannot synthesize a platform-redacted sensitive
+  notification, so the redaction (applied only to genuine messaging/OTP
+  notifications) was not independently observed. On Android 15/16
   an allowed app's OTP notification still mirrors, but with the body redacted to the
   untrusted listener. Orthogonal to filtering; requires a signature/role permission
   unavailable to a sideloaded app.

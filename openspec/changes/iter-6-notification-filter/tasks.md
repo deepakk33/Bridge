@@ -26,10 +26,10 @@
 
 ## 5. Manual Device Testing (Galaxy S25, Android 16)
 
-- [ ] 5.1 Fresh state: with empty allow-set, post notifications from several apps — confirm Mac shows nothing and all those apps appear in the filter list. Verify: Mac Notification Center stays empty; apps listed.
-- [ ] 5.2 Allow one app (e.g. Messages), post a notification — confirm it appears on the Mac within 2 seconds; post from a non-allowed app — confirm Mac stays silent. Verify: only the allowed app mirrors.
-- [ ] 5.3 Toggle master mute on, post from an allowed app — confirm Mac silent; toggle off — confirm mirroring resumes. Verify: mute gates everything.
-- [ ] 5.4 Restart the Bridge app and reboot the phone — confirm allow-set and master-mute persist. Verify: same apps allowed after restart and after reboot.
+- [x] 5.1 Fresh state: with empty allow-set, post notifications from several apps — confirm Mac shows nothing and all those apps appear in the filter list. Verify: Mac Notification Center stays empty; apps listed.
+- [x] 5.2 Allow one app (e.g. Messages), post a notification — confirm it appears on the Mac within 2 seconds; post from a non-allowed app — confirm Mac stays silent. Verify: only the allowed app mirrors.
+- [x] 5.3 Toggle master mute on, post from an allowed app — confirm Mac silent; toggle off — confirm mirroring resumes. Verify: mute gates everything.
+- [x] 5.4 Restart the Bridge app and reboot the phone — confirm allow-set and master-mute persist. Verify: same apps allowed after restart and after reboot.
 - [ ] 5.5 Confirm documented degradation: an allowed OTP app mirrors the notification with redacted body on Android 16. Verify: observe redacted body, note in report.
 
 ## 6. Validate & Report

@@ -81,7 +81,11 @@ class BridgeNotificationListener : NotificationListenerService() {
         // iter-6: record the app as seen (so it can be toggled on later) BEFORE the
         // gate, then drop unless master mute is off and the app is explicitly allowed.
         filterStore.recordSeen(sbn.packageName)
-        if (!filterStore.shouldForward(sbn.packageName)) return
+        if (!filterStore.shouldForward(sbn.packageName)) {
+            Log.i(TAG, "Filtered out ${sbn.packageName} (muted=${filterStore.isMuted()}, allowed=${filterStore.isAllowed(sbn.packageName)})")
+            return
+        }
+        Log.i(TAG, "Forwarding notification from ${sbn.packageName}")
 
         val extras = notification.extras ?: Bundle()
         val notifId = sbn.key
