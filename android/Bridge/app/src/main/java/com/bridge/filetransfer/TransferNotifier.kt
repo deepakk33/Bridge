@@ -54,6 +54,37 @@ class TransferNotifier(private val context: Context) {
             android.R.drawable.stat_notify_error))
     }
 
+    // Receive direction (Mac -> phone).
+
+    fun startReceive(name: String, total: Long): Int {
+        val id = BASE_ID + (seq++)
+        receiveProgressNotification(id, name, "Receiving from Mac…", 0)
+        return id
+    }
+
+    fun progressReceive(id: Int, name: String, received: Long, total: Long) {
+        val pct = if (total > 0) (received * 100 / total).toInt() else 0
+        receiveProgressNotification(id, name, "Receiving from Mac… $pct%", pct)
+    }
+
+    fun completeReceive(id: Int, name: String, total: Long) {
+        val sizeMb = String.format("%.1f", total / (1024.0 * 1024.0))
+        nm.notify(id, terminal(name, "Saved from Mac ✓  ($sizeMb MB)",
+            android.R.drawable.stat_sys_download_done))
+    }
+
+    private fun receiveProgressNotification(id: Int, title: String, text: String, pct: Int) {
+        val n = Notification.Builder(context, CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setProgress(100, pct, false)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .build()
+        nm.notify(id, n)
+    }
+
     private fun progressNotification(id: Int, title: String, text: String, pct: Int) {
         val n = Notification.Builder(context, CHANNEL_ID)
             .setContentTitle(title)

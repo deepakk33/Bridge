@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
 
@@ -42,6 +43,34 @@ class PayloadClient(
                 total += n
             }
             buffer.toByteArray()
+        }
+    }
+
+    /**
+     * Connect and stream exactly [expectedBytes] into [out], reporting progress.
+     * Streams in chunks so a large file never sits fully in memory. Returns bytes
+     * written; throws on incomplete transfer (caller discards the partial file).
+     */
+    suspend fun fetchTo(
+        out: OutputStream,
+        onProgress: (received: Long, total: Long) -> Unit = { _, _ -> }
+    ): Long = withContext(Dispatchers.IO) {
+        Socket().use { socket ->
+            socket.connect(InetSocketAddress(host, port), timeoutMs)
+            socket.soTimeout = timeoutMs
+            val input = socket.getInputStream()
+            val chunk = ByteArray(CHUNK)
+            var total = 0L
+            while (total < expectedBytes) {
+                val toRead = minOf(chunk.size.toLong(), expectedBytes - total).toInt()
+                val n = input.read(chunk, 0, toRead)
+                if (n < 0) throw IOException("incomplete transfer: $total of $expectedBytes bytes")
+                out.write(chunk, 0, n)
+                total += n
+                onProgress(total, expectedBytes)
+            }
+            out.flush()
+            total
         }
     }
 }

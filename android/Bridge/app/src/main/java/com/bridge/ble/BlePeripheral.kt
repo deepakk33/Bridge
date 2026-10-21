@@ -114,6 +114,11 @@ class BlePeripheral(
         l2capServer?.onClipboardConnectReceived = handler
     }
 
+    fun setShareRequestHandler(handler: (com.bridge.protocol.BridgePacket) -> Unit) {
+        onShareRequestHandler = handler
+        l2capServer?.onShareRequest = handler
+    }
+
     fun setOnConnectHandler(handler: () -> Unit) {
         onConnectHandler = handler
     }
@@ -125,6 +130,7 @@ class BlePeripheral(
 
     private var onConnectHandler: (() -> Unit)? = null
     private var onPairCompletedHandler: (() -> Unit)? = null
+    private var onShareRequestHandler: ((com.bridge.protocol.BridgePacket) -> Unit)? = null
 
     fun stop() {
         stopAdvertising()
@@ -152,6 +158,7 @@ class BlePeripheral(
             }
             l2capServer = server
             server.onPairCompleted = onPairCompletedHandler
+            server.onShareRequest = onShareRequestHandler
             server.onLinkReady = { onConnectHandler?.invoke() }
             psm = server.psm
             Log.i(TAG, "L2CAP server started on PSM=$psm")

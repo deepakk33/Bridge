@@ -143,7 +143,8 @@ struct BridgePacket: @unchecked Sendable {
         filename: String,
         fileSize: Int64,
         payloadSize: Int64,
-        port: Int?
+        port: Int?,
+        host: String? = nil
     ) -> BridgePacket {
         var body: [String: Any] = [
             "filename": filename,
@@ -152,7 +153,9 @@ struct BridgePacket: @unchecked Sendable {
         if payloadSize > 0 {
             body["payloadSize"] = payloadSize
             if let port {
-                body["payloadTransferInfo"] = ["port": port]
+                var info: [String: Any] = ["port": port]
+                if let host { info["host"] = host }
+                body["payloadTransferInfo"] = info
             }
         }
         return BridgePacket(

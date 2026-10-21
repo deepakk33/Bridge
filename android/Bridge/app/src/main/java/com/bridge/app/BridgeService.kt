@@ -19,6 +19,7 @@ import com.bridge.ble.BlePeripheral
 import com.bridge.ble.BridgeConstants
 import com.bridge.clipboard.ClipboardBridge
 import com.bridge.clipboard.ClipboardTileService
+import com.bridge.filetransfer.FileReceiver
 import com.bridge.filetransfer.FileTransferCoordinator
 import com.bridge.filetransfer.TransferNotifier
 import com.bridge.notifications.BridgeNotificationListener
@@ -147,6 +148,11 @@ class BridgeService : Service() {
         }
         blePeripheral?.setClipboardConnectHandler { packet ->
             clipboardBridge?.handleClipboardConnectPacket(packet)
+        }
+
+        blePeripheral?.setShareRequestHandler { packet ->
+            FileReceiver(applicationContext, TransferNotifier(applicationContext))
+                .receive(serviceScope, packet)
         }
 
         blePeripheral?.setOnPairCompletedHandler {
