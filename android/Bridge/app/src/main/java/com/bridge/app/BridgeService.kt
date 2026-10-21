@@ -43,6 +43,53 @@ class BridgeService : Service() {
         private const val PERMISSION_WARNING_NOTIFICATION_ID = 2
         var clipboardBridge: ClipboardBridge? = null
             private set
+
+        @Volatile
+        private var activeInstance: BridgeService? = null
+
+        /** Ask the running service to restart the BLE link (Reconnect / Pair action). */
+        fun requestReconnect() {
+            activeInstance?.let { svc ->
+                android.os.Handler(android.os.Looper.getMainLooper()).post { svc.restartBlePeripheral() }
+            }
+        }
+    }
+
+    /**
+     * Observable link status for the UI (iter-7). Holds the latest BLE
+     * connection state plus the time the link last went up, and notifies
+     * listeners on the main thread so the connect action can refresh live.
+     */
+    object LinkStatus {
+        @Volatile
+        var connectionState: BlePeripheral.ConnectionState = BlePeripheral.ConnectionState.Idle
+            private set
+
+        /** Wall-clock millis of the most recent transition to Connected, or 0. */
+        @Volatile
+        var lastConnectedAt: Long = 0L
+            private set
+
+        private val listeners = java.util.concurrent.CopyOnWriteArraySet<() -> Unit>()
+        private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+        val isConnected: Boolean
+            get() = connectionState is BlePeripheral.ConnectionState.Connected
+
+        /** Paired Mac name while connected, else null. */
+        val connectedPeerName: String?
+            get() = (connectionState as? BlePeripheral.ConnectionState.Connected)?.deviceName
+
+        fun addListener(listener: () -> Unit) = listeners.add(listener)
+        fun removeListener(listener: () -> Unit) = listeners.remove(listener)
+
+        internal fun update(state: BlePeripheral.ConnectionState) {
+            connectionState = state
+            if (state is BlePeripheral.ConnectionState.Connected) {
+                lastConnectedAt = System.currentTimeMillis()
+            }
+            mainHandler.post { listeners.forEach { it() } }
+        }
     }
 
     private var blePeripheral: BlePeripheral? = null
@@ -85,6 +132,7 @@ class BridgeService : Service() {
     override fun onCreate() {
         super.onCreate()
         Log.i(TAG, "BridgeService created")
+        activeInstance = this
 
         createNotificationChannel()
         startForeground(
@@ -108,13 +156,7 @@ class BridgeService : Service() {
             RECEIVER_NOT_EXPORTED
         )
 
-        blePeripheral = BlePeripheral(this) { state ->
-            Log.i(TAG, "Connection state: $state")
-            val str = state.toString()
-            if (str.contains("Disconnected") || str.contains("Advertising")) {
-                clipboardBridge?.onConnectionLost()
-            }
-        }
+        blePeripheral = BlePeripheral(this, ::onConnectionStateChanged)
         blePeripheral?.start()
 
         com.bridge.notifications.NotificationFilterStore.init(this)
@@ -201,11 +243,18 @@ class BridgeService : Service() {
         }
     }
 
+    private fun onConnectionStateChanged(state: BlePeripheral.ConnectionState) {
+        Log.i(TAG, "Connection state: $state")
+        BridgeService.LinkStatus.update(state)
+        val str = state.toString()
+        if (str.contains("Disconnected") || str.contains("Advertising")) {
+            clipboardBridge?.onConnectionLost()
+        }
+    }
+
     private fun restartBlePeripheral() {
         blePeripheral?.stop()
-        blePeripheral = BlePeripheral(this) { state ->
-            Log.i(TAG, "Connection state: $state")
-        }
+        blePeripheral = BlePeripheral(this, ::onConnectionStateChanged)
         blePeripheral?.start()
     }
 
@@ -276,27 +325,40 @@ class BridgeService : Service() {
         unregisterReceiver(bluetoothStateReceiver)
         blePeripheral?.stop()
         blePeripheral = null
+        LinkStatus.update(BlePeripheral.ConnectionState.Idle)
+        activeInstance = null
         super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            BridgeConstants.NOTIFICATION_CHANNEL_ID,
-            getString(R.string.notification_channel),
-            NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = "Persistent notification while Bridge is active"
-        }
         val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
+
+        // iter-7: minimal, silent channel for the required FGS notification.
+        val minChannel = NotificationChannel(
+            BridgeConstants.NOTIFICATION_CHANNEL_ID_MIN,
+            getString(R.string.notification_channel),
+            NotificationManager.IMPORTANCE_MIN
+        ).apply {
+            description = "Keeps Bridge running in the background"
+            setShowBadge(false)
+        }
+        manager.createNotificationChannel(minChannel)
+
+        // Retain a LOW channel for actionable alerts (e.g. the permission warning).
+        val alertChannel = NotificationChannel(
+            BridgeConstants.NOTIFICATION_CHANNEL_ID,
+            getString(R.string.notification_channel_alerts),
+            NotificationManager.IMPORTANCE_LOW
+        )
+        manager.createNotificationChannel(alertChannel)
     }
 
     private fun buildNotification(): Notification {
-        return Notification.Builder(this, BridgeConstants.NOTIFICATION_CHANNEL_ID)
-            .setContentTitle(getString(R.string.app_name))
-            .setContentText(getString(R.string.notification_text))
+        // Icon-only, no title/text: the quietest form Android allows for a
+        // required connectedDevice foreground-service notification.
+        return Notification.Builder(this, BridgeConstants.NOTIFICATION_CHANNEL_ID_MIN)
             .setSmallIcon(R.drawable.ic_notification)
             .setOngoing(true)
             .build()

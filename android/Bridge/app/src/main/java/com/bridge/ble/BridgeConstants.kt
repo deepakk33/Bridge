@@ -26,7 +26,16 @@ object BridgeConstants {
     /** mDNS service type for Tier 3 Wi-Fi LAN file transfer. */
     const val FILE_TRANSFER_SERVICE_TYPE = "_bridge._tcp"
 
+    /** Legacy LOW channel — retained only for actionable alerts (e.g. the permission warning). */
     const val NOTIFICATION_CHANNEL_ID = "bridge_service_channel"
+
+    /**
+     * iter-7: IMPORTANCE_MIN channel for the content-less foreground-service
+     * notification. A new id (not a lowered existing channel) because Android
+     * ignores importance changes on an already-created channel.
+     */
+    const val NOTIFICATION_CHANNEL_ID_MIN = "bridge_service_min_channel"
+
     const val NOTIFICATION_ID = 1
 
     const val DEVICE_ID_PREF_KEY = "bridge_device_id"

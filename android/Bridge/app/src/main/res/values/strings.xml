@@ -2,5 +2,25 @@
 <resources>
     <string name="app_name">Bridge</string>
     <string name="notification_channel">Bridge Service</string>
-    <string name="notification_text">Bridge active</string>
+    <string name="notification_channel_alerts">Bridge Alerts</string>
+
+    <!-- Top-bar connect action (label is replaced at runtime per link state). -->
+    <string name="action_connect">Connect</string>
+
+    <!-- Status card -->
+    <string name="status_initializing">Initializing…</string>
+    <string name="status_not_paired">No Mac paired</string>
+    <string name="status_disconnected">Disconnected</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_last_seen_never">Not connected yet</string>
+
+    <!-- Sections -->
+    <string name="section_notifications">Notifications</string>
+    <string name="section_notifications_desc">Choose which apps mirror to the Mac</string>
+    <string name="section_clipboard">Clipboard</string>
+    <string name="section_permissions">Permissions</string>
+
+    <string name="grant_notification_access">Grant Notification Access</string>
+    <string name="send_clipboard">Send Clipboard to Mac</string>
+    <string name="disable_battery_optimization">Disable Battery Optimization</string>
 </resources>

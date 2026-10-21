@@ -255,3 +255,72 @@ added during validation and kept — low-noise and operationally useful.
 Per-app allow state and the seen-apps UI are a base for future per-app rules
 (per-app mute schedules, content hiding) if ever wanted. iter-7 (`iter-7-android-ux`)
 is the next planned change.
+
+## Iteration 7: Android UX Shell
+**Status**: Implemented — automated tests pass, debug APK builds; manual device validation on Galaxy S25 pending
+**Branch**: `worktree-iter-7+android-ux`
+**OpenSpec**: `openspec show iter-7-android-ux`
+
+### Layman Summary
+The Android app got a real face. The home screen is now a clean card layout: a
+status card at the top shows whether the Mac is connected, grouped cards below hold
+Notifications, Clipboard, and Permissions. A single smart button in the top bar
+reads your situation — **Pair Mac** when no Mac is set up, **Reconnect** when one is
+paired but offline, **Connected** when the link is live — and it updates itself as
+the connection changes, no reopening needed. The app has its own bridge icon in the
+launcher instead of reusing the little notification chain. And the always-on
+background notification is now a silent, text-less icon that sinks to the bottom of
+the shade (Android forces it to stay, so this is the quietest it is allowed to be).
+
+### Technical Summary
+Android-only shell change; no Mac, protocol, or transport change, no new permission.
+- **Link state model** (`LinkState`): a pure `enum { UNPAIRED, DISCONNECTED,
+  CONNECTED }` with `resolve(hasTrustedMac, isConnected)` and `actionLabel(state)`,
+  unit-tested without Android (`LinkStateTest`). `hasTrustedMac` is `!TrustStore.isEmpty`;
+  `isConnected` from the BLE `ConnectionState`.
+- **State plumbing** (`BridgeService.LinkStatus`): a process-level observable object
+  holding the latest `BlePeripheral.ConnectionState` plus `lastConnectedAt`, fed from
+  a single `onConnectionStateChanged` callback (shared by first start and reconnect),
+  notifying listeners on the main thread. `MainActivity` subscribes in `onResume`,
+  unsubscribes in `onPause`, so the top-bar label flips live on transitions.
+  `BridgeService.requestReconnect()` posts a BLE restart to the running service.
+- **Main screen** (`res/layout/activity_main.xml`): moved off programmatic Views to
+  inflated XML — `MaterialToolbar` + `MaterialCardView` status card (glyph, state
+  pill, Mac name, last-seen) + Notifications / Clipboard / Permissions section cards.
+  The connect action is a single `MaterialToolbar` menu item whose title is rebound
+  per `LinkState`; tap behavior: UNPAIRED/DISCONNECTED → ensure service + BLE restart,
+  CONNECTED → no-op. The Notifications card opens the iter-6 `NotificationFilterActivity`;
+  clipboard send and notification-access / battery-optimization prompts are preserved
+  inside the new cards.
+- **Launcher icon**: new `ic_launcher_foreground` (suspension-bridge vector) over the
+  existing blue background, wired via `mipmap-anydpi-v26/ic_launcher{,_round}.xml`
+  (minSdk 31, so the old misplaced `mipmap-hdpi/ic_launcher.xml` was removed).
+  `ic_notification` stays as the monochrome status small-icon.
+- **Foreground notification**: new `IMPORTANCE_MIN` channel (`bridge_service_min_channel`
+  — a new id because Android ignores importance changes on an existing channel),
+  icon-only builder (`setSmallIcon` + `setOngoing`, no title/text).
+
+**Deviation from tasks.md:** the old `IMPORTANCE_LOW` channel is kept (not deleted)
+to carry the actionable permission-warning notification, which should stay visible;
+only the FGS notification moved to the new MIN channel. RecyclerView/ConstraintLayout
+were not added — RecyclerView was already a dependency (iter-6) and the layout uses
+`LinearLayout`/`NestedScrollView` + Material cards, so ConstraintLayout was unneeded.
+
+### Known Issues
+- **FGS notification cannot be fully removed.** Android requires a notification for a
+  `connectedDevice` foreground service; `IMPORTANCE_MIN` + content-less is the
+  quietest allowed form.
+- **Launcher icon is a designed placeholder.** A vector suspension-bridge glyph chosen
+  without user input; trivially swappable.
+- **"Pair Mac" is advertising-only on the phone side.** Pairing is Mac-initiated
+  (the phone auto-accepts the iter-2 handshake), so the action ensures the service is
+  running and BLE is advertising so the Mac can discover and pair; it cannot
+  unilaterally initiate from the phone.
+- **Manual device validation pending.** Automated tests pass and the debug APK builds,
+  but the on-device walk-through (icon, silent notification, live label transitions,
+  light/dark) has not yet been run on the Galaxy S25.
+
+### What the next iteration builds on
+A reusable card-based visual system and a single `LinkState` the UI binds to; future
+screens (e.g. the iter-6 filter screen) can adopt the same cards, and richer status
+(signal, transfer activity) can hang off `BridgeService.LinkStatus`.

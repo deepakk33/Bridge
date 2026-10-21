@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Bridge launcher foreground (iter-7): a stylized suspension bridge.
+  Distinct from ic_notification's chain/link glyph. 108x108 adaptive-icon
+  viewport; content kept inside the ~middle safe zone. White on the blue
+  ic_launcher_background layer.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Deck -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M24,66 H84 V70 H24 Z" />
+
+    <!-- Towers -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M42,38 H46 V66 H42 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M62,38 H66 V66 H62 Z" />
+
+    <!-- Main cables: swoop from deck up over each tower top -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.5"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round"
+        android:pathData="M24,64 Q34,40 44,40 Q54,40 64,40 Q74,40 84,64" />
+
+    <!-- Suspender cables -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:pathData="M30,56 V66 M36,50 V66 M54,41 V66 M72,50 V66 M78,56 V66" />
+</vector>
