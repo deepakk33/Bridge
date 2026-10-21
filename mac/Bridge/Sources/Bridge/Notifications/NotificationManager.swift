@@ -174,4 +174,5 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
 extension Notification.Name {
     static let bridgeBatteryUpdated = Notification.Name("bridgeBatteryUpdated")
     static let bridgeDisconnected = Notification.Name("bridgeDisconnected")
+    static let bridgeShareRequestReceived = Notification.Name("bridgeShareRequestReceived")
 }

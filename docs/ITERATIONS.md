@@ -68,15 +68,75 @@ Both platforms poll clipboard every 500ms. Mac uses NSPasteboard.general.changeC
 ---
 
 ## Iteration 5: File Transfer & Polish
-**Status**: Not started  
+**Status**: Complete (device-dependent paths pending hardware validation)  
 **Branch**: `iter-5/files-polish`  
 **OpenSpec**: `openspec show iter-5-files-polish`
 
 ### Layman Summary
-_To be written after completion_
+Send files both ways. Drag a file onto the Mac menu bar icon, or share a file from
+any Android app to Bridge, and it lands on the other device. Small files (under
+500 KB) go over Bluetooth with no network needed; larger files go over Wi-Fi when
+both devices share a network, and fall back to Bluetooth (slower) otherwise. The
+Mac menu bar now shows every permission Bridge needs and how recently the phone
+was heard from, and warns when the phone's service is silently killed.
 
 ### Technical Summary
-_To be written after completion_
+**Out-of-band payload channel (KDE Connect mechanism):** `bridge.share.request`
+carries `filename`, `fileSize`, `payloadSize`, and `payloadTransferInfo{port}`.
+The sender binds an ephemeral TCP port and serves the bytes; the receiver reads
+exactly `payloadSize`. Keeps the Tier 1 BLE control channel free during transfer.
+`PayloadServer`/`PayloadClient` on both platforms (Network.framework on Mac,
+`ServerSocket`/`Socket` on Android) with 30 s inactivity timeout, partial-transfer
+discard, and excess truncation.
+
+**Tier routing:** `TierRouter` sends <512 KB over Tier 2 (Bluetooth Classic
+RFCOMM), >=512 KB over Tier 3 (Wi-Fi LAN) when a shared network exists, else falls
+back to Tier 2 with a slow-transfer warning.
+
+**Tier 2 RFCOMM:** Android server/client via `listenUsingRfcommWithServiceRecord`
++ `createRfcommSocketToServiceRecord`; Mac via IOBluetooth RFCOMM channel + SDP
+lookup. File-transfer UUID `A76E1A03-…`.
+
+**Tier 3 Wi-Fi LAN:** `_bridge._tcp` advertised via `NWListener.service`
+(Mac) / `NsdManager` (Android); discovery via `NWBrowser` (Mac) / NSD resolve
+(Android). Info.plist gains `NSLocalNetworkUsageDescription` + `NSBonjourServices`.
+
+**File UI:** Mac menu bar drop target (`dropDestination`) + "Send File…"
+(`NSOpenPanel`) + progress/fallback states. Android `ShareReceiverActivity`
+registered for `ACTION_SEND`/`SEND_MULTIPLE` forwards the URI to `BridgeService`,
+which reads the bytes and drives `FileTransferCoordinator`.
+
+**Permission panel:** Mac `PermissionChecker` (CBManager / UNUserNotificationCenter
+/ Local Network) feeds a menu bar section with Granted/Denied/Not-Requested state,
+Fix/Request buttons, and a warning badge on the icon. Android
+`PermissionStatusChecker` (Notification Access, Battery Optimization, ADB clipboard
+grant) surfaces in the settings screen; the service posts a fix-it notification
+when Notification Access is off.
+
+**Watchdog:** heartbeat already at 30 s; dead-detection raised to 90 s.
+`LinkHealthEvaluator` (both platforms) classifies connected / stale / dead /
+out-of-range / bluetooth-off, formats last-seen ("just now" / "Xs ago" / "Xm ago"),
+and emits actionable guidance (distinguishes a clean out-of-range disconnect from a
+silent One UI service kill while BLE stays connected).
+
+**Tests:** payload loopback round-trip + checksum + timeout + excess, tier routing,
+share-request vectors (with/without payload), link-health classification,
+permission mapping/summary, and an all-vectors sweep that parses every shared test
+vector on both platforms. All unit tests pass on both platforms; no regressions
+from iter-1 through iter-4.
 
 ### Known Issues
-_To be written after completion_
+- **Device-dependent paths not yet validated on hardware** (no paired Mac+S25 in
+  the build environment): RFCOMM throughput (tasks 2.6), cross-device mDNS
+  discovery (3.1–3.4), and the end-to-end transfer/reconnect integration tests
+  (7.1–7.6, 7.8). Logic and framing are implemented and unit-tested on loopback;
+  real-radio verification is the remaining step.
+- Mac receive-side download flow surfaces incoming `bridge.share.request` via
+  NotificationCenter but the full mDNS-resolve + `PayloadClient` save path runs on
+  hardware; auto-save directory UI is minimal.
+- Tier 4 (phone hotspot) remains deferred to v2 per PRD.
+
+### What the next iteration builds on
+v1 feature set is complete: notifications, clipboard, file transfer, battery,
+permission panel, and watchdog. v2 candidates: Tier 4 hotspot, transfer
+resume/queue UI, and generic notification-action forwarding.

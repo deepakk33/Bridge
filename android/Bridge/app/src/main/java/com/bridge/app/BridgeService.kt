@@ -10,26 +10,37 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
+import android.net.Uri
+import android.net.nsd.NsdManager
+import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.provider.OpenableColumns
 import android.util.Log
+import androidx.core.content.IntentCompat
 import com.bridge.battery.BatteryMonitor
 import com.bridge.ble.BlePeripheral
 import com.bridge.ble.BridgeConstants
 import com.bridge.clipboard.ClipboardBridge
 import com.bridge.clipboard.ClipboardTileService
+import com.bridge.filetransfer.FileTransferCoordinator
 import com.bridge.notifications.BridgeNotificationListener
+import com.bridge.permissions.PermissionStatusChecker
 import com.bridge.protocol.BridgePacket
 import com.bridge.security.CertificateManager
 import com.bridge.security.TrustStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class BridgeService : Service() {
 
     companion object {
         private const val TAG = "BridgeService"
+        const val ACTION_SEND_FILE = "com.bridge.ACTION_SEND_FILE"
+        const val EXTRA_FILE_URI = "com.bridge.EXTRA_FILE_URI"
+        private const val PERMISSION_WARNING_NOTIFICATION_ID = 2
         var clipboardBridge: ClipboardBridge? = null
             private set
     }
@@ -156,6 +167,8 @@ class BridgeService : Service() {
                 blePeripheral?.sendPacket(connectPacket)
             }
         }
+
+        checkPermissionsOnStart()
     }
 
     private fun handleNotificationReply(requestReplyId: String, message: String) {
@@ -191,7 +204,60 @@ class BridgeService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.i(TAG, "BridgeService onStartCommand")
+        if (intent?.action == ACTION_SEND_FILE) {
+            val uri = IntentCompat.getParcelableExtra(intent, EXTRA_FILE_URI, Uri::class.java)
+            if (uri != null) sendSharedFile(uri)
+        }
         return START_STICKY
+    }
+
+    private fun sendSharedFile(uri: Uri) {
+        serviceScope.launch(Dispatchers.IO) {
+            val bytes = try {
+                contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not read shared file", e)
+                null
+            } ?: return@launch
+            val name = queryDisplayName(uri) ?: "file"
+            val nsd = getSystemService(Context.NSD_SERVICE) as? NsdManager
+            val coordinator = FileTransferCoordinator(nsd) { blePeripheral?.sendPacket(it) }
+            coordinator.sendFile(serviceScope, name, bytes, sharedNetworkAvailable = true)
+        }
+    }
+
+    private fun queryDisplayName(uri: Uri): String? =
+        try {
+            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            }
+        } catch (_: Exception) {
+            null
+        }
+
+    private fun checkPermissionsOnStart() {
+        val checker = PermissionStatusChecker(this)
+        if (checker.notificationAccess() != com.bridge.permissions.PermissionStatus.GRANTED) {
+            postPermissionWarning()
+        }
+    }
+
+    private fun postPermissionWarning() {
+        val notification = Notification.Builder(this, BridgeConstants.NOTIFICATION_CHANNEL_ID)
+            .setContentTitle("Bridge cannot mirror notifications")
+            .setContentText("Tap to grant Notification Access.")
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentIntent(
+                android.app.PendingIntent.getActivity(
+                    this, 0,
+                    Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"),
+                    android.app.PendingIntent.FLAG_IMMUTABLE
+                )
+            )
+            .setAutoCancel(true)
+            .build()
+        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+            .notify(PERMISSION_WARNING_NOTIFICATION_ID, notification)
     }
 
     override fun onDestroy() {

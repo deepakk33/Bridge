@@ -14,7 +14,7 @@ final class PingWatchdog {
     private var sendPing: (() -> Void)?
     private var onTimeout: (() -> Void)?
 
-    init(pingInterval: TimeInterval = 30, watchdogTimeout: TimeInterval = 60) {
+    init(pingInterval: TimeInterval = 30, watchdogTimeout: TimeInterval = 90) {
         self.pingInterval = pingInterval
         self.watchdogTimeout = watchdogTimeout
     }
