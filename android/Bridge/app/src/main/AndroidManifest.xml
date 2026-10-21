@@ -54,6 +54,12 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name="com.bridge.notifications.NotificationFilterActivity"
+            android:exported="false"
+            android:label="Notification Filter"
+            android:parentActivityName=".MainActivity" />
+
         <service
             android:name=".BridgeService"
             android:exported="false"

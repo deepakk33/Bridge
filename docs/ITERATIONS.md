@@ -168,3 +168,67 @@ Three bugs were found and fixed during hardware testing:
 v1 feature set is complete: notifications, clipboard, file transfer, battery,
 permission panel, and watchdog. v2 candidates: Tier 4 hotspot, transfer
 resume/queue UI, and generic notification-action forwarding.
+
+---
+
+## Iteration 6: Notification Filter
+**Status**: Implemented — automated tests pass; manual device test (5.1–5.5) pending on hardware
+**Branch**: `worktree-iter-6-notification-filter`
+**OpenSpec**: `openspec show iter-6-notification-filter`
+
+### Layman Summary
+The phone now decides which apps are allowed to send notifications to the Mac.
+Nothing reaches the Mac unless you turn an app on — a new "Notification Filter"
+screen lists every app that has buzzed since Bridge got notification access, each
+with an on/off switch, plus one "Mute all" switch for meetings. This cuts the Mac
+notification noise (games, spam, chat groups) down to only what you choose. After
+updating, the Mac goes quiet until you allow your first app — that is the intended
+deny-by-default behavior, not a regression.
+
+### Technical Summary
+Phone-side forwarding gate in front of the iter-3 mirror. `NotificationFilterStore`
+(process singleton) holds a `MutableStateFlow<FilterState>` loaded from
+`SharedPreferences` (keys: `allowed_packages`, `master_mute`, `seen_packages`).
+`BridgeNotificationListener.onNotificationPosted` records the source package as
+"seen" (after the iter-3 ongoing/foreground/group-summary skips, modelled by the
+pure `NotificationGate.isStructuralSkip`) then drops the notification unless
+`!isMuted() && isAllowed(pkg)` — a synchronous, allocation-free `StateFlow.value`
+read on the hot path, no suspend/coroutine. `NotificationFilterActivity` (plain
+AppCompat Views + RecyclerView, launched from `MainActivity`) renders the seen-apps
+list with icon + label resolved off the main thread and cached, a per-row allow
+`SwitchCompat`, a master-mute header switch, and an empty-state hint. No Mac,
+protocol, or transport change; no new Android permission (`QUERY_ALL_PACKAGES`
+deliberately absent — the list is built from the notification stream).
+
+**Deviation from design.md:** persists via `SharedPreferences`, not Jetpack
+DataStore — the repo has no DataStore dependency and `TrustStore` et al. use
+`SharedPreferences`/`EncryptedSharedPreferences`. Synchronous cached reads satisfy
+the spec's hot-path requirement equally. The pure gate/state logic
+(`NotificationFilter.kt`, behind a `FilterPersistence` interface) is split out so it
+unit-tests on the plain JVM (the suite has no Robolectric). design.md D2 updated to
+record this.
+
+### Tests
+18 new JVM unit tests (`NotificationFilterTest` ×12, `NotificationFilterStoreTest`
+×6): deny-by-default gate, master-mute suppress/restore, newly-seen default-silent,
+immutable transitions, structural-skip composition (allowed app's ongoing
+notification still dropped), store persistence round-trip (survives restart) and
+synchronous accessors. Full `./gradlew test` green, `assembleDebug` builds, no
+regressions across iter-1..iter-5. `grep -c QUERY_ALL_PACKAGES AndroidManifest.xml`
+= 0.
+
+### Known Issues
+- **Manual device test (5.1–5.5) not yet run** — needs the Galaxy S25; code and
+  automated tests are complete.
+- **OTP/2FA body redaction (documented degradation, not fixed):** on Android 15/16
+  an allowed app's OTP notification still mirrors, but with the body redacted to the
+  untrusted listener. Orthogonal to filtering; requires a signature/role permission
+  unavailable to a sideloaded app.
+- **Seen-apps list starts empty on fresh install** — apps appear only after they
+  post their first notification (empty-state hint shown). By design; avoids
+  `QUERY_ALL_PACKAGES`.
+
+### What the next iteration builds on
+Per-app allow state and the seen-apps UI are a base for future per-app rules
+(per-app mute schedules, content hiding) if ever wanted. iter-7 (`iter-7-android-ux`)
+is the next planned change.

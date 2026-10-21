@@ -117,6 +117,8 @@ class BridgeService : Service() {
         }
         blePeripheral?.start()
 
+        com.bridge.notifications.NotificationFilterStore.init(this)
+
         BridgeNotificationListener.packetSender = { packet ->
             blePeripheral?.sendPacket(packet)
         }
