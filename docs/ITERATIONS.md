@@ -374,6 +374,27 @@ Hardware-verified: on a fresh connection the phone logged "auto-initiating pairi
 Sent pair request … Pair accepted … verified=true", the pill went green "Connected",
 and 0 packets were dropped over a full ping cycle.
 
+### Follow-up: Mac notifications never displayed (same branch)
+With the link finally verified, notifications still didn't appear on the Mac. The
+unified log showed the Mac receiving every packet and calling
+`UNUserNotificationCenter.add`, which failed with `hasError: 1` →
+`NotificationManager: Failed to post notification`. Root cause: `handleNotificationPacket`
+built `content.userInfo` with `"requestReplyId": requestReplyId as Any`, which boxes a
+**nil** Optional whenever the notification has no reply action (nearly all of them).
+`userInfo` must be property-list serializable, so `add()` rejected every reply-less
+notification and nothing was ever shown — a Mac bug latent since iter-3, only exposed
+once the link worked.
+
+Fix (`mac/.../NotificationManager.swift`): insert `requestReplyId` into `userInfo`
+only when non-nil; fall back to a UUID identifier if the incoming id is empty; log the
+`add()` error with `.public` privacy plus a success line. Hardware-verified: the Mac
+log now shows `Posted notification <key>` with no error, and WhatsApp/Gmail/other
+notifications display on the Mac over the verified link.
+
+Note: getting here also required allowing apps in the iter-6 deny-by-default filter
+(a device-config change, not code) — the filter was correctly withholding every app
+until allowlisted.
+
 ### Known Issues
 - **FGS notification cannot be fully removed.** Android requires a notification for a
   `connectedDevice` foreground service; `IMPORTANCE_MIN` + content-less is the
