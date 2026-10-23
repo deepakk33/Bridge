@@ -54,6 +54,13 @@ class BridgeService : Service() {
                 android.os.Handler(android.os.Looper.getMainLooper()).post { svc.restartBlePeripheral() }
             }
         }
+
+        /** Ask the running service to start phone-initiated pairing on the live link. */
+        fun requestPairing() {
+            activeInstance?.let { svc ->
+                android.os.Handler(android.os.Looper.getMainLooper()).post { svc.blePeripheral?.requestPairing() }
+            }
+        }
     }
 
     /**

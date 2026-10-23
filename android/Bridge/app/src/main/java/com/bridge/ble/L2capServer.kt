@@ -140,6 +140,11 @@ class L2capServer(
         }
     }
 
+    /** Trigger phone-initiated pairing on the active connection, if any. */
+    fun requestPairing() {
+        pairingManager?.requestPair()
+    }
+
     private fun handlePacket(packet: BridgePacket, outputStream: OutputStream) {
         if (peerDeviceId != null && peerFingerprint != null) {
             try {

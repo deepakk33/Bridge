@@ -133,9 +133,16 @@ class MainActivity : AppCompatActivity() {
         when (currentLinkState()) {
             LinkState.CONNECTED -> Unit // working link, status only
             LinkState.BLUETOOTH_OFF -> requestBluetoothOn()
-            LinkState.UNPAIRED, LinkState.DISCONNECTED, LinkState.CONNECTING -> {
-                // Ensure the service is up, then (re)start BLE advertising so the
-                // Mac can discover us and run the iter-2 pairing/reconnect handshake.
+            LinkState.CONNECTING -> {
+                // Socket is up but the peer isn't verified — the trust handshake
+                // stalled. Initiate pairing from the phone to re-pin the Mac.
+                startBridgeService()
+                BridgeService.requestPairing()
+                refreshLinkUi()
+            }
+            LinkState.UNPAIRED, LinkState.DISCONNECTED -> {
+                // No socket yet — (re)start BLE advertising so the Mac reconnects;
+                // pairing then runs automatically once the link is up.
                 startBridgeService()
                 BridgeService.requestReconnect()
                 refreshLinkUi()

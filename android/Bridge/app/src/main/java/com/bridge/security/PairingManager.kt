@@ -54,7 +54,26 @@ class PairingManager(
             pairedDeviceName = deviceName
             Log.i(TAG, "Already paired with $deviceName")
             onPairCompleted?.invoke()
+        } else if (trustStore.isEmpty) {
+            // Symmetric with the Mac: when we hold no pin at all, initiate pairing
+            // instead of waiting for a request that a already-paired peer never sends.
+            Log.i(TAG, "No trusted device — auto-initiating pairing with $deviceName")
+            requestPair()
         }
+    }
+
+    /**
+     * Phone-initiated pairing. Sends a pair request and awaits the peer's accept,
+     * which pins the peer in [handlePairAcceptOrRequest]. Used both automatically
+     * (empty trust store) and on demand (user taps Reconnect while unverified).
+     */
+    fun requestPair() {
+        val deviceName = peerDeviceName ?: return
+        if (state == State.AWAITING_RESPONSE) return
+        sendPacket(BridgePacket.pairRequest())
+        state = State.AWAITING_RESPONSE
+        startTimeout()
+        Log.i(TAG, "Sent pair request to $deviceName")
     }
 
     fun handlePairPacket(packet: BridgePacket) {

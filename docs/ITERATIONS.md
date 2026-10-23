@@ -352,6 +352,28 @@ Hardware-confirmed on the Galaxy S25: with the Mac untrusted (trust desync), the
 reads amber "Connecting…", the card shows "the paired Mac's name", and the open dialog
 reads "Connected, but not verified … nothing is delivered."
 
+### Follow-up: fix the pairing deadlock (same branch)
+Surfacing the unverified state exposed *why* it got stuck: a mutual deadlock. The
+Mac's `PairingManager.setPeerIdentity` only auto-initiates pairing when **its** trust
+store is empty; if it already trusts the phone it goes `.paired` and sends nothing.
+Android's `setPeerIdentity` only ever **reacted** to an incoming `bridge.pair` — it had
+no initiate path. So when the phone lost its pin but the Mac kept the phone's,
+neither side sent a pair request and every packet was dropped as untrusted forever;
+tapping Reconnect only restarted the socket.
+
+Fix (symmetric with the Mac): Android now **initiates** pairing.
+`PairingManager.requestPair()` sends `bridge.pair` and awaits the accept (which pins
+the peer). `setPeerIdentity` auto-calls it when the Android trust store is empty —
+mirroring Mac PairingManager.swift:43-48. The Mac already re-accepts an incoming pair
+request while `.paired` (re-pinning the phone), so the handshake completes both ways.
+A manual path is wired too: `L2capServer.requestPairing` → `BlePeripheral` →
+`BridgeService.requestPairing()`, invoked by the Reconnect action when the state is
+CONNECTING (socket up, unverified).
+
+Hardware-verified: on a fresh connection the phone logged "auto-initiating pairing …
+Sent pair request … Pair accepted … verified=true", the pill went green "Connected",
+and 0 packets were dropped over a full ping cycle.
+
 ### Known Issues
 - **FGS notification cannot be fully removed.** Android requires a notification for a
   `connectedDevice` foreground service; `IMPORTANCE_MIN` + content-less is the

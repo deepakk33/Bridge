@@ -98,6 +98,11 @@ class BlePeripheral(
         l2capServer?.sendPacket(packet)
     }
 
+    /** Ask the active connection to start phone-initiated pairing. */
+    fun requestPairing() {
+        l2capServer?.requestPairing()
+    }
+
     fun setNotificationReplyHandler(handler: (requestReplyId: String, message: String) -> Unit) {
         l2capServer?.onNotificationReply = handler
     }
