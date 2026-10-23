@@ -1,37 +1,55 @@
 package com.bridge.app
 
 import android.Manifest
+import android.app.AlertDialog
+import android.app.AppOpsManager
+import android.bluetooth.BluetoothAdapter
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Process
 import android.provider.Settings
-import android.view.Gravity
+import android.text.format.DateUtils
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View
 import android.widget.Button
-import android.widget.LinearLayout
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import android.net.Uri
-import com.bridge.clipboard.ClipboardBridge
 import com.bridge.notifications.BridgeNotificationListener
 import com.bridge.notifications.NotificationFilterActivity
 import com.bridge.permissions.PermissionStatus
 import com.bridge.permissions.PermissionStatusChecker
+import com.bridge.security.TrustStore
+import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.card.MaterialCardView
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var statusText: TextView
-    private lateinit var deviceInfoText: TextView
+    private lateinit var statePill: TextView
+    private lateinit var macName: TextView
+    private lateinit var lastSeen: TextView
+    private lateinit var appGlyph: ImageView
+    private lateinit var notificationsSection: MaterialCardView
     private lateinit var notifAccessButton: Button
-    private lateinit var notifFilterButton: Button
-    private lateinit var clipboardStatusText: TextView
+    private lateinit var clipboardStatus: TextView
     private lateinit var sendClipboardButton: Button
-    private lateinit var permissionStatusText: TextView
+    private lateinit var permissionStatus: TextView
     private lateinit var batteryOptButton: Button
+
+    private var connectItem: MenuItem? = null
+    private val linkListener: () -> Unit = {
+        refreshLinkUi()
+        syncLinkPrompt()
+    }
+    private var linkPrompt: AlertDialog? = null
 
     private val requiredPermissions = buildList {
         add(Manifest.permission.BLUETOOTH_ADVERTISE)
@@ -43,163 +61,227 @@ class MainActivity : AppCompatActivity() {
 
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
-            val allGranted = results.values.all { it }
-            if (allGranted) {
+            if (results.values.all { it }) {
                 startBridgeService()
             } else {
-                statusText.text = "Permissions required to run Bridge"
+                macName.text = "Permissions required to run Bridge"
             }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
 
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(48, 96, 48, 48)
+        setSupportActionBar(findViewById<MaterialToolbar>(R.id.toolbar))
+        TrustStore.init(applicationContext)
+
+        statePill = findViewById(R.id.state_pill)
+        macName = findViewById(R.id.mac_name)
+        lastSeen = findViewById(R.id.last_seen)
+        appGlyph = findViewById(R.id.app_glyph)
+        notificationsSection = findViewById(R.id.notifications_section)
+        notifAccessButton = findViewById(R.id.notif_access_button)
+        clipboardStatus = findViewById(R.id.clipboard_status)
+        sendClipboardButton = findViewById(R.id.send_clipboard_button)
+        permissionStatus = findViewById(R.id.permission_status)
+        batteryOptButton = findViewById(R.id.battery_opt_button)
+
+        notificationsSection.setOnClickListener {
+            startActivity(Intent(this, NotificationFilterActivity::class.java))
         }
-
-        val titleText = TextView(this).apply {
-            text = "Bridge"
-            textSize = 28f
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 32)
+        notifAccessButton.setOnClickListener {
+            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
-
-        statusText = TextView(this).apply {
-            text = "Initializing..."
-            textSize = 16f
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 16)
+        sendClipboardButton.setOnClickListener { sendClipboardToMac() }
+        batteryOptButton.setOnClickListener {
+            startActivity(
+                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                    .setData(Uri.parse("package:$packageName"))
+            )
         }
-
-        deviceInfoText = TextView(this).apply {
-            text = ""
-            textSize = 14f
-            gravity = Gravity.CENTER
-        }
-
-        notifAccessButton = Button(this).apply {
-            text = "Grant Notification Access"
-            setPadding(0, 16, 0, 0)
-            visibility = android.view.View.GONE
-            setOnClickListener {
-                startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-            }
-        }
-
-        notifFilterButton = Button(this).apply {
-            text = "Notification Filter"
-            setPadding(0, 16, 0, 0)
-            setOnClickListener {
-                startActivity(Intent(this@MainActivity, NotificationFilterActivity::class.java))
-            }
-        }
-
-        clipboardStatusText = TextView(this).apply {
-            textSize = 14f
-            gravity = Gravity.CENTER
-            setPadding(0, 24, 0, 0)
-        }
-
-        sendClipboardButton = Button(this).apply {
-            text = "Send Clipboard to Mac"
-            setPadding(0, 16, 0, 0)
-            setOnClickListener { sendClipboardToMac() }
-        }
-
-        permissionStatusText = TextView(this).apply {
-            textSize = 14f
-            gravity = Gravity.CENTER
-            setPadding(0, 32, 0, 0)
-        }
-
-        batteryOptButton = Button(this).apply {
-            text = "Disable Battery Optimization"
-            setPadding(0, 16, 0, 0)
-            visibility = android.view.View.GONE
-            setOnClickListener {
-                startActivity(
-                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-                        .setData(Uri.parse("package:$packageName"))
-                )
-            }
-        }
-
-        layout.addView(titleText)
-        layout.addView(statusText)
-        layout.addView(deviceInfoText)
-        layout.addView(notifAccessButton)
-        layout.addView(notifFilterButton)
-        layout.addView(clipboardStatusText)
-        layout.addView(sendClipboardButton)
-        layout.addView(permissionStatusText)
-        layout.addView(batteryOptButton)
-
-        setContentView(layout)
 
         checkPermissionsAndStart()
     }
 
-    private fun checkPermissionsAndStart() {
-        val missingPermissions = requiredPermissions.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        connectItem = menu.findItem(R.id.action_connect)
+        refreshLinkUi()
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == R.id.action_connect) {
+            onConnectAction()
+            return true
+        }
+        return super.onOptionsItemSelected(item)
+    }
+
+    private fun currentLinkState(): LinkState {
+        val s = BridgeService.LinkStatus
+        val hasTrustedMac = !TrustStore.getInstance().isEmpty
+        return LinkState.resolve(
+            isBluetoothOn = s.isBluetoothOn,
+            hasTrustedMac = hasTrustedMac,
+            isSocketConnected = s.isSocketConnected,
+            isVerified = s.isVerified
+        )
+    }
+
+    private fun onConnectAction() {
+        when (currentLinkState()) {
+            LinkState.CONNECTED -> Unit // working link, status only
+            LinkState.BLUETOOTH_OFF -> requestBluetoothOn()
+            LinkState.CONNECTING -> {
+                // Socket is up but the peer isn't verified — the trust handshake
+                // stalled. Initiate pairing from the phone to re-pin the Mac.
+                startBridgeService()
+                BridgeService.requestPairing()
+                refreshLinkUi()
+            }
+            LinkState.UNPAIRED, LinkState.DISCONNECTED -> {
+                // No socket yet — (re)start BLE advertising so the Mac reconnects;
+                // pairing then runs automatically once the link is up.
+                startBridgeService()
+                BridgeService.requestReconnect()
+                refreshLinkUi()
+            }
+        }
+    }
+
+    private fun requestBluetoothOn() {
+        // System-managed enable prompt; we never force the adapter on silently.
+        startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+    }
+
+    private fun refreshLinkUi() {
+        val state = currentLinkState()
+        connectItem?.title = LinkState.actionLabel(state)
+
+        statePill.text = LinkState.pillText(state)
+        statePill.backgroundTintList =
+            android.content.res.ColorStateList.valueOf(Color.parseColor(LinkState.pillColorHex(state)))
+
+        macName.text = when (state) {
+            LinkState.CONNECTED -> BridgeService.LinkStatus.connectedPeerName ?: "Mac"
+            LinkState.CONNECTING -> BridgeService.LinkStatus.connectedPeerName ?: "Verifying…"
+            LinkState.DISCONNECTED -> "Mac paired"
+            LinkState.UNPAIRED -> getString(R.string.status_not_paired)
+            LinkState.BLUETOOTH_OFF -> "Bluetooth off"
         }
 
-        if (missingPermissions.isEmpty()) {
+        lastSeen.text = when {
+            state == LinkState.CONNECTED -> "Connected now"
+            BridgeService.LinkStatus.lastConnectedAt > 0L -> "Last seen " + DateUtils.getRelativeTimeSpanString(
+                BridgeService.LinkStatus.lastConnectedAt,
+                System.currentTimeMillis(),
+                DateUtils.MINUTE_IN_MILLIS
+            )
+            else -> getString(R.string.status_last_seen_never)
+        }
+    }
+
+    /** On open, if the link isn't actually working, say so plainly and offer the fix. */
+    private fun maybePromptLinkIssue() {
+        val state = currentLinkState()
+        if (!state.needsAttention) {
+            linkPrompt?.dismiss()
+            linkPrompt = null
+            return
+        }
+        if (linkPrompt?.isShowing == true) {
+            applyPromptText(state)
+            return
+        }
+
+        linkPrompt = AlertDialog.Builder(this)
+            .setPositiveButton(LinkState.actionLabel(state)) { _, _ -> onConnectAction() }
+            .setNegativeButton("Not now", null)
+            .setOnDismissListener { linkPrompt = null }
+            .create()
+            .also { dialog ->
+                applyPromptText(state, dialog)
+                dialog.show()
+                applyPromptText(state, dialog) // button text needs the shown dialog
+            }
+    }
+
+    /** Keep an already-open prompt honest as the state changes under it. */
+    private fun syncLinkPrompt() {
+        val dialog = linkPrompt ?: return
+        val state = currentLinkState()
+        if (!state.needsAttention) {
+            dialog.dismiss()
+            linkPrompt = null
+        } else {
+            applyPromptText(state, dialog)
+        }
+    }
+
+    private fun applyPromptText(state: LinkState, dialog: AlertDialog? = linkPrompt) {
+        dialog ?: return
+        dialog.setTitle(LinkState.promptTitle(state))
+        dialog.setMessage(LinkState.promptBody(state))
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.text = LinkState.actionLabel(state)
+    }
+
+    private fun checkPermissionsAndStart() {
+        val missing = requiredPermissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (missing.isEmpty()) {
             startBridgeService()
         } else {
-            permissionLauncher.launch(missingPermissions.toTypedArray())
+            permissionLauncher.launch(missing.toTypedArray())
         }
     }
 
     private fun startBridgeService() {
-        statusText.text = "Starting Bridge service..."
-        val intent = Intent(this, BridgeService::class.java)
-        startForegroundService(intent)
-        statusText.text = "Bridge active - advertising BLE"
-        deviceInfoText.text = "Device: ${Build.MODEL}"
+        startForegroundService(Intent(this, BridgeService::class.java))
         checkNotificationAccess()
     }
 
     override fun onResume() {
         super.onResume()
         BridgeService.clipboardBridge?.activityContext = this
+        BridgeService.LinkStatus.addListener(linkListener)
         checkNotificationAccess()
         updateClipboardStatus()
         updatePermissionStatus()
-    }
-
-    private fun updatePermissionStatus() {
-        val checker = PermissionStatusChecker(this)
-        val items = checker.all()
-        permissionStatusText.text = items.joinToString("\n") { "${it.name}: ${it.status.label}" }
-        batteryOptButton.visibility =
-            if (checker.batteryOptimization() == PermissionStatus.GRANTED)
-                android.view.View.GONE else android.view.View.VISIBLE
+        refreshLinkUi()
+        maybePromptLinkIssue()
     }
 
     override fun onPause() {
         super.onPause()
         BridgeService.clipboardBridge?.activityContext = null
+        BridgeService.LinkStatus.removeListener(linkListener)
+        linkPrompt?.dismiss()
+        linkPrompt = null
+    }
+
+    private fun updatePermissionStatus() {
+        val checker = PermissionStatusChecker(this)
+        permissionStatus.text = checker.all().joinToString("\n") { "${it.name}: ${it.status.label}" }
+        batteryOptButton.visibility =
+            if (checker.batteryOptimization() == PermissionStatus.GRANTED) View.GONE else View.VISIBLE
     }
 
     private fun updateClipboardStatus() {
-        val appOps = getSystemService(android.app.AppOpsManager::class.java)
+        val appOps = getSystemService(AppOpsManager::class.java)
         val hasBgAccess = appOps.unsafeCheckOpNoThrow(
             "android:read_clipboard",
-            android.os.Process.myUid(),
+            Process.myUid(),
             packageName
-        ) == android.app.AppOpsManager.MODE_ALLOWED
+        ) == AppOpsManager.MODE_ALLOWED
 
         if (hasBgAccess) {
-            clipboardStatusText.text = "Clipboard: Both directions"
-            clipboardStatusText.setTextColor(Color.parseColor("#4CAF50"))
+            clipboardStatus.text = "Both directions"
+            clipboardStatus.setTextColor(Color.parseColor("#4CAF50"))
         } else {
-            clipboardStatusText.text = "Clipboard: Mac to phone only\n" +
-                "Run scripts/adb-grant-clipboard.sh for full sync"
-            clipboardStatusText.setTextColor(Color.parseColor("#FF9800"))
+            clipboardStatus.text = "Mac to phone only\nRun scripts/adb-grant-clipboard.sh for full sync"
+            clipboardStatus.setTextColor(Color.parseColor("#FF9800"))
         }
     }
 
@@ -218,6 +300,6 @@ class MainActivity : AppCompatActivity() {
         val cn = ComponentName(this, BridgeNotificationListener::class.java)
         val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
         val enabled = flat?.contains(cn.flattenToString()) == true
-        notifAccessButton.visibility = if (enabled) android.view.View.GONE else android.view.View.VISIBLE
+        notifAccessButton.visibility = if (enabled) View.GONE else View.VISIBLE
     }
 }

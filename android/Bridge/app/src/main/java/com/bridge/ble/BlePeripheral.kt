@@ -37,7 +37,7 @@ class BlePeripheral(
     sealed class ConnectionState {
         data object Idle : ConnectionState()
         data object Advertising : ConnectionState()
-        data class Connected(val deviceName: String?) : ConnectionState()
+        data class Connected(val deviceName: String?, val verified: Boolean = false) : ConnectionState()
         data class Error(val message: String) : ConnectionState()
     }
 
@@ -98,6 +98,11 @@ class BlePeripheral(
         l2capServer?.sendPacket(packet)
     }
 
+    /** Ask the active connection to start phone-initiated pairing. */
+    fun requestPairing() {
+        l2capServer?.requestPairing()
+    }
+
     fun setNotificationReplyHandler(handler: (requestReplyId: String, message: String) -> Unit) {
         l2capServer?.onNotificationReply = handler
     }
@@ -150,7 +155,9 @@ class BlePeripheral(
             val server = L2capServer(adapter, deviceId) { connected ->
                 if (connected) {
                     stopAdvertising()
-                    onConnectionStateChanged(ConnectionState.Connected("L2CAP peer"))
+                    // Socket is up but the peer is not verified yet (identity/trust
+                    // handshake still to come) — report unverified until proven.
+                    onConnectionStateChanged(ConnectionState.Connected(null, verified = false))
                 } else {
                     onConnectionStateChanged(ConnectionState.Advertising)
                     startAdvertising()
@@ -160,6 +167,9 @@ class BlePeripheral(
             server.onPairCompleted = onPairCompletedHandler
             server.onShareRequest = onShareRequestHandler
             server.onLinkReady = { onConnectHandler?.invoke() }
+            server.onPeerVerified = { verified, name ->
+                onConnectionStateChanged(ConnectionState.Connected(name, verified))
+            }
             psm = server.psm
             Log.i(TAG, "L2CAP server started on PSM=$psm")
 

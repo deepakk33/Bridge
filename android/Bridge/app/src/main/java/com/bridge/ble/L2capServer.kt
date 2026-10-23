@@ -35,6 +35,13 @@ class L2capServer(
     var onShareRequest: ((BridgePacket) -> Unit)? = null
     var onLinkReady: (() -> Unit)? = null
 
+    /**
+     * Fired once the peer's identity is known (and again when pairing completes),
+     * reporting whether the connected peer is trusted and its display name.
+     * A socket connection alone is not a usable link — only a verified peer is.
+     */
+    var onPeerVerified: ((verified: Boolean, peerName: String?) -> Unit)? = null
+
     companion object {
         private const val TAG = "L2capServer"
     }
@@ -50,6 +57,7 @@ class L2capServer(
 
     private var peerDeviceId: String? = null
     private var peerFingerprint: String? = null
+    private var peerName: String? = null
 
     suspend fun acceptLoop() = withContext(Dispatchers.IO) {
         Log.i(TAG, "L2CAP accept loop started on PSM=$psm")
@@ -69,6 +77,7 @@ class L2capServer(
                 activeSocket = null
                 peerDeviceId = null
                 peerFingerprint = null
+                peerName = null
                 pairingManager?.reset()
                 pairingManager = null
                 pingWatchdog.stop()
@@ -88,7 +97,11 @@ class L2capServer(
                     Log.i(TAG, "Auto-accepting pair request from $deviceName (fp: $fingerprint)")
                     pm.acceptPair()
                 }
-                pm.onPairCompleted = { onPairCompleted?.invoke() }
+                pm.onPairCompleted = {
+                    onPairCompleted?.invoke()
+                    // Pairing just pinned the peer → the link is now verified.
+                    onPeerVerified?.invoke(true, peerName)
+                }
             }
 
             sendIdentity(outputStream)
@@ -125,6 +138,11 @@ class L2capServer(
             pingWatchdog.stop()
             try { socket.close() } catch (_: IOException) {}
         }
+    }
+
+    /** Trigger phone-initiated pairing on the active connection, if any. */
+    fun requestPairing() {
+        pairingManager?.requestPair()
     }
 
     private fun handlePacket(packet: BridgePacket, outputStream: OutputStream) {
@@ -195,8 +213,16 @@ class L2capServer(
 
         peerDeviceId = id
         peerFingerprint = fp
+        peerName = name
         pairingManager?.setPeerIdentity(id, name, fp)
         Log.i(TAG, "Peer identity: $name [$id]")
+
+        val trusted = try {
+            TrustStore.getInstance().isTrusted(id, fp)
+        } catch (_: IllegalStateException) {
+            false
+        }
+        onPeerVerified?.invoke(trusted, name)
     }
 
     private fun sendIdentity(outputStream: OutputStream) {

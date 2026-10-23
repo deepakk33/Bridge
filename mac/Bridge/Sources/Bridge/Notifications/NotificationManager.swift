@@ -72,21 +72,29 @@ final class NotificationManager: NSObject, ObservableObject {
         content.subtitle = appName
         content.body = text
         content.categoryIdentifier = requestReplyId != nil ? "BRIDGE_REPLY" : "BRIDGE_DEFAULT"
-        content.userInfo = [
-            "bridgeNotificationId": notifId,
-            "requestReplyId": requestReplyId as Any
-        ]
+        // userInfo must be property-list serializable: never store a nil. Boxing
+        // `requestReplyId as Any` when nil made every reply-less notification fail
+        // to post ("userInfo contains non-property-list values").
+        var userInfo: [String: Any] = ["bridgeNotificationId": notifId]
+        if let requestReplyId {
+            userInfo["requestReplyId"] = requestReplyId
+        }
+        content.userInfo = userInfo
         content.sound = .default
 
+        // An empty identifier is rejected by UNUserNotificationCenter; fall back.
+        let identifier = notifId.isEmpty ? UUID().uuidString : notifId
         let request = UNNotificationRequest(
-            identifier: notifId,
+            identifier: identifier,
             content: content,
             trigger: nil
         )
 
         UNUserNotificationCenter.current().add(request) { error in
             if let error {
-                Self.logger.error("Failed to post notification: \(error.localizedDescription)")
+                Self.logger.error("Failed to post notification: \(error.localizedDescription, privacy: .public)")
+            } else {
+                Self.logger.info("Posted notification \(identifier, privacy: .public)")
             }
         }
     }

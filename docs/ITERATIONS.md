@@ -255,3 +255,158 @@ added during validation and kept — low-noise and operationally useful.
 Per-app allow state and the seen-apps UI are a base for future per-app rules
 (per-app mute schedules, content hiding) if ever wanted. iter-7 (`iter-7-android-ux`)
 is the next planned change.
+
+## Iteration 7: Android UX Shell
+**Status**: Complete — automated tests pass, hardware-validated on Galaxy S25 / Android 16
+**Branch**: `worktree-iter-7+android-ux`
+**OpenSpec**: `openspec show iter-7-android-ux` (archived)
+
+### Layman Summary
+The Android app got a real face. The home screen is now a clean card layout: a
+status card at the top shows whether the Mac is connected, grouped cards below hold
+Notifications, Clipboard, and Permissions. A single smart button in the top bar
+reads your situation — **Pair Mac** when no Mac is set up, **Reconnect** when one is
+paired but offline, **Connected** when the link is live — and it updates itself as
+the connection changes, no reopening needed. The app has its own bridge icon in the
+launcher instead of reusing the little notification chain. And the always-on
+background notification is now a silent, text-less icon that sinks to the bottom of
+the shade (Android forces it to stay, so this is the quietest it is allowed to be).
+
+### Technical Summary
+Android-only shell change; no Mac, protocol, or transport change, no new permission.
+- **Link state model** (`LinkState`): a pure `enum { UNPAIRED, DISCONNECTED,
+  CONNECTED }` with `resolve(hasTrustedMac, isConnected)` and `actionLabel(state)`,
+  unit-tested without Android (`LinkStateTest`). `hasTrustedMac` is `!TrustStore.isEmpty`;
+  `isConnected` from the BLE `ConnectionState`.
+- **State plumbing** (`BridgeService.LinkStatus`): a process-level observable object
+  holding the latest `BlePeripheral.ConnectionState` plus `lastConnectedAt`, fed from
+  a single `onConnectionStateChanged` callback (shared by first start and reconnect),
+  notifying listeners on the main thread. `MainActivity` subscribes in `onResume`,
+  unsubscribes in `onPause`, so the top-bar label flips live on transitions.
+  `BridgeService.requestReconnect()` posts a BLE restart to the running service.
+- **Main screen** (`res/layout/activity_main.xml`): moved off programmatic Views to
+  inflated XML — `MaterialToolbar` + `MaterialCardView` status card (glyph, state
+  pill, Mac name, last-seen) + Notifications / Clipboard / Permissions section cards.
+  The connect action is a single `MaterialToolbar` menu item whose title is rebound
+  per `LinkState`; tap behavior: UNPAIRED/DISCONNECTED → ensure service + BLE restart,
+  CONNECTED → no-op. The Notifications card opens the iter-6 `NotificationFilterActivity`;
+  clipboard send and notification-access / battery-optimization prompts are preserved
+  inside the new cards.
+- **Launcher icon**: new `ic_launcher_foreground` (suspension-bridge vector) over the
+  existing blue background, wired via `mipmap-anydpi-v26/ic_launcher{,_round}.xml`
+  (minSdk 31, so the old misplaced `mipmap-hdpi/ic_launcher.xml` was removed).
+  `ic_notification` stays as the monochrome status small-icon.
+- **Foreground notification**: new `IMPORTANCE_MIN` channel (`bridge_service_min_channel`
+  — a new id because Android ignores importance changes on an existing channel),
+  icon-only builder (`setSmallIcon` + `setOngoing`, no title/text).
+
+**Deviation from tasks.md:** the old `IMPORTANCE_LOW` channel is kept (not deleted)
+to carry the actionable permission-warning notification, which should stay visible;
+only the FGS notification moved to the new MIN channel. RecyclerView/ConstraintLayout
+were not added — RecyclerView was already a dependency (iter-6) and the layout uses
+`LinearLayout`/`NestedScrollView` + Material cards, so ConstraintLayout was unneeded.
+
+### Hardware validation (2026-10-21, Galaxy S25 SM-S931B / Android 16)
+Debug APK installed over ADB against a live MacBook Bridge link; states driven by
+toggling the phone's Bluetooth and observed via screenshots + `dumpsys notification`
++ logcat:
+- **FGS notification (7.1)** — `dumpsys` record: `channel=bridge_service_min_channel`,
+  `contentView=null`, no title/text, `sound=null` + `FLAG_MUTE_HAPTIC`,
+  `ONGOING|NO_CLEAR`, icon = `ic_notification`. In the shade it collapsed into the
+  "N more notifications" bucket at the bottom with no status-bar icon.
+- **Launcher icon (7.2)** — recents showed the new blue suspension-bridge adaptive
+  icon, distinct from the monochrome chain.
+- **Connect action (7.3)** — live link showed toolbar **CONNECTED** (no-op) + green
+  pill; disabling Bluetooth flipped it to **PAIR MAC** + grey "No Mac paired" +
+  "Last seen 2 minutes ago" with the screen open (no reopen); re-enabling Bluetooth
+  reconnected and flipped it back to **CONNECTED** live. All three states observed.
+- **Light/dark (7.4)** — status card + section cards render correctly in both themes.
+
+**On-device caveat:** the channel is created at `IMPORTANCE_MIN` (`mOriginalImp=1`),
+but Android floors a `connectedDevice` FGS notification's effective importance to
+`LOW` (`importance=2`). The status-bar icon is still suppressed and the entry sinks
+to the bottom of the shade — the quietest allowed form, as the proposal noted.
+
+### Follow-up: honest trusted-link status + prompt-on-open (same branch)
+Field testing surfaced a real defect: the status pill showed green **"Connected"**
+whenever an L2CAP *socket* was open, even when the peer was untrusted and every
+packet was being dropped (`L2capServer: Dropping packet from untrusted device`), so
+the Mac received nothing while the phone claimed success. Fixed by making status
+reflect the *verified* link, not the raw socket:
+- `L2capServer` now reports `onPeerVerified(verified, peerName)` — computed from the
+  trust-store pin check at identity time and again on pair-completion — and surfaces
+  the real peer name. `BlePeripheral.ConnectionState.Connected` gained a `verified`
+  flag; `BridgeService.LinkStatus` exposes `isVerified`, `isSocketConnected`, and
+  `isBluetoothOn` (fed from the adapter + the Bluetooth state receiver).
+- `LinkState` extended to `{ BLUETOOTH_OFF, UNPAIRED, DISCONNECTED, CONNECTING,
+  CONNECTED }`. **CONNECTED is green only for a verified link**; a socket to an
+  untrusted peer is **CONNECTING** (amber), never green. `resolve()` now takes
+  `(isBluetoothOn, hasTrustedMac, isSocketConnected, isVerified)`; unit-tested.
+- `MainActivity` shows an honest pill/color + the real Mac name, and on open (and on
+  live state changes) raises a dialog that names the exact problem and offers the fix
+  — Bluetooth-off → system enable prompt; unpaired/unverified → reconnect + "re-pair
+  from the Mac"; disconnected → reconnect. The dialog updates live and dismisses
+  itself the moment a verified link comes up.
+
+Hardware-confirmed on the Galaxy S25: with the Mac untrusted (trust desync), the pill
+reads amber "Connecting…", the card shows "the paired Mac's name", and the open dialog
+reads "Connected, but not verified … nothing is delivered."
+
+### Follow-up: fix the pairing deadlock (same branch)
+Surfacing the unverified state exposed *why* it got stuck: a mutual deadlock. The
+Mac's `PairingManager.setPeerIdentity` only auto-initiates pairing when **its** trust
+store is empty; if it already trusts the phone it goes `.paired` and sends nothing.
+Android's `setPeerIdentity` only ever **reacted** to an incoming `bridge.pair` — it had
+no initiate path. So when the phone lost its pin but the Mac kept the phone's,
+neither side sent a pair request and every packet was dropped as untrusted forever;
+tapping Reconnect only restarted the socket.
+
+Fix (symmetric with the Mac): Android now **initiates** pairing.
+`PairingManager.requestPair()` sends `bridge.pair` and awaits the accept (which pins
+the peer). `setPeerIdentity` auto-calls it when the Android trust store is empty —
+mirroring Mac PairingManager.swift:43-48. The Mac already re-accepts an incoming pair
+request while `.paired` (re-pinning the phone), so the handshake completes both ways.
+A manual path is wired too: `L2capServer.requestPairing` → `BlePeripheral` →
+`BridgeService.requestPairing()`, invoked by the Reconnect action when the state is
+CONNECTING (socket up, unverified).
+
+Hardware-verified: on a fresh connection the phone logged "auto-initiating pairing …
+Sent pair request … Pair accepted … verified=true", the pill went green "Connected",
+and 0 packets were dropped over a full ping cycle.
+
+### Follow-up: Mac notifications never displayed (same branch)
+With the link finally verified, notifications still didn't appear on the Mac. The
+unified log showed the Mac receiving every packet and calling
+`UNUserNotificationCenter.add`, which failed with `hasError: 1` →
+`NotificationManager: Failed to post notification`. Root cause: `handleNotificationPacket`
+built `content.userInfo` with `"requestReplyId": requestReplyId as Any`, which boxes a
+**nil** Optional whenever the notification has no reply action (nearly all of them).
+`userInfo` must be property-list serializable, so `add()` rejected every reply-less
+notification and nothing was ever shown — a Mac bug latent since iter-3, only exposed
+once the link worked.
+
+Fix (`mac/.../NotificationManager.swift`): insert `requestReplyId` into `userInfo`
+only when non-nil; fall back to a UUID identifier if the incoming id is empty; log the
+`add()` error with `.public` privacy plus a success line. Hardware-verified: the Mac
+log now shows `Posted notification <key>` with no error, and WhatsApp/Gmail/other
+notifications display on the Mac over the verified link.
+
+Note: getting here also required allowing apps in the iter-6 deny-by-default filter
+(a device-config change, not code) — the filter was correctly withholding every app
+until allowlisted.
+
+### Known Issues
+- **FGS notification cannot be fully removed.** Android requires a notification for a
+  `connectedDevice` foreground service; `IMPORTANCE_MIN` + content-less is the
+  quietest allowed form. Effective importance is floored to `LOW` by the platform.
+- **Launcher icon is a designed placeholder.** A vector suspension-bridge glyph chosen
+  without user input; trivially swappable.
+- **"Pair Mac" is advertising-only on the phone side.** Pairing is Mac-initiated
+  (the phone auto-accepts the iter-2 handshake), so the action ensures the service is
+  running and BLE is advertising so the Mac can discover and pair; it cannot
+  unilaterally initiate from the phone.
+
+### What the next iteration builds on
+A reusable card-based visual system and a single `LinkState` the UI binds to; future
+screens (e.g. the iter-6 filter screen) can adopt the same cards, and richer status
+(signal, transfer activity) can hang off `BridgeService.LinkStatus`.
