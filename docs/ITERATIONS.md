@@ -327,6 +327,31 @@ but Android floors a `connectedDevice` FGS notification's effective importance t
 `LOW` (`importance=2`). The status-bar icon is still suppressed and the entry sinks
 to the bottom of the shade — the quietest allowed form, as the proposal noted.
 
+### Follow-up: honest trusted-link status + prompt-on-open (same branch)
+Field testing surfaced a real defect: the status pill showed green **"Connected"**
+whenever an L2CAP *socket* was open, even when the peer was untrusted and every
+packet was being dropped (`L2capServer: Dropping packet from untrusted device`), so
+the Mac received nothing while the phone claimed success. Fixed by making status
+reflect the *verified* link, not the raw socket:
+- `L2capServer` now reports `onPeerVerified(verified, peerName)` — computed from the
+  trust-store pin check at identity time and again on pair-completion — and surfaces
+  the real peer name. `BlePeripheral.ConnectionState.Connected` gained a `verified`
+  flag; `BridgeService.LinkStatus` exposes `isVerified`, `isSocketConnected`, and
+  `isBluetoothOn` (fed from the adapter + the Bluetooth state receiver).
+- `LinkState` extended to `{ BLUETOOTH_OFF, UNPAIRED, DISCONNECTED, CONNECTING,
+  CONNECTED }`. **CONNECTED is green only for a verified link**; a socket to an
+  untrusted peer is **CONNECTING** (amber), never green. `resolve()` now takes
+  `(isBluetoothOn, hasTrustedMac, isSocketConnected, isVerified)`; unit-tested.
+- `MainActivity` shows an honest pill/color + the real Mac name, and on open (and on
+  live state changes) raises a dialog that names the exact problem and offers the fix
+  — Bluetooth-off → system enable prompt; unpaired/unverified → reconnect + "re-pair
+  from the Mac"; disconnected → reconnect. The dialog updates live and dismisses
+  itself the moment a verified link comes up.
+
+Hardware-confirmed on the Galaxy S25: with the Mac untrusted (trust desync), the pill
+reads amber "Connecting…", the card shows "the paired Mac's name", and the open dialog
+reads "Connected, but not verified … nothing is delivered."
+
 ### Known Issues
 - **FGS notification cannot be fully removed.** Android requires a notification for a
   `connectedDevice` foreground service; `IMPORTANCE_MIN` + content-less is the

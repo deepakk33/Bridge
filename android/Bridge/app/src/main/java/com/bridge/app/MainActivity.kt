@@ -1,7 +1,9 @@
 package com.bridge.app
 
 import android.Manifest
+import android.app.AlertDialog
 import android.app.AppOpsManager
+import android.bluetooth.BluetoothAdapter
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -43,7 +45,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var batteryOptButton: Button
 
     private var connectItem: MenuItem? = null
-    private val linkListener: () -> Unit = { refreshLinkUi() }
+    private val linkListener: () -> Unit = {
+        refreshLinkUi()
+        syncLinkPrompt()
+    }
+    private var linkPrompt: AlertDialog? = null
 
     private val requiredPermissions = buildList {
         add(Manifest.permission.BLUETOOTH_ADVERTISE)
@@ -113,14 +119,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun currentLinkState(): LinkState {
+        val s = BridgeService.LinkStatus
         val hasTrustedMac = !TrustStore.getInstance().isEmpty
-        return LinkState.resolve(hasTrustedMac, BridgeService.LinkStatus.isConnected)
+        return LinkState.resolve(
+            isBluetoothOn = s.isBluetoothOn,
+            hasTrustedMac = hasTrustedMac,
+            isSocketConnected = s.isSocketConnected,
+            isVerified = s.isVerified
+        )
     }
 
     private fun onConnectAction() {
         when (currentLinkState()) {
-            LinkState.CONNECTED -> Unit // status only, no-op
-            LinkState.UNPAIRED, LinkState.DISCONNECTED -> {
+            LinkState.CONNECTED -> Unit // working link, status only
+            LinkState.BLUETOOTH_OFF -> requestBluetoothOn()
+            LinkState.UNPAIRED, LinkState.DISCONNECTED, LinkState.CONNECTING -> {
                 // Ensure the service is up, then (re)start BLE advertising so the
                 // Mac can discover us and run the iter-2 pairing/reconnect handshake.
                 startBridgeService()
@@ -130,23 +143,25 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun requestBluetoothOn() {
+        // System-managed enable prompt; we never force the adapter on silently.
+        startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+    }
+
     private fun refreshLinkUi() {
         val state = currentLinkState()
         connectItem?.title = LinkState.actionLabel(state)
 
-        val (pillText, pillColor) = when (state) {
-            LinkState.CONNECTED -> getString(R.string.status_connected) to Color.parseColor("#4CAF50")
-            LinkState.DISCONNECTED -> getString(R.string.status_disconnected) to Color.parseColor("#FF9800")
-            LinkState.UNPAIRED -> getString(R.string.status_not_paired) to Color.parseColor("#9E9E9E")
-        }
-        statePill.text = pillText
-        statePill.backgroundTintList = android.content.res.ColorStateList.valueOf(pillColor)
+        statePill.text = LinkState.pillText(state)
+        statePill.backgroundTintList =
+            android.content.res.ColorStateList.valueOf(Color.parseColor(LinkState.pillColorHex(state)))
 
         macName.text = when (state) {
-            LinkState.CONNECTED ->
-                BridgeService.LinkStatus.connectedPeerName ?: "Mac"
+            LinkState.CONNECTED -> BridgeService.LinkStatus.connectedPeerName ?: "Mac"
+            LinkState.CONNECTING -> BridgeService.LinkStatus.connectedPeerName ?: "Verifying…"
             LinkState.DISCONNECTED -> "Mac paired"
             LinkState.UNPAIRED -> getString(R.string.status_not_paired)
+            LinkState.BLUETOOTH_OFF -> "Bluetooth off"
         }
 
         lastSeen.text = when {
@@ -158,6 +173,50 @@ class MainActivity : AppCompatActivity() {
             )
             else -> getString(R.string.status_last_seen_never)
         }
+    }
+
+    /** On open, if the link isn't actually working, say so plainly and offer the fix. */
+    private fun maybePromptLinkIssue() {
+        val state = currentLinkState()
+        if (!state.needsAttention) {
+            linkPrompt?.dismiss()
+            linkPrompt = null
+            return
+        }
+        if (linkPrompt?.isShowing == true) {
+            applyPromptText(state)
+            return
+        }
+
+        linkPrompt = AlertDialog.Builder(this)
+            .setPositiveButton(LinkState.actionLabel(state)) { _, _ -> onConnectAction() }
+            .setNegativeButton("Not now", null)
+            .setOnDismissListener { linkPrompt = null }
+            .create()
+            .also { dialog ->
+                applyPromptText(state, dialog)
+                dialog.show()
+                applyPromptText(state, dialog) // button text needs the shown dialog
+            }
+    }
+
+    /** Keep an already-open prompt honest as the state changes under it. */
+    private fun syncLinkPrompt() {
+        val dialog = linkPrompt ?: return
+        val state = currentLinkState()
+        if (!state.needsAttention) {
+            dialog.dismiss()
+            linkPrompt = null
+        } else {
+            applyPromptText(state, dialog)
+        }
+    }
+
+    private fun applyPromptText(state: LinkState, dialog: AlertDialog? = linkPrompt) {
+        dialog ?: return
+        dialog.setTitle(LinkState.promptTitle(state))
+        dialog.setMessage(LinkState.promptBody(state))
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.text = LinkState.actionLabel(state)
     }
 
     private fun checkPermissionsAndStart() {
@@ -184,12 +243,15 @@ class MainActivity : AppCompatActivity() {
         updateClipboardStatus()
         updatePermissionStatus()
         refreshLinkUi()
+        maybePromptLinkIssue()
     }
 
     override fun onPause() {
         super.onPause()
         BridgeService.clipboardBridge?.activityContext = null
         BridgeService.LinkStatus.removeListener(linkListener)
+        linkPrompt?.dismiss()
+        linkPrompt = null
     }
 
     private fun updatePermissionStatus() {

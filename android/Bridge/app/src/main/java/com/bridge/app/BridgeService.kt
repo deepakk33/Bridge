@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -70,11 +71,21 @@ class BridgeService : Service() {
         var lastConnectedAt: Long = 0L
             private set
 
+        /** Whether the Bluetooth adapter is currently enabled. */
+        @Volatile
+        var isBluetoothOn: Boolean = true
+            private set
+
         private val listeners = java.util.concurrent.CopyOnWriteArraySet<() -> Unit>()
         private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
-        val isConnected: Boolean
+        /** An L2CAP socket is open (verified or not). */
+        val isSocketConnected: Boolean
             get() = connectionState is BlePeripheral.ConnectionState.Connected
+
+        /** The open link is to a trusted, verified peer — the only state that delivers. */
+        val isVerified: Boolean
+            get() = (connectionState as? BlePeripheral.ConnectionState.Connected)?.verified == true
 
         /** Paired Mac name while connected, else null. */
         val connectedPeerName: String?
@@ -85,9 +96,20 @@ class BridgeService : Service() {
 
         internal fun update(state: BlePeripheral.ConnectionState) {
             connectionState = state
-            if (state is BlePeripheral.ConnectionState.Connected) {
+            if (state is BlePeripheral.ConnectionState.Connected && state.verified) {
                 lastConnectedAt = System.currentTimeMillis()
             }
+            notifyListeners()
+        }
+
+        internal fun setBluetoothOn(on: Boolean) {
+            if (isBluetoothOn != on) {
+                isBluetoothOn = on
+                notifyListeners()
+            }
+        }
+
+        private fun notifyListeners() {
             mainHandler.post { listeners.forEach { it() } }
         }
     }
@@ -118,10 +140,12 @@ class BridgeService : Service() {
             when (state) {
                 BluetoothAdapter.STATE_ON -> {
                     Log.i(TAG, "Bluetooth turned ON — restarting BLE peripheral")
+                    LinkStatus.setBluetoothOn(true)
                     restartBlePeripheral()
                 }
                 BluetoothAdapter.STATE_OFF -> {
                     Log.i(TAG, "Bluetooth turned OFF — stopping BLE peripheral")
+                    LinkStatus.setBluetoothOn(false)
                     blePeripheral?.stop()
                     blePeripheral = null
                 }
@@ -133,6 +157,9 @@ class BridgeService : Service() {
         super.onCreate()
         Log.i(TAG, "BridgeService created")
         activeInstance = this
+        LinkStatus.setBluetoothOn(
+            (getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter?.isEnabled == true
+        )
 
         createNotificationChannel()
         startForeground(
