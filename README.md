@@ -24,6 +24,21 @@ brew install --cask deepakk33/tap/bridge-link      # Mac
 - **Android**: Kotlin, `connectedDevice` foreground service, `NotificationListenerService`
 - **Protocol**: newline-delimited JSON, `bridge.*` packet types, mutual TLS
 
+## What it does
+
+| Feature | Direction | Packets |
+|---|---|---|
+| Notification mirroring, with inline reply from the Mac | phone → Mac (reply Mac → phone) | `bridge.notification`, `.notification.reply`, `.notification.request` |
+| Clipboard sync — **manual on Android 16**, see [limitation](#clipboard--important-limitation-android-16) | both | `bridge.clipboard`, `.clipboard.connect` |
+| Battery level in the menu bar | phone → Mac | `bridge.battery` |
+| File transfer from the share sheet | both | `bridge.share.request` |
+| Pairing, identity, link liveness | both | `bridge.identity`, `.pair`, `.ping` |
+
+Control packets ride a **BLE L2CAP channel** (always on, ~1 m range). File bodies take a
+tier: under 500 KB over **Bluetooth RFCOMM**, at or above over **Wi-Fi LAN** (mDNS + TCP)
+when both devices share a network — otherwise it falls back to RFCOMM and says so. Both
+ends pin each other's certificate; everything is mutually authenticated TLS.
+
 Full requirements and decisions: [docs/PRD.md](docs/PRD.md). What each iteration built:
 [docs/ITERATIONS.md](docs/ITERATIONS.md). Specs and change history: [openspec/](openspec/).
 
@@ -32,17 +47,20 @@ Full requirements and decisions: [docs/PRD.md](docs/PRD.md). What each iteration
 ```
 mac/        Xcode project (Swift)        — Bridge.xcodeproj, generated from project.yml
 android/    Gradle project (Kotlin)      — android/Bridge
-protocol/   Shared test vectors / schemas
-docs/       PRD, ITERATIONS, spike notes
+protocol/   Shared test vectors + BLE UUIDs (constants.json)
+docs/       PRD, BACKLOG, DEVELOPMENT, ITERATIONS, spike notes
 openspec/   Specs + archived changes (one per iteration)
-scripts/    Build / install / cert helpers
+scripts/    Build / install / release / cert helpers
+packaging/  Homebrew cask (bridge-link.rb)
+web/        Landing page (static)
+dist/       Built release artifacts (.zip + .apk)
 ```
 
 ## Prerequisites
 
-- **Mac**: macOS 26+, Xcode, [xcodegen](https://github.com/yonaskolb/XcodeGen) (only if you
+- **Mac**: macOS 15+, Xcode, [xcodegen](https://github.com/yonaskolb/XcodeGen) (only if you
   need to regenerate the project from `project.yml`).
-- **Android**: Android SDK + `adb` on PATH, a device with USB debugging enabled.
+- **Android**: Android 12+ (API 31) device with USB debugging, Android SDK + `adb` on PATH.
 
 ## Mac app
 
@@ -142,12 +160,49 @@ is set to survive being swiped from recents.
   out (deny-by-default notification filter — allowlist the app in the Notifications screen).
 - **No auto clipboard** → expected on Android 16; use the tile / open the app (see above).
 
+## Development
+
+Work is queued in [docs/BACKLOG.md](docs/BACKLOG.md) — one row plus one detail block per
+item — and driven end to end by the `/work BR-n` command in Claude Code: clarify → branch
+→ OpenSpec proposal → implement test-first → review → archive → push. Three human gates
+and nothing else interrupts: **plan** (the spec artifacts), **review** (the diff plus a
+real-hardware test), **hand-off** (push). Phase is re-derived from disk every run, so a
+half-finished item survives a closed terminal.
+
+Full rules: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Shipped history:
+[docs/ITERATIONS.md](docs/ITERATIONS.md) and [openspec/changes/archive/](openspec/changes/archive/).
+Requirements and architecture decisions: [docs/PRD.md](docs/PRD.md).
+
+House rules: never commit to `main` (branch `work/<id>-<slug>`); Swift 6 strict
+concurrency with no force unwraps; Kotlin coroutines and sealed classes, no `!!`; a
+protocol change lands a vector in [protocol/test-vectors/](protocol/test-vectors/) and is
+checked on both sides.
+
+### Verify
+
+```sh
+xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge test
+(cd android/Bridge && ./gradlew test assembleDebug)
+openspec validate --change <change-name>
+```
+
+## Releasing
+
+```sh
+scripts/build-release.sh 0.1.2      # → dist/Bridge-0.1.2.zip + dist/bridge-0.1.2.apk, prints the sha256
+```
+
+The Mac app is ad-hoc signed; the APK needs `~/.bridge/keystore.properties` (the script
+refuses to produce a debug-signed APK). Paste the printed sha256 into
+[packaging/homebrew/bridge-link.rb](packaging/homebrew/bridge-link.rb), bump the version
+there and in `android/Bridge/app/build.gradle.kts`, then attach both artifacts to a
+GitHub release. The cask is served from `deepakk33/tap`.
+
 ## Contributing
 
-Issues and pull requests are welcome. Each iteration is planned as an OpenSpec change
-under [openspec/](openspec/) and recorded in [docs/ITERATIONS.md](docs/ITERATIONS.md);
-the architecture and decisions live in [docs/PRD.md](docs/PRD.md). The website source is
-in [web/](web/).
+Issues and pull requests are welcome. Read [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+first — a change starts as a backlog item and an OpenSpec change, not as a diff. The
+website source is in [web/](web/).
 
 ## License
 
