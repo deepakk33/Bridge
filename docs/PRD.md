@@ -10,11 +10,11 @@ Microsoft builds Phone Link because it sells no phone, so tying Android to Windo
 
 The radios are the same on both sides: Bluetooth LE for discovery and wake, Wi-Fi for payload, mDNS for service advertisement. Apple's Continuity adds UWB on newer hardware for ranging, but no core feature depends on it. What is genuinely missing is a published protocol and a maintainer, not silicon.
 
-For a solo build that changes the calculus favourably. A personal tool serves one phone and one Mac, both known, both under the builder's control. It can require developer mode, skip App Store review, skip Play Store policy, and hard-code assumptions that a commercial product could never make.
+For a solo build that changes the calculus favourably. Distributing outside the App Store and Play Store skips review, skips platform policy, and skips the commercial obligations that come with them. What it does not buy is the right to hard-code anything: Bridge is installed by whoever wants it, so it must work for **any Mac paired with any Android phone**, with no device identity, serial, name or address baked into either build. Everything specific to a pair of devices is discovered at runtime and established by a pairing step the two users perform once.
 
 ## Goals, non-goals, success criteria
 
-The goal is one tool, call it **Bridge**, that makes the S25 and the MacBook Air behave like two halves of one machine whenever they are in the same room, with no network, no account and nothing in the middle.
+The goal is one tool, call it **Bridge**, that makes **any Mac and any Android phone** behave like two halves of one machine whenever they are in the same room, with no network, no account and nothing in the middle. Installing the app on both devices is the only setup step: the two then find each other over Bluetooth LE and are paired by confirming a code shown on both screens.
 
 **In scope**
 
@@ -27,11 +27,12 @@ The goal is one tool, call it **Bridge**, that makes the S25 and the MacBook Air
 
 **Explicitly out of scope**
 
-- Multi-user support. One person only, though the phone itself may be replaced, so device identity is never hard-coded.
-- App Store or Play Store distribution, and therefore the review constraints that come with it.
+- Simultaneous multi-device links. A Mac is paired to one phone at a time (and vice versa); either side can be unpaired and re-paired with a different device at any time, so device identity is never hard-coded. Fan-out to several phones at once is out.
+- Accounts, profiles or any notion of a user identity. Trust is between two devices, not two people.
+- App Store or Play Store distribution, and therefore the review constraints that come with it. Distribution is a Homebrew cask for the Mac and a downloadable APK for Android.
 - A cloud relay, or any server to run, host or pay for.
 - iMessage-style history sync or a message archive on the Mac.
-- Anything requiring root, custom ROM or an unlocked bootloader on the S25.
+- Anything requiring root, custom ROM or an unlocked bootloader on the phone.
 
 **Success criteria**
 
@@ -39,17 +40,23 @@ Bridge succeeds if, after a cold boot of both devices and no manual step, a noti
 
 ## Target environment
 
-Both devices are modern enough that no capability is blocked by hardware. Every constraint below is a software policy.
+Bridge targets a capability baseline, not a pair of devices. Anything meeting the minimum below works; no capability is blocked by hardware, and every constraint is a software policy.
 
-|  | MacBook Air M3 | Galaxy S25 5G |
+**Minimum requirements**
+
+|  | Mac | Android phone |
 | --- | --- | --- |
-| OS | macOS 26.6.2 | Android 16, One UI 8.5 |
-| API surface | Swift 6, Network.framework, AppKit | API level 36, Kotlin |
-| Kernel | Darwin / XNU | Linux 6.6.98 (GKI) |
-| Wi-Fi | Wi-Fi 6E, AWDL peer-to-peer | Wi-Fi 7, Wi-Fi Direct and Wi-Fi Aware |
-| Bluetooth | 5.3, LE + Core Bluetooth | 5.4, LE + BluetoothGatt |
-| Wired | USB-C, USB 3 | USB-C, USB 3.2 Gen 1, ADB over USB and TCP |
-| Hard blocker | Unsigned code needs manual Gatekeeper override | Sideload needs developer options enabled |
+| OS | macOS 15.0 or later | Android 12 or later (API 31) |
+| Built against | Swift 6, Xcode 16, Network.framework, AppKit | compileSdk 36, targetSdk 36, Kotlin |
+| Bluetooth | Bluetooth LE, Core Bluetooth central, L2CAP channels | Bluetooth LE peripheral + advertising, `BluetoothServerSocket` L2CAP |
+| Wi-Fi (optional, bulk transfer only) | Any Wi-Fi, same LAN as the phone | Any Wi-Fi, or `startLocalOnlyHotspot` for the no-LAN tier |
+| Install friction | Unsigned app: Gatekeeper quarantine, cleared by the Homebrew cask | Sideload: "install unknown apps" allowed once for the installing app |
+
+Bluetooth LE peripheral advertising is the one requirement worth checking: it is near-universal on phones from this era but is the capability Bridge cannot work without, because the phone must be the advertiser and the Mac the central.
+
+**Reference hardware**
+
+Development and hardware validation were done on a MacBook Air M3 (macOS 26) and a Galaxy S25 (Android 16, One UI 8.5). Device-specific findings — chiefly One UI's aggressive battery management and Samsung's clipboard focus check — are called out as such in the constraint sections, because they are vendor behaviour rather than platform behaviour and other devices may differ.
 
 **What the baseline enables**
 
@@ -78,7 +85,7 @@ Bridge should speak the KDE Connect wire protocol rather than a private one. Tha
 
 Screen mirroring stays outside the protocol. scrcpy already does it well over ADB, and reimplementing a low-latency H.264 pipeline is a project of its own. Bridge should launch and supervise scrcpy, not replace it.
 
-## Android 16 constraints on the S25
+## Android constraints (platform, plus One UI specifics)
 
 Four platform rules shape the phone-side design. None is fatal, each costs a design decision.
 
@@ -98,13 +105,17 @@ Option 1 is right for a personal build. Mac-to-phone direction has no restrictio
 
 **SMS is the one to think twice about.** Reading and sending SMS needs the default-SMS role or the `READ_SMS` and `SEND_SMS` permissions. It is sideload-only territory and will trip Samsung's permission warnings. It stays out of v1.
 
-## macOS 26 constraints on the MacBook Air
+## macOS constraints
 
 The Mac side has fewer constraints but one that silently breaks everything if missed.
 
 **Local Network permission is the trap.** macOS denies LAN access to apps that do not declare it, and the denial is silent. A missing `NSLocalNetworkUsageDescription` means [the permission prompt never fires, the app never appears under Privacy and Security, and there is no way for the user to grant it](https://github.com/getpaseo/paseo/issues/2880). On macOS 26 this bites even apps that previously worked: [Alacritty had to add the key for 26.7, where local network calls fail without it even when permissions look granted in settings](https://github.com/alacritty/alacritty/pull/9056). Bridge's Info.plist must carry both `NSLocalNetworkUsageDescription` and `NSBonjourServices` listing `_bridge._tcp`, and should [fire a probe on first launch so the prompt appears before the user touches anything](https://github.com/jerinjoy/scanimate/issues/10).
 
-**Signing, without paying Apple.** The Developer Program is not needed. Create a self-signed code signing certificate once in Keychain Access, set it to expire in ten years, and sign every build with it. TCC grants are keyed to the code signature, so as long as that certificate stays the same, Local Network and Notification permissions survive rebuilds and reboots. The seven-day expiry trap applies to free Apple ID provisioning profiles for iOS, not to a self-signed macOS app run on the machine that built it. The only cost is a one-time right-click Open to clear Gatekeeper on first launch, and the fact that the app cannot be handed to anyone else without them doing the same.
+**Signing, without paying Apple.** The Developer Program is not needed. Create a self-signed code signing certificate once in Keychain Access, set it to expire in ten years, and sign every build with it. TCC grants are keyed to the code signature, so as long as that certificate stays the same, Local Network and Notification permissions survive rebuilds and reboots. The seven-day expiry trap applies to free Apple ID provisioning profiles for iOS, not to a self-signed macOS app run on the machine that built it.
+
+A certificate in the builder's own Keychain is meaningless on anyone else's Mac, so release builds that go out to other people are signed **ad-hoc** instead. An ad-hoc signature is stable enough for TCC to key its Local Network, Bluetooth and Notification grants to, and it costs nothing, but it carries no notarization — macOS quarantines the downloaded app and refuses the first launch. The Homebrew cask clears the quarantine attribute as part of installation, which is exactly what a right-click → Open would do without the dialog. The honest trade is stated plainly in the README: this is an unsigned, un-notarized app, and installing it is a decision the user makes knowingly.
+
+**Distribution.** The Mac app ships as a zipped `.app` attached to a GitHub Release and installed with `brew install --cask deepakk33/tap/bridge`. The Android app ships as an APK attached to the same release and sideloaded; Play Store distribution is out of scope, so the user must allow installation from the browser or file manager once. Both halves are versioned together and a release contains both artifacts, because a protocol change lands on both sides at once.
 
 **Lifecycle.** Register the background component with `SMAppService` rather than a hand-written LaunchAgent plist. It gives launch-at-login, visibility in Login Items, and a supported restart policy.
 
@@ -163,9 +174,17 @@ Bridge adopts the KDE Connect wire format rather than inventing one. It is docum
 
 **Large payloads go out of band.** A packet that carries bulk data sets `payloadSize` and `payloadTransferInfo`, the latter holding a port the sender is listening on. The receiver opens a second TCP connection to that port and reads exactly that many bytes. This keeps the control channel responsive during a large file transfer, which matters when a notification arrives mid-copy.
 
-**Discovery and handshake.** The phone advertises a Bridge service UUID from its foreground service. The Mac scans for that UUID, connects, reads an identity characteristic carrying `deviceId`, `deviceName`, `deviceType` and two capability arrays, then opens an L2CAP channel for the session. Everything after that is the same newline-delimited JSON regardless of which tier is carrying it, which is what keeps the higher tiers simple: they are just another stream.
+**Discovery and handshake.** The phone advertises a Bridge service UUID from its foreground service; the Mac is the BLE central and scans for that UUID. Nothing about either device is known in advance — the service UUID is the only constant in the build, and it is the same for every installation. The Mac connects, reads an identity characteristic carrying a randomly generated `deviceId` (created once at first launch, not derived from any hardware identifier), a user-visible `deviceName`, a `deviceType` and two capability arrays, then opens an L2CAP channel for the session. Everything after that is the same newline-delimited JSON regardless of which tier is carrying it, which is what keeps the higher tiers simple: they are just another stream.
 
-**Identity and trust.** Each device generates a self-signed certificate once and keeps it forever. Pairing is a `bridge.pair` packet with `pair: true`, answered with `true` to accept or `false` to reject, timing out after 30 seconds by convention. On acceptance each side pins the other's certificate fingerprint. Every subsequent connection is mutual TLS against that pinned cert, so there is no password, no account, and no server. Packets from an unpaired device are dropped before parsing.
+**Choosing a device.** Because any Bridge install advertises the same UUID, a scan in a shared space can return several phones. The Mac therefore does not auto-connect to the first advertiser it sees. While unpaired it presents the discovered devices by name and signal strength and the user picks one. Once a device is paired, the Mac reconnects to that `deviceId` automatically and silently ignores every other advertiser, so the picker is a first-run step rather than a recurring prompt.
+
+**Identity and trust.** Each device generates a self-signed certificate once at first launch and keeps it forever; the certificate fingerprint is the device's durable identity. Pairing is a `bridge.pair` packet with `pair: true`, answered with `true` or `false`, timing out after 30 seconds.
+
+Acceptance is **not** automatic. Both devices independently compute a six-digit verification code from the two certificate fingerprints — sorted, concatenated, hashed, and reduced to six digits — and display it. The user confirms that the digits match on both screens before either side pins anything. Identical inputs on both ends mean the codes agree only when each device really is talking to the device it thinks it is, so a man-in-the-middle or a mistaken tap on the wrong phone in a crowded room produces a mismatch and the pairing is refused. This is the same numeric-comparison idea Bluetooth Secure Simple Pairing uses, applied to the certificate fingerprints rather than to a link key.
+
+On confirmation each side pins the other's fingerprint. Every subsequent connection is mutual TLS against that pinned cert, so there is no password, no account, and no server. Packets from an unpaired device are dropped before parsing, and a connection whose presented certificate does not match the pinned fingerprint is closed rather than re-paired — a changed fingerprint means a reinstall or an impostor, and both require a deliberate re-pair.
+
+**Unpairing and moving to another device.** Either side can unpair, which drops the pinned fingerprint and returns that device to advertising/scanning. Pairing a Mac with a different phone, or a phone with a different Mac, is therefore an unpair followed by the same first-run picker and code confirmation. No build change, no reinstall and no configuration file is involved.
 
 **Packet types for v1**
 
@@ -217,7 +236,7 @@ The menu bar shows three states and nothing else: connected, out of range, and B
 
 **Two macOS limits shape tier 4.** First, the Mac cannot be the hotspot. CoreWLAN once exposed `startHostAPModeWithSSID` and no longer does, so [there is no supported way to put a Mac's Wi-Fi interface into host AP mode](https://developer.apple.com/forums/thread/759297). The phone must host, using `startLocalOnlyHotspot`, which creates a hotspot with no internet access intended exactly for [communication between co-located devices](https://developer.android.com/reference/android/net/wifi/WifiManager). Android 16 adds a configuration variant, which lets the SSID stay constant so the Mac treats it as a known network.
 
-Second, the Mac joins with [`CWInterface.associate(to:password:)`, which blocks for the duration of the association and may require an administrator password](<https://developer.apple.com/tutorials/data/documentation/corewlan/cwinterface/associate(to:password:).md>). The network must already be visible to associate to it, so the order matters: the phone raises the hotspot, announces the credentials over the tier 1 link, waits for the Mac to see the SSID in a scan, and only then does the Mac associate. Because the MacBook Air has one Wi-Fi radio, joining the hotspot means leaving the current network, so tier 4 is never automatic. It is a button, with a warning that Wi-Fi will drop, and the Mac rejoins its previous network when the transfer finishes.
+Second, the Mac joins with [`CWInterface.associate(to:password:)`, which blocks for the duration of the association and may require an administrator password](<https://developer.apple.com/tutorials/data/documentation/corewlan/cwinterface/associate(to:password:).md>). The network must already be visible to associate to it, so the order matters: the phone raises the hotspot, announces the credentials over the tier 1 link, waits for the Mac to see the SSID in a scan, and only then does the Mac associate. Because a Mac has a single Wi-Fi radio, joining the hotspot means leaving the current network, so tier 4 is never automatic. It is a button, with a warning that Wi-Fi will drop, and the Mac rejoins its previous network when the transfer finishes.
 
 **What this buys.** No account, no third party, no coordination server, no metadata leaving the two devices, and nothing to pay for. It also works with both radios off the internet entirely, on a train or on a plane. The only thing given up is reach: if the phone is left at home, Bridge is simply offline, which is the correct behaviour for a tool whose whole premise is that the phone is in your pocket.
 
@@ -293,12 +312,12 @@ All five are answered. The questions are kept below as they were asked, with you
 
 | Question | Answer | What changed |
 | --- | --- | --- |
-| Developer Program | No spend | Self-signed Keychain certificate instead; no weekly re-signing, app cannot be shared |
+| Developer Program | No spend | Ad-hoc signature on release builds; no notarization, so the Homebrew cask clears quarantine on install |
 | Screen mirroring | Your call | Cut as a built feature; menu bar shortcut to scrcpy, same Wi-Fi only |
 | Swift appetite | Fine with Swift | Native Swift confirmed; the Go daemon fallback is dropped from the plan |
 | Networks | Rarely the same one | Overlay added, then removed again once proximity was established as constant |
 | Phone always within a metre | Yes | Largest change. Bluetooth LE becomes the resident link; no network, no third party |
-| Private or public | Private now, phone may change | No hard-coded device IDs; clipboard degrades when the ADB grant is missing |
+| Private or public | **Public — any Mac, any Android** | Nothing device-specific in either build; runtime discovery with a device picker, and pairing gated on a six-digit code confirmed on both screens. Distributed as a Homebrew cask plus an APK |
 
 **Proximity is what collapsed the design.** The network answer first pushed Bridge toward a WireGuard overlay and a third party. Establishing that the phone is always within a metre removed that need entirely: at that distance the radios reach each other directly, which is exactly how AirDrop and Quick Share work and why neither needs a server. The result is simpler, cheaper, more private and slightly faster to build than the overlay version.
 
