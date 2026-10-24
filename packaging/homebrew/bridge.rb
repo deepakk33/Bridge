@@ -1,6 +1,6 @@
 cask "bridge" do
   version "0.1.0"
-  sha256 "f78985d0abc90e760d100c89437af8ed1512868ade09e0ed5eac3512f391fe2d"
+  sha256 "301a1f19d334f1d8c96f506f57f88cacc52d74c459ea237bd96ae218467b4eb2"
 
   url "https://github.com/deepakk33/Bridge/releases/download/v#{version}/Bridge-#{version}.zip"
   name "Bridge"
