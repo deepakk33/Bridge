@@ -21,81 +21,33 @@ Bridge/
 └── scripts/      # ADB grant scripts, build helpers
 ```
 
-## OpenSpec Iterations
+## Development Pipeline
 
-5 iterations, each a standalone OpenSpec change:
+Work is driven by `docs/BACKLOG.md` (the queue — one row + one detail block per item) and the
+`/work <BR-n>` command (`.claude/commands/work.md`), which runs the whole item: clarify → branch
+→ propose → implement → review → wrap. Phase is derived from disk, never from memory. `/work`
+with no argument prints the queue and each item's real phase.
 
-| Iteration | Change Name | Scope |
-|-----------|-------------|-------|
-| 1 | `iter-1-ble-spike` | BLE L2CAP channel, app skeletons, throughput test |
-| 2 | `iter-2-secure-link` | Pairing, certs, TLS, auto-reconnect, status UI |
-| 3 | `iter-3-notifications` | Mirror, reply, battery status |
-| 4 | `iter-4-clipboard` | Bidirectional clipboard, ADB grant, timestamp rule |
-| 5 | `iter-5-files-polish` | File transfer (BT+WiFi), permission panel, watchdog |
+Three human gates, and only these: **plan** (the OpenSpec artifacts), **review** (the diff plus
+the device test), **hand-off** (push). Everything between gates is automatic.
 
-## Iteration Workflow (6 Phases)
+Full rules for a human: `docs/DEVELOPMENT.md`.
 
-**Every iteration MUST follow these 6 phases in order.** Do not skip phases. Do not mark an iteration complete until phase 6 passes.
+Iterations 1–8 are archived under `openspec/changes/archive/` and summarized in
+`docs/ITERATIONS.md`; new work is a backlog item, not a numbered iteration.
 
-### Phase 1: Understand
-- Read the OpenSpec change: `openspec show <change-name>`
-- Read `proposal.md`, `specs/`, `design.md`, `tasks.md`
-- Read relevant sections of `docs/PRD.md`
-- Identify platform permissions needed
-- Identify packet types used
-- List any unknowns or assumptions
-- **Gate**: Can explain what this iteration does and why, in one paragraph
+### Non-negotiables
 
-### Phase 2: Spec Review & Update
-- Run `openspec validate --change <change-name>`
-- Verify specs match PRD requirements
-- Update specs if implementation reveals gaps
-- Ensure test criteria are defined
-- **Gate**: `openspec validate` passes clean
-
-### Phase 3: Design
-- Review `design.md` for this iteration
-- Identify file paths, class/struct names, function signatures
-- Plan the implementation order (dependencies first)
-- Note platform-specific gotchas from PRD constraints section
-- **Gate**: Know exactly which files to create/modify
-
-### Phase 4: Implement
-- Use git worktree if working on both platforms simultaneously
-- Follow existing code patterns in the repo
-- Mac: Swift 6 concurrency (async/await, actors)
-- Android: Kotlin coroutines, foreground service patterns
-- Protocol: Match KDE Connect wire format exactly
-- Shared test vectors in `protocol/` for cross-platform validation
-- **Gate**: Code compiles on both platforms
-
-### Phase 5: Test
-- Unit tests for protocol handling (both platforms)
-- Integration tests for BLE/network communication
-- Run shared test vectors from `protocol/` on both sides
-- Manual device test on real hardware:
-  - MacBook Air M3 (macOS 26.6.2)
-  - Galaxy S25 (Android 16, One UI 8.5)
-- Test the specific success criteria from the proposal
-- **Gate**: All tests pass, manual device test succeeds
-
-### Phase 6: Validate & Report
-- Run full test suite
-- Verify the iteration's success criteria end-to-end
-- Archive the OpenSpec change: `openspec archive <change-name>`
-- Update `docs/ITERATIONS.md` with:
-  - What was built (layman summary)
-  - What was built (technical summary)
-  - Known issues or degradations
-  - What the next iteration builds on
-- **Gate**: Can demo the feature working on real devices
+- Never commit to `main` — branch `work/<id>-<slug>` per item.
+- Never claim a build, test, or device check passed without running it and reading the output.
+- Never archive a change with unchecked tasks unless the user confirms it.
 
 ## Conventions
 
 ### Git
-- Branch per iteration: `iter-1/ble-spike`, `iter-2/secure-link`, etc.
+- Branch per backlog item: `work/br-9-hotspot-fallback` (archived iterations used `iter-N/<slug>`)
 - Conventional commits: `feat(mac):`, `feat(android):`, `feat(protocol):`, `fix(mac):`, etc.
-- Commit after each phase completes
+- Commit at each pipeline step — spec folder, each green verify, the wrap-up docs
 
 ### Code Style
 - Swift: Swift 6 strict concurrency, SwiftUI for UI, no force unwraps
