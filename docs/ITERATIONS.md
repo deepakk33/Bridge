@@ -410,3 +410,64 @@ until allowlisted.
 A reusable card-based visual system and a single `LinkState` the UI binds to; future
 screens (e.g. the iter-6 filter screen) can adopt the same cards, and richer status
 (signal, transfer activity) can hang off `BridgeService.LinkStatus`.
+
+## Iteration 8: Clipboard Resilience, Handshake-on-Open, Service Persistence
+**Status**: Complete — builds clean, hardware-validated on Galaxy S25 / Android 16 (One UI 8.5)
+**Branch**: `iter-8/clipboard-overlay-resilience`
+**OpenSpec**: `openspec show iter-8-clipboard-resilience` (archived)
+
+### Layman Summary
+Three fixes after a day of real use. (1) Clipboard: automatic phone↔Mac copy-paste in
+the background is **not possible on Android 16 without rooting the phone** — the OS
+locked down background clipboard access. So clipboard now works manually: the Quick
+Settings tile pushes phone→Mac, and opening the app sends your phone clip to the Mac
+*and* drops in whatever the Mac last copied. (2) The phone used to show "Connected"
+even after the Mac had gone away; now opening the app does a quick handshake and tells
+the truth, reconnecting if the link is dead. (3) The service now survives swiping the
+app away from recents.
+
+### Technical Summary
+**Clipboard (OS regression, best-effort fix).** Android 16 denies background clipboard
+R/W to any app that isn't the focused window, the default IME, or holds the privileged
+`READ_CLIPBOARD_IN_BACKGROUND`. That permission is now *role-managed* — `pm grant`
+fails with "managed by role", and Shizuku (shell-uid) can't grant it either; only root
+can. The old iter-4 plan (`pm grant READ_CLIPBOARD_IN_BACKGROUND` via
+`scripts/adb-grant-clipboard.sh`) worked on earlier Android and silently broke on the
+16 update. An invisible `SYSTEM_ALERT_WINDOW` overlay (KDE Connect's trick) was built
+and **empirically rejected** on One UI 8.5 — the overlay added fine (`ty=2038`) but the
+Samsung ClipboardService kept logging "Denying clipboard access … not in focus" every
+500 ms; a non-focusable overlay doesn't satisfy the focus check, and a focusable one
+would hijack input. The overlay was reverted. What shipped instead: `ClipboardBridge`
+caches the last Mac clip in `pendingRemoteContent` when a background write is denied and
+re-applies it via the Activity context on focus (`flushPendingRemote`, wired into
+`MainActivity.onWindowFocusChanged`). Clipboard status text now states the manual
+reality.
+
+**Handshake on open.** A silently-dead Mac (sleep / out of range) left `readLine()`
+blocked until the 90 s `PingWatchdog` fired, so the phone showed a stale "Connected".
+Added `L2capServer.probeLink()` → sends a ping and, if no packet arrives within 3 s,
+closes the socket so the accept loop's `onConnectionChanged(false)` drops the status to
+Advertising and BLE re-connects. Exposed `PingWatchdog.lastPacketAt`; plumbed
+`BlePeripheral.probeLink` → `BridgeService.requestHandshake()`, invoked from
+`MainActivity.onResume` when a socket is open. Hardware-verified: opening the app on a
+dead link logged "Probe: no response in 3000ms — closing dead link" → Advertising →
+GATT reconnect.
+
+**Service persistence.** Added `android:stopWithTask="false"` to the `BridgeService`
+manifest entry (already `START_STICKY`, `connectedDevice` FGS, battery-opt exempt) so
+swiping the task from recents no longer kills the link.
+
+### Known Issues / Degradations
+- **No automatic background clipboard.** Inherent to Android 16 without root. Manual
+  paths (QS tile, app-open flush) are the ceiling. Only root + a role grant of
+  `READ_CLIPBOARD_IN_BACKGROUND` would restore full auto-sync.
+- **`scripts/adb-grant-clipboard.sh` is now ineffective** on Android 16 (left in place;
+  it reports success for READ_LOGS/appops but those no longer unblock background R/W).
+- **Handshake probe uses a fixed 3 s timeout** — a very slow link could false-drop once
+  on open, then auto-reconnect.
+
+### What the next iteration builds on
+`probeLink` / `requestHandshake` give an on-demand link-liveness check the UI can reuse
+(e.g. a manual "test link" button). If root ever becomes acceptable, the clipboard
+overlay scaffolding history and `flushPendingRemote` cache show exactly where a
+privileged background read/write would slot in.

@@ -103,6 +103,11 @@ class BlePeripheral(
         l2capServer?.requestPairing()
     }
 
+    /** Probe the live link; closes a dead socket so status stops showing stale "connected". */
+    fun probeLink() {
+        l2capServer?.probeLink()
+    }
+
     fun setNotificationReplyHandler(handler: (requestReplyId: String, message: String) -> Unit) {
         l2capServer?.onNotificationReply = handler
     }

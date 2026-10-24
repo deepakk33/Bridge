@@ -43,6 +43,7 @@ class ClipboardBridge(
     var activityContext: Context? = null
 
     private var isRemoteWrite = false
+    private var pendingRemoteContent: String? = null
     private var lastContent: String? = null
     private var polling = false
     private val handler = Handler(Looper.getMainLooper())
@@ -75,9 +76,7 @@ class ClipboardBridge(
         val current = getCurrentClipText()
         if (current == content) return
 
-        isRemoteWrite = true
-        clipboardManager.setPrimaryClip(ClipData.newPlainText("Bridge", content))
-        lastContent = content
+        applyRemote(content)
         Log.i(TAG, "Clipboard updated from remote")
     }
 
@@ -93,11 +92,44 @@ class ClipboardBridge(
         val current = getCurrentClipText()
         if (current == content) return
 
-        isRemoteWrite = true
-        clipboardManager.setPrimaryClip(ClipData.newPlainText("Bridge", content))
-        lastContent = content
+        applyRemote(content)
         lastClipboardTimestamp = remoteTimestamp
         Log.i(TAG, "Clipboard updated from reconnect (remote ts=$remoteTimestamp)")
+    }
+
+    /**
+     * Write a clip received from the Mac. Android 16 denies clipboard writes from
+     * a backgrounded service, so cache it as pending; [flushPendingRemote] re-applies
+     * it when the app next has focus. When an Activity context is live the write
+     * lands immediately and nothing stays pending.
+     */
+    private fun applyRemote(content: String) {
+        isRemoteWrite = true
+        pendingRemoteContent = content
+        val cm = (activityContext ?: context).getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        try {
+            cm.setPrimaryClip(ClipData.newPlainText("Bridge", content))
+            lastContent = content
+            if (activityContext != null) pendingRemoteContent = null
+        } catch (e: Exception) {
+            Log.d(TAG, "Remote clip write deferred: ${e.message}")
+        }
+    }
+
+    /** Re-apply the last Mac clip that couldn't be written while backgrounded. Call on focus. */
+    fun flushPendingRemote() {
+        val content = pendingRemoteContent ?: return
+        val ctx = activityContext ?: return
+        val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        isRemoteWrite = true
+        try {
+            cm.setPrimaryClip(ClipData.newPlainText("Bridge", content))
+            lastContent = content
+            pendingRemoteContent = null
+            Log.i(TAG, "Flushed pending remote clip on focus")
+        } catch (e: Exception) {
+            Log.d(TAG, "Pending flush failed: ${e.message}")
+        }
     }
 
     fun makeConnectPacket(): BridgePacket {

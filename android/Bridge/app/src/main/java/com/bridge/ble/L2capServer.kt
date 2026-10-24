@@ -13,7 +13,9 @@ import com.bridge.security.PairingManager
 import com.bridge.security.TrustStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.BufferedReader
@@ -143,6 +145,24 @@ class L2capServer(
     /** Trigger phone-initiated pairing on the active connection, if any. */
     fun requestPairing() {
         pairingManager?.requestPair()
+    }
+
+    /**
+     * Send a ping and, if nothing comes back within [timeoutMs], close the
+     * socket so a dead link drops to disconnected instead of showing a stale
+     * "connected". No-op when no socket is open.
+     */
+    fun probeLink(timeoutMs: Long = 3_000) {
+        val out = currentOutputStream ?: return
+        val sentAt = System.currentTimeMillis()
+        try { send(BridgePacket.ping(), out) } catch (_: IOException) {}
+        CoroutineScope(Dispatchers.IO).launch {
+            delay(timeoutMs)
+            if (pingWatchdog.lastPacketAt < sentAt) {
+                Log.w(TAG, "Probe: no response in ${timeoutMs}ms — closing dead link")
+                try { activeSocket?.close() } catch (_: IOException) {}
+            }
+        }
     }
 
     private fun handlePacket(packet: BridgePacket, outputStream: OutputStream) {

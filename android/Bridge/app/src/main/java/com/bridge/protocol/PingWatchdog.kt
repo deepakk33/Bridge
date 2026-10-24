@@ -21,6 +21,9 @@ class PingWatchdog(
     @Volatile
     private var lastPacketTime: Long = 0
 
+    /** Wall-clock millis of the most recent received packet (0 before any). */
+    val lastPacketAt: Long get() = lastPacketTime
+
     fun start(
         scope: CoroutineScope,
         sendPing: () -> Unit,
