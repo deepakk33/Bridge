@@ -37,3 +37,7 @@ default.profraw
 
 # local claude worktrees
 .claude/worktrees/
+
+# release artifacts
+dist/
+.build/
