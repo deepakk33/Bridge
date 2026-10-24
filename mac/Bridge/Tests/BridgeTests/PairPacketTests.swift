@@ -54,6 +54,29 @@ final class PairPacketTests: XCTestCase {
         XCTAssertEqual(deserialized.body["pair"] as? Bool, true)
     }
 
+    func testPairFactoriesCarryKind() throws {
+        XCTAssertEqual(BridgePacket.pairRequest().body["kind"] as? String, "request")
+        XCTAssertEqual(BridgePacket.pairAccept().body["kind"] as? String, "accept")
+
+        let roundTripped = try BridgePacket.deserialize(from: BridgePacket.pairAccept().serialize())
+        XCTAssertEqual(roundTripped.body["kind"] as? String, "accept")
+    }
+
+    /// Crossed initiation must converge: exactly one side yields and accepts,
+    /// so both sides end up pinned instead of the link going half-paired.
+    func testCrossedRequestTieBreakIsDeterministic() {
+        let mac = "aaaa-mac"
+        let phone = "bbbb-phone"
+
+        XCTAssertFalse(PairingManager.yieldsOnCrossedRequest(localDeviceId: mac, peerDeviceId: phone))
+        XCTAssertTrue(PairingManager.yieldsOnCrossedRequest(localDeviceId: phone, peerDeviceId: mac))
+    }
+
+    func testCrossedRequestWithEqualOrMissingIdsBothAccept() {
+        XCTAssertTrue(PairingManager.yieldsOnCrossedRequest(localDeviceId: "same", peerDeviceId: "same"))
+        XCTAssertTrue(PairingManager.yieldsOnCrossedRequest(localDeviceId: "", peerDeviceId: "zzz"))
+    }
+
     func testPairRejectFactory() throws {
         let packet = BridgePacket.pairReject()
         XCTAssertEqual(packet.type, "bridge.pair")

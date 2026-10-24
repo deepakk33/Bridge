@@ -177,6 +177,23 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
         )
         UNUserNotificationCenter.current().add(request)
     }
+
+    /// A pair confirmation is waiting. The prompt itself is a sheet on the menu-bar
+    /// panel, so it is invisible until that panel is opened — without this the request
+    /// is staged where nobody can see it and the phone waits on a reply that never comes.
+    func postPairConfirmationPending(deviceName: String) {
+        let content = UNMutableNotificationContent()
+        content.title = "\(deviceName) wants to pair"
+        content.body = "Open Bridge in the menu bar to confirm."
+        content.sound = .default
+
+        let request = UNNotificationRequest(
+            identifier: "bridge-pair-pending",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
+    }
 }
 
 extension Notification.Name {

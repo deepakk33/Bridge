@@ -45,13 +45,15 @@ class TrustStore private constructor(context: Context) {
         )
     }
 
+    // commit(), not apply(): a pin that is still in flight when the process dies
+    // leaves the peer trusting us while we no longer trust it.
     fun pin(deviceId: String, fingerprint: String) {
-        prefs.edit().putString(KEY_PREFIX + deviceId, fingerprint).apply()
-        Log.i(TAG, "Pinned fingerprint for device $deviceId")
+        val written = prefs.edit().putString(KEY_PREFIX + deviceId, fingerprint).commit()
+        Log.i(TAG, "Pinned fingerprint for device $deviceId (persisted=$written)")
     }
 
     fun unpin(deviceId: String) {
-        prefs.edit().remove(KEY_PREFIX + deviceId).apply()
+        prefs.edit().remove(KEY_PREFIX + deviceId).commit()
         Log.i(TAG, "Unpinned device $deviceId")
     }
 

@@ -30,3 +30,14 @@ mac/*.xcodeproj/xcuserdata/
 .gradle/
 mac/Bridge/.build/
 mac/Bridge/.dd/
+
+# build coverage artifacts
+default.profraw
+**/default.profraw
+
+# local claude worktrees
+.claude/worktrees/
+
+# release artifacts
+dist/
+.build/

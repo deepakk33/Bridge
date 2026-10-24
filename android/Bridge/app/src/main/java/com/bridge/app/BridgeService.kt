@@ -61,6 +61,17 @@ class BridgeService : Service() {
                 android.os.Handler(android.os.Looper.getMainLooper()).post { svc.blePeripheral?.requestPairing() }
             }
         }
+
+        /**
+         * Probe the live link (ping + short timeout). If the Mac is gone the
+         * socket is force-closed so the status drops to disconnected and BLE
+         * re-advertises. Called when the app is opened to confirm the link is
+         * really alive rather than trusting a stale "connected" state.
+         */
+        fun requestHandshake() {
+            activeInstance?.blePeripheral?.probeLink()
+        }
+
     }
 
     /**

@@ -39,11 +39,13 @@ struct BridgePacket: @unchecked Sendable {
         )
     }
 
+    /// `kind` disambiguates the two `pair: true` packets. Peers that predate it
+    /// omit the field; both sides still fall back to state-based interpretation.
     static func pairRequest() -> BridgePacket {
         BridgePacket(
             id: Int64(Date().timeIntervalSince1970 * 1000),
             type: "bridge.pair",
-            body: ["pair": true]
+            body: ["pair": true, "kind": "request"]
         )
     }
 
@@ -51,7 +53,7 @@ struct BridgePacket: @unchecked Sendable {
         BridgePacket(
             id: Int64(Date().timeIntervalSince1970 * 1000),
             type: "bridge.pair",
-            body: ["pair": true]
+            body: ["pair": true, "kind": "accept"]
         )
     }
 

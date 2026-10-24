@@ -1,5 +1,6 @@
 package com.bridge.protocol
 
+import com.bridge.security.PairingManager
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.jsonArray
@@ -68,6 +69,37 @@ class PairPacketTest {
         val packet = BridgePacket.pairAccept()
         assertEquals("bridge.pair", packet.type)
         assertTrue(packet.body["pair"]?.jsonPrimitive?.boolean ?: false)
+    }
+
+    @Test
+    fun `pair factories carry kind`() {
+        assertEquals("request", BridgePacket.pairRequest().body["kind"]?.jsonPrimitive?.content)
+        assertEquals("accept", BridgePacket.pairAccept().body["kind"]?.jsonPrimitive?.content)
+
+        val roundTripped = BridgePacket.deserialize(
+            String(BridgePacket.pairAccept().serialize(), Charsets.UTF_8)
+        )
+        assertEquals("accept", roundTripped.body["kind"]?.jsonPrimitive?.content)
+    }
+
+    /**
+     * Crossed initiation must converge: exactly one side yields and accepts,
+     * so both sides end up pinned instead of the link going half-paired.
+     * Mirrors PairPacketTests.testCrossedRequestTieBreakIsDeterministic on the Mac.
+     */
+    @Test
+    fun `crossed request tie-break is deterministic`() {
+        val mac = "aaaa-mac"
+        val phone = "bbbb-phone"
+
+        assertFalse(PairingManager.yieldsOnCrossedRequest(mac, phone))
+        assertTrue(PairingManager.yieldsOnCrossedRequest(phone, mac))
+    }
+
+    @Test
+    fun `crossed request with equal or missing ids makes both accept`() {
+        assertTrue(PairingManager.yieldsOnCrossedRequest("same", "same"))
+        assertTrue(PairingManager.yieldsOnCrossedRequest("", "zzz"))
     }
 
     @Test

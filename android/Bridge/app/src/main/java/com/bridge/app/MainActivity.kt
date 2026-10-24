@@ -2,7 +2,6 @@ package com.bridge.app
 
 import android.Manifest
 import android.app.AlertDialog
-import android.app.AppOpsManager
 import android.bluetooth.BluetoothAdapter
 import android.content.ComponentName
 import android.content.Intent
@@ -11,7 +10,6 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Process
 import android.provider.Settings
 import android.text.format.DateUtils
 import android.view.Menu
@@ -246,6 +244,8 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         BridgeService.clipboardBridge?.activityContext = this
         BridgeService.LinkStatus.addListener(linkListener)
+        // Handshake on open: confirm the link is really alive, not stale "connected".
+        if (BridgeService.LinkStatus.isSocketConnected) BridgeService.requestHandshake()
         checkNotificationAccess()
         updateClipboardStatus()
         updatePermissionStatus()
@@ -269,25 +269,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateClipboardStatus() {
-        val appOps = getSystemService(AppOpsManager::class.java)
-        val hasBgAccess = appOps.unsafeCheckOpNoThrow(
-            "android:read_clipboard",
-            Process.myUid(),
-            packageName
-        ) == AppOpsManager.MODE_ALLOWED
-
-        if (hasBgAccess) {
-            clipboardStatus.text = "Both directions"
-            clipboardStatus.setTextColor(Color.parseColor("#4CAF50"))
-        } else {
-            clipboardStatus.text = "Mac to phone only\nRun scripts/adb-grant-clipboard.sh for full sync"
-            clipboardStatus.setTextColor(Color.parseColor("#FF9800"))
-        }
+        // Android 16 blocks background clipboard for non-root apps, so sync is manual:
+        // the Quick Settings tile pushes phone→Mac; opening the app sends the current
+        // clip and applies any waiting Mac→phone clip (onWindowFocusChanged / onResume).
+        clipboardStatus.text = "Manual sync\nQuick Settings tile → phone to Mac; open app for Mac to phone"
+        clipboardStatus.setTextColor(Color.parseColor("#FF9800"))
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) {
+            BridgeService.clipboardBridge?.flushPendingRemote()
             BridgeService.clipboardBridge?.sendClipboardFromActivity(this)
         }
     }

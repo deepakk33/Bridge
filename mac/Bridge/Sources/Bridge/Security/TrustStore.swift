@@ -60,6 +60,10 @@ final class TrustStore: @unchecked Sendable {
         lock.withLock { trustedDevices.isEmpty }
     }
 
+    var count: Int {
+        lock.withLock { trustedDevices.count }
+    }
+
     private func save() {
         UserDefaults.standard.set(trustedDevices, forKey: Self.defaultsKey)
     }
