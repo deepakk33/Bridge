@@ -1,6 +1,6 @@
 # Android ↔ Mac Link — Requirements & Project Definition
 
-Oct 13, 2026 · 
+Oct 13, 2026
 
 ## Why this gap exists
 

@@ -349,7 +349,7 @@ reflect the *verified* link, not the raw socket:
   itself the moment a verified link comes up.
 
 Hardware-confirmed on the Galaxy S25: with the Mac untrusted (trust desync), the pill
-reads amber "Connecting…", the card shows "the paired Mac's name", and the open dialog
+reads amber "Connecting…", the card shows the paired Mac's name, and the open dialog
 reads "Connected, but not verified … nothing is delivered."
 
 ### Follow-up: fix the pairing deadlock (same branch)
