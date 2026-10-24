@@ -1,9 +1,24 @@
 # Bridge — Android ↔ Mac Direct Link
 
-Bridge makes a Galaxy S25 and a MacBook Air behave as one machine when they are in the
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![macOS 15+](https://img.shields.io/badge/macOS-15.0%2B-black.svg)](#mac-app)
+[![Android 12+](https://img.shields.io/badge/Android-12%2B%20(API%2031)-3DDC84.svg)](#android-app)
+[![Releases](https://img.shields.io/github/v/release/deepakk33/Bridge?include_prereleases&label=release)](https://github.com/deepakk33/Bridge/releases/latest)
+
+**Website: https://bridge-mac-android.vercel.app**
+
+Bridge makes **any Mac and any Android phone** behave as one machine when they are in the
 same room. No network, no account, no cloud: **BLE for control, Wi-Fi for bulk**, speaking
 the KDE Connect wire format. It mirrors notifications, syncs the clipboard, shares the
 battery level, and transfers files over a mutually-authenticated (pinned-cert) link.
+
+Installing the app on both devices is the only setup step — the two find each other over
+Bluetooth LE and pair. Nothing device-specific is baked into either build.
+
+```sh
+brew install --cask deepakk33/tap/bridge      # Mac
+# Android: sideload the APK from the latest release
+```
 
 - **Mac**: Swift 6, SwiftUI menu-bar app, Core Bluetooth, Network.framework
 - **Android**: Kotlin, `connectedDevice` foreground service, `NotificationListenerService`
@@ -126,3 +141,14 @@ is set to survive being swiped from recents.
 - **Notifications don't mirror** → Notification access not enabled, or the app is filtered
   out (deny-by-default notification filter — allowlist the app in the Notifications screen).
 - **No auto clipboard** → expected on Android 16; use the tile / open the app (see above).
+
+## Contributing
+
+Issues and pull requests are welcome. Each iteration is planned as an OpenSpec change
+under [openspec/](openspec/) and recorded in [docs/ITERATIONS.md](docs/ITERATIONS.md);
+the architecture and decisions live in [docs/PRD.md](docs/PRD.md). The website source is
+in [web/](web/).
+
+## License
+
+[MIT](LICENSE) © deepakk33

@@ -28,6 +28,10 @@ struct BridgeApp: App {
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: menuBarIcon)
+                if bleManager.pairingManager.incomingPairRequest != nil {
+                    Image(systemName: "person.badge.key.fill")
+                        .foregroundStyle(.orange)
+                }
                 if permissions.hasDeniedPermission {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.yellow)

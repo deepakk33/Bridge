@@ -8,14 +8,25 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 class PairingManager(
+    private val localDeviceId: String,
     private val sendPacket: (BridgePacket) -> Unit
 ) {
     companion object {
         private const val TAG = "PairingManager"
         private const val TIMEOUT_MS = 30_000L
+
+        /**
+         * Crossed initiation: both sides sent a request at once. The lower deviceId
+         * stays the initiator, the other yields and accepts, so exactly one accept
+         * flows and both sides pin. Equal (or unknown local) ids make both yield,
+         * which also converges — both accept and both pin.
+         */
+        fun yieldsOnCrossedRequest(localDeviceId: String, peerDeviceId: String): Boolean =
+            localDeviceId.isEmpty() || localDeviceId >= peerDeviceId
     }
 
     enum class State {
@@ -59,6 +70,12 @@ class PairingManager(
             // instead of waiting for a request that a already-paired peer never sends.
             Log.i(TAG, "No trusted device — auto-initiating pairing with $deviceName")
             requestPair()
+        } else if (trustStore.pinnedFingerprint(deviceId) != null) {
+            Log.w(TAG, "$deviceName [$deviceId] presented a fingerprint that is not the pinned one — initiating re-pairing")
+            requestPair()
+        } else {
+            Log.w(TAG, "Unknown device $deviceName [$deviceId] while other devices are pinned — initiating pairing")
+            requestPair()
         }
     }
 
@@ -68,8 +85,14 @@ class PairingManager(
      * (empty trust store) and on demand (user taps Reconnect while unverified).
      */
     fun requestPair() {
-        val deviceName = peerDeviceName ?: return
-        if (state == State.AWAITING_RESPONSE) return
+        val deviceName = peerDeviceName ?: run {
+            Log.w(TAG, "Pair requested before peer identity is known — ignoring")
+            return
+        }
+        if (state == State.AWAITING_RESPONSE) {
+            Log.i(TAG, "Pair request to $deviceName already outstanding")
+            return
+        }
         sendPacket(BridgePacket.pairRequest())
         state = State.AWAITING_RESPONSE
         startTimeout()
@@ -84,16 +107,21 @@ class PairingManager(
         }
 
         if (pairValue) {
-            handlePairAcceptOrRequest()
+            // "request", "accept", or null for peers that predate the field.
+            handlePairAcceptOrRequest(packet.body["kind"]?.jsonPrimitive?.contentOrNull)
         } else {
             handlePairRejectOrUnpair()
         }
     }
 
     fun acceptPair() {
-        val deviceId = peerDeviceId ?: return
-        val deviceName = peerDeviceName ?: return
-        val fingerprint = peerFingerprint ?: return
+        val deviceId = peerDeviceId
+        val deviceName = peerDeviceName
+        val fingerprint = peerFingerprint
+        if (deviceId == null || deviceName == null || fingerprint == null) {
+            Log.w(TAG, "Cannot accept pair: peer identity unknown")
+            return
+        }
 
         sendPacket(BridgePacket.pairAccept())
         TrustStore.getInstance().pin(deviceId, fingerprint)
@@ -131,12 +159,26 @@ class PairingManager(
         }
     }
 
-    private fun handlePairAcceptOrRequest() {
+    private fun handlePairAcceptOrRequest(kind: String?) {
+        val deviceId = peerDeviceId
+        val deviceName = peerDeviceName
+        val fingerprint = peerFingerprint
+        if (deviceId == null || deviceName == null || fingerprint == null) {
+            Log.w(TAG, "Pair packet before peer identity — ignoring")
+            return
+        }
+
         when (state) {
             State.AWAITING_RESPONSE -> {
-                val deviceId = peerDeviceId ?: return
-                val deviceName = peerDeviceName ?: return
-                val fingerprint = peerFingerprint ?: return
+                if (kind == "request") {
+                    if (!yieldsOnCrossedRequest(localDeviceId, deviceId)) {
+                        Log.i(TAG, "Crossed pair request from $deviceName — we stay the initiator, awaiting their accept")
+                        return
+                    }
+                    Log.i(TAG, "Crossed pair request from $deviceName — yielding and accepting theirs")
+                    acceptPair()
+                    return
+                }
                 TrustStore.getInstance().pin(deviceId, fingerprint)
                 state = State.PAIRED
                 pairedDeviceId = deviceId
@@ -146,13 +188,17 @@ class PairingManager(
                 onPairCompleted?.invoke()
             }
             State.UNPAIRED -> {
-                val deviceName = peerDeviceName ?: return
-                val fingerprint = peerFingerprint ?: return
-                startTimeout()
+                if (kind == "accept") {
+                    Log.i(TAG, "Unsolicited pair accept from $deviceName — treating it as a request")
+                }
                 Log.i(TAG, "Incoming pair request from $deviceName")
                 onPairRequest?.invoke(deviceName, fingerprint)
             }
             State.PAIRED -> {
+                if (kind == "accept") {
+                    Log.i(TAG, "Already paired — ignoring accept from $deviceName")
+                    return
+                }
                 Log.i(TAG, "Already paired, re-accepting pair request (peer may have lost trust store)")
                 acceptPair()
             }
@@ -176,6 +222,7 @@ class PairingManager(
             }
             State.UNPAIRED -> {
                 cancelTimeout()
+                Log.i(TAG, "Peer declined or cancelled pairing while unpaired — nothing to do")
             }
         }
     }
@@ -184,8 +231,12 @@ class PairingManager(
         cancelTimeout()
         timeoutJob = scope.launch {
             delay(TIMEOUT_MS)
-            Log.i(TAG, "Pairing timed out")
-            rejectPair()
+            // Local expiry only. Sending a reject here would make a peer that already
+            // pinned us drop that pin, which is how the link ended up half-paired.
+            Log.i(TAG, "Pair request timed out with no response — giving up locally")
+            if (state == State.AWAITING_RESPONSE) {
+                state = State.UNPAIRED
+            }
         }
     }
 

@@ -94,7 +94,7 @@ class L2capServer(
             val outputStream = socket.outputStream
             currentOutputStream = outputStream
 
-            pairingManager = PairingManager { packet -> send(packet, outputStream) }.also { pm ->
+            pairingManager = PairingManager(deviceId) { packet -> send(packet, outputStream) }.also { pm ->
                 pm.onPairRequest = { deviceName, fingerprint ->
                     Log.i(TAG, "Auto-accepting pair request from $deviceName (fp: $fingerprint)")
                     pm.acceptPair()

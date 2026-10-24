@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bridge — your Mac and your Android, one machine</title>
+<meta name="description" content="Bridge links any Mac and any Android phone directly over Bluetooth LE and Wi-Fi. Notifications, clipboard, files and battery — no network, no account, no cloud, no server.">
+<meta name="color-scheme" content="dark light">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Bridge — your Mac and your Android, one machine">
+<meta property="og:description" content="Two devices, one machine, nothing in between. Direct Android ↔ Mac link over Bluetooth LE and Wi-Fi. Open source, MIT, no cloud.">
+<meta property="og:url" content="https://github.com/deepakk33/Bridge">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0f17'/%3E%3Cpath d='M5 21c0-6.1 4.9-11 11-11s11 4.9 11 11' fill='none' stroke='%235ad2ff' stroke-width='2.6' stroke-linecap='round'/%3E%3Ccircle cx='5' cy='21' r='3' fill='%235ad2ff'/%3E%3Ccircle cx='27' cy='21' r='3' fill='%23a68bff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script>document.documentElement.classList.add('js')</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="#top" aria-label="Bridge, home">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <path d="M5 21c0-6.1 4.9-11 11-11s11 4.9 11 11" fill="none" stroke="var(--ble)" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="5" cy="21" r="3" fill="var(--ble)"/>
+        <circle cx="27" cy="21" r="3" fill="var(--wifi)"/>
+      </svg>
+      <span>Bridge</span>
+    </a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#security">Security</a>
+      <a href="#limits">Limitations</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-sm" href="#install">Install</a>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ─────────────────────────── HERO ─────────────────────────── -->
+  <section class="hero" id="top">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="dot"></span> Open source · direct device link</p>
+        <h1>Your Mac and your Android,<br><span class="grad">acting as one machine.</span></h1>
+        <p class="lede">
+          Bridge puts a live link between the two devices on your desk. Notifications, clipboard,
+          files and battery cross over directly — radio to radio. No network, no account, no cloud,
+          no server anywhere in the path.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="#install">Install Bridge</a>
+          <a class="btn btn-ghost" href="https://github.com/deepakk33/Bridge" rel="noopener">
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38l-.01-1.49c-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.19c0 .21.15.46.55.38A8 8 0 0 0 8 0Z"/></svg>
+            View source
+          </a>
+        </div>
+        <p class="meta-line">macOS 15+ · Android 12+ · BLE + Wi-Fi · MIT licensed · no cloud, no account, no telemetry</p>
+      </div>
+
+      <div class="hero-art">
+        <svg viewBox="0 0 820 420" role="img" aria-labelledby="heroArtTitle heroArtDesc" class="art">
+          <title id="heroArtTitle">A MacBook and an Android phone joined by a live Bluetooth LE link</title>
+          <desc id="heroArtDesc">A laptop on the left and a phone on the right, with packets of data travelling in both directions along a glowing link between them.</desc>
+          <defs>
+            <linearGradient id="screenG" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="var(--screen-a)"/>
+              <stop offset="1" stop-color="var(--screen-b)"/>
+            </linearGradient>
+            <linearGradient id="linkG" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="var(--ble)"/>
+              <stop offset="1" stop-color="var(--wifi)"/>
+            </linearGradient>
+            <radialGradient id="glowG" cx="0.5" cy="0.5" r="0.5">
+              <stop offset="0" stop-color="var(--ble)" stop-opacity="0.35"/>
+              <stop offset="1" stop-color="var(--ble)" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+
+          <ellipse cx="410" cy="225" rx="300" ry="110" fill="url(#glowG)"/>
+
+          <!-- Laptop -->
+          <g>
+            <rect x="40" y="86" width="310" height="202" rx="14" fill="var(--dev-body)" stroke="var(--dev-edge)" stroke-width="2"/>
+            <rect x="52" y="98" width="286" height="178" rx="7" fill="url(#screenG)"/>
+            <!-- menu bar -->
+            <rect x="52" y="98" width="286" height="20" rx="7" fill="var(--screen-bar)"/>
+            <rect x="52" y="111" width="286" height="7" fill="var(--screen-bar)"/>
+            <circle cx="300" cy="108" r="4.5" fill="var(--ble)"/>
+            <rect x="312" y="104" width="16" height="8" rx="4" fill="var(--screen-line)"/>
+            <!-- mirrored notification card -->
+            <g>
+              <rect x="196" y="130" width="128" height="52" rx="9" fill="var(--card-fill)" stroke="var(--card-edge)"/>
+              <circle cx="212" cy="146" r="7" fill="var(--ok)"/>
+              <rect x="226" y="141" width="56" height="7" rx="3.5" fill="var(--screen-strong)"/>
+              <rect x="226" y="154" width="84" height="6" rx="3" fill="var(--screen-line)"/>
+              <rect x="226" y="165" width="64" height="6" rx="3" fill="var(--screen-line)"/>
+            </g>
+            <!-- battery pill -->
+            <g>
+              <rect x="196" y="192" width="128" height="34" rx="9" fill="var(--card-fill)" stroke="var(--card-edge)"/>
+              <rect x="208" y="203" width="30" height="13" rx="4" fill="none" stroke="var(--screen-strong)" stroke-width="2"/>
+              <rect x="210.5" y="205.5" width="19" height="8" rx="2" fill="var(--ok)"/>
+              <rect x="240" y="207" width="4" height="6" rx="1.5" fill="var(--screen-strong)"/>
+              <rect x="254" y="205" width="56" height="8" rx="4" fill="var(--screen-line)"/>
+            </g>
+            <!-- clipboard lines -->
+            <rect x="70" y="140" width="104" height="8" rx="4" fill="var(--screen-line)"/>
+            <rect x="70" y="158" width="76" height="8" rx="4" fill="var(--screen-line)"/>
+            <rect x="70" y="176" width="96" height="8" rx="4" fill="var(--screen-line)"/>
+            <rect x="70" y="200" width="60" height="8" rx="4" fill="var(--ble)" opacity="0.6"/>
+            <!-- base -->
+            <path d="M18 288h354l16 20H2Z" fill="var(--dev-base)"/>
+            <rect x="164" y="292" width="62" height="6" rx="3" fill="var(--dev-edge)"/>
+          </g>
+
+          <!-- Phone -->
+          <g>
+            <rect x="630" y="92" width="146" height="256" rx="24" fill="var(--dev-body)" stroke="var(--dev-edge)" stroke-width="2"/>
+            <rect x="640" y="102" width="126" height="236" rx="17" fill="url(#screenG)"/>
+            <rect x="686" y="110" width="34" height="6" rx="3" fill="var(--dev-edge)"/>
+            <!-- status row -->
+            <rect x="652" y="128" width="30" height="6" rx="3" fill="var(--screen-line)"/>
+            <rect x="726" y="127" width="22" height="8" rx="3" fill="none" stroke="var(--screen-strong)" stroke-width="1.5"/>
+            <rect x="728" y="129" width="14" height="4" rx="1.5" fill="var(--ok)"/>
+            <!-- connected chip -->
+            <rect x="652" y="146" width="96" height="26" rx="13" fill="var(--chip-fill)" stroke="var(--ble)" stroke-opacity="0.5"/>
+            <circle cx="666" cy="159" r="4.5" fill="var(--ok)"/>
+            <rect x="677" y="155" width="58" height="8" rx="4" fill="var(--screen-strong)"/>
+            <!-- notification rows -->
+            <g>
+              <rect x="652" y="184" width="96" height="36" rx="9" fill="var(--card-fill)" stroke="var(--card-edge)"/>
+              <circle cx="666" cy="202" r="7" fill="var(--wifi)"/>
+              <rect x="679" y="195" width="52" height="6" rx="3" fill="var(--screen-strong)"/>
+              <rect x="679" y="206" width="38" height="5" rx="2.5" fill="var(--screen-line)"/>
+            </g>
+            <g>
+              <rect x="652" y="228" width="96" height="36" rx="9" fill="var(--card-fill)" stroke="var(--card-edge)"/>
+              <circle cx="666" cy="246" r="7" fill="var(--warm)"/>
+              <rect x="679" y="239" width="44" height="6" rx="3" fill="var(--screen-strong)"/>
+              <rect x="679" y="250" width="56" height="5" rx="2.5" fill="var(--screen-line)"/>
+            </g>
+            <rect x="652" y="276" width="96" height="30" rx="15" fill="var(--ble)" opacity="0.18"/>
+            <rect x="672" y="287" width="56" height="8" rx="4" fill="var(--ble)" opacity="0.8"/>
+          </g>
+
+          <!-- Link -->
+          <g>
+            <line x1="392" y1="188" x2="624" y2="188" stroke="url(#linkG)" stroke-width="3" stroke-linecap="round" opacity="0.65"/>
+            <line x1="392" y1="188" x2="624" y2="188" stroke="var(--bg)" stroke-width="3" stroke-dasharray="2 12" stroke-linecap="round" opacity="0.5"/>
+            <circle class="pkt pkt-a" cx="392" cy="188" r="6" fill="var(--ble)"/>
+            <circle class="pkt pkt-b" cx="392" cy="188" r="5" fill="var(--wifi)"/>
+            <g class="pulse-ring">
+              <circle cx="392" cy="188" r="12" fill="none" stroke="var(--ble)" stroke-width="2" opacity="0.5"/>
+            </g>
+            <rect x="452" y="148" width="112" height="26" rx="13" fill="var(--chip-solid)" stroke="var(--line)" class="tiny-hide"/>
+            <text x="508" y="165" text-anchor="middle" class="svg-label tiny-hide">BLE · always on</text>
+            <text x="508" y="216" text-anchor="middle" class="svg-sub tiny-hide">no router · no account</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <ul class="stats" aria-label="Bridge at a glance">
+        <li><strong>4</strong><span>transport tiers, chosen automatically</span></li>
+        <li><strong>10</strong><span>packet types in the v1 protocol</span></li>
+        <li><strong>0</strong><span>servers, accounts or telemetry endpoints</span></li>
+        <li><strong>MIT</strong><span>licensed, source on GitHub</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── PROBLEM ─────────────────────────── -->
+  <section class="section" id="problem">
+    <div class="wrap">
+      <p class="kicker">The problem</p>
+      <h2 class="section-title">Nobody owns both ends, so nobody builds the bridge.</h2>
+      <p class="section-lede">
+        The Android↔Mac gap is commercial, not technical. Every shipping phone-to-desktop link
+        exists because one vendor owns both sides of it — and the two you own happen to belong to
+        different vendors.
+      </p>
+
+      <div class="problem-grid">
+        <article class="pcard">
+          <svg viewBox="0 0 120 80" class="pcard-art" aria-hidden="true" focusable="false">
+            <rect x="8" y="16" width="44" height="48" rx="6" fill="var(--surface-2)" stroke="var(--line)"/>
+            <rect x="68" y="16" width="44" height="48" rx="6" fill="var(--surface-2)" stroke="var(--line)"/>
+            <path d="M52 40h16" stroke="var(--ok)" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="30" cy="40" r="8" fill="var(--ok)" opacity="0.35"/>
+            <circle cx="90" cy="40" r="8" fill="var(--ok)" opacity="0.35"/>
+          </svg>
+          <h3>Apple ↔ Apple</h3>
+          <p>Continuity works beautifully, and the friction of leaving is exactly the point.</p>
+        </article>
+        <article class="pcard">
+          <svg viewBox="0 0 120 80" class="pcard-art" aria-hidden="true" focusable="false">
+            <rect x="8" y="16" width="44" height="48" rx="6" fill="var(--surface-2)" stroke="var(--line)"/>
+            <rect x="68" y="16" width="44" height="48" rx="6" fill="var(--surface-2)" stroke="var(--line)"/>
+            <path d="M52 40h16" stroke="var(--ok)" stroke-width="3" stroke-linecap="round"/>
+            <path d="M24 32h12M24 40h12M24 48h8" stroke="var(--muted)" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="90" cy="40" r="8" fill="var(--ok)" opacity="0.35"/>
+          </svg>
+          <h3>Android ↔ Windows</h3>
+          <p>Microsoft sells no phone, so Phone Link defends Windows. Samsung ships the other half.</p>
+        </article>
+        <article class="pcard pcard-gap">
+          <svg viewBox="0 0 120 80" class="pcard-art" aria-hidden="true" focusable="false">
+            <rect x="8" y="16" width="44" height="48" rx="6" fill="var(--surface-2)" stroke="var(--line)"/>
+            <rect x="68" y="16" width="44" height="48" rx="6" fill="var(--surface-2)" stroke="var(--line)"/>
+            <path d="M52 40h5M63 40h5" stroke="var(--warm)" stroke-width="3" stroke-linecap="round"/>
+            <path d="M60 28v4M60 48v4" stroke="var(--warm)" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+            <path d="M54 34l12 12M66 34l-12 12" stroke="var(--warm)" stroke-width="2" stroke-linecap="round" opacity="0.35"/>
+          </svg>
+          <h3>Android ↔ Mac</h3>
+          <p>Nobody gains from building it for a rival. The radios are already there; the maintainer was missing.</p>
+        </article>
+      </div>
+
+      <p class="section-foot">
+        Bluetooth LE for discovery and wake, Wi-Fi for payload, mDNS for service advertisement —
+        both sides have had the hardware all along. Bridge is just the published protocol and the
+        app on each end.
+      </p>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── HOW IT WORKS ─────────────────────────── -->
+  <section class="section section-alt" id="how">
+    <div class="wrap">
+      <p class="kicker">How it works</p>
+      <h2 class="section-title">A ladder of four transports, climbed only when the payload needs it.</h2>
+      <p class="section-lede">
+        One resident link carries control. Anything bulky gets its own channel, opened for the
+        transfer and torn down after — so a 2 GB video never parks itself in front of your
+        notifications.
+      </p>
+
+      <figure class="figure">
+        <svg viewBox="0 0 960 560" role="img" aria-labelledby="ladderTitle ladderDesc" class="art art-wide">
+          <title id="ladderTitle">The Bridge transport ladder</title>
+          <desc id="ladderDesc">Four tiers between a Mac and a phone. Tier 1 is a Bluetooth LE GATT and L2CAP channel at 50 to 100 kilobytes per second carrying presence, notifications, clipboard and control, always on, needing only proximity. Tier 2 is Bluetooth Classic RFCOMM at about 140 kilobytes per second for small files and images, needing only proximity. Tier 3 is Wi-Fi LAN at full speed for large files and as a control fallback, needing a shared network. Tier 4 is a hotspot hosted by the phone and joined by the Mac, at full speed, for large files when there is no shared network, and only on the user's confirmation.</desc>
+
+          <!-- endpoints -->
+          <g class="endpoint">
+            <rect x="24" y="150" width="104" height="70" rx="9" fill="var(--surface-2)" stroke="var(--line)" stroke-width="2"/>
+            <rect x="34" y="160" width="84" height="48" rx="5" fill="var(--screen-a)"/>
+            <path d="M16 220h120l10 12H6Z" fill="var(--dev-base)"/>
+            <text x="76" y="256" text-anchor="middle" class="svg-strong">Mac</text>
+            <text x="76" y="274" text-anchor="middle" class="svg-sub">menu-bar app</text>
+          </g>
+          <g class="endpoint">
+            <rect x="862" y="140" width="72" height="118" rx="13" fill="var(--surface-2)" stroke="var(--line)" stroke-width="2"/>
+            <rect x="870" y="148" width="56" height="102" rx="8" fill="var(--screen-a)"/>
+            <text x="898" y="282" text-anchor="middle" class="svg-strong">Phone</text>
+            <text x="898" y="300" text-anchor="middle" class="svg-sub">foreground service</text>
+          </g>
+
+          <!-- Tier 1 -->
+          <g>
+            <rect x="160" y="40" width="672" height="78" rx="14" fill="var(--tier1-fill)" stroke="var(--ble)" stroke-opacity="0.55" stroke-width="2"/>
+            <circle cx="196" cy="79" r="19" fill="var(--ble)" fill-opacity="0.2" stroke="var(--ble)" stroke-width="2"/>
+            <text x="196" y="86" text-anchor="middle" class="svg-tier" fill="var(--ble)">1</text>
+            <text x="230" y="70" class="svg-strong">Bluetooth LE — GATT + L2CAP channel</text>
+            <text x="230" y="94" class="svg-sub">Presence · notifications · clipboard · control — always on</text>
+            <rect x="686" y="56" width="128" height="22" rx="11" fill="var(--chip-solid)" stroke="var(--line)"/>
+            <text x="750" y="71" text-anchor="middle" class="svg-label">50–100 KB/s</text>
+            <rect x="686" y="84" width="128" height="22" rx="11" fill="var(--ok-fill)"/>
+            <text x="750" y="99" text-anchor="middle" class="svg-label" fill="var(--ok)">proximity only</text>
+            <!-- live lane -->
+            <line x1="132" y1="140" x2="860" y2="140" stroke="var(--ble)" stroke-width="2.5" opacity="0.55" stroke-linecap="round"/>
+            <circle class="pkt pkt-l1" cx="132" cy="140" r="6" fill="var(--ble)"/>
+            <circle class="pkt pkt-l1b" cx="132" cy="140" r="5" fill="var(--ok)"/>
+            <text x="496" y="130" text-anchor="middle" class="svg-label" fill="var(--ble)">newline-delimited JSON, both directions</text>
+          </g>
+
+          <!-- Tier 2 -->
+          <g>
+            <rect x="160" y="196" width="672" height="70" rx="14" fill="var(--surface-2)" stroke="var(--line)" stroke-width="2"/>
+            <circle cx="196" cy="231" r="19" fill="var(--surface-3)" stroke="var(--line)" stroke-width="2"/>
+            <text x="196" y="238" text-anchor="middle" class="svg-tier">2</text>
+            <text x="230" y="224" class="svg-strong">Bluetooth Classic — RFCOMM</text>
+            <text x="230" y="246" class="svg-sub">Small files and images, when there is no shared network to climb to</text>
+            <rect x="686" y="210" width="128" height="22" rx="11" fill="var(--chip-solid)" stroke="var(--line)"/>
+            <text x="750" y="225" text-anchor="middle" class="svg-label">~140 KB/s</text>
+            <rect x="686" y="238" width="128" height="22" rx="11" fill="var(--ok-fill)"/>
+            <text x="750" y="253" text-anchor="middle" class="svg-label" fill="var(--ok)">proximity only</text>
+          </g>
+
+          <!-- Tier 3 -->
+          <g>
+            <rect x="160" y="300" width="672" height="78" rx="14" fill="var(--tier3-fill)" stroke="var(--wifi)" stroke-opacity="0.5" stroke-width="2"/>
+            <circle cx="196" cy="339" r="19" fill="var(--wifi)" fill-opacity="0.18" stroke="var(--wifi)" stroke-width="2"/>
+            <text x="196" y="346" text-anchor="middle" class="svg-tier" fill="var(--wifi)">3</text>
+            <text x="230" y="330" class="svg-strong">Wi-Fi LAN — mDNS + TCP over TLS</text>
+            <text x="230" y="354" class="svg-sub">Large files, and a control fallback when Bluetooth is out of range</text>
+            <rect x="686" y="316" width="128" height="22" rx="11" fill="var(--chip-solid)" stroke="var(--line)"/>
+            <text x="750" y="331" text-anchor="middle" class="svg-label">full speed</text>
+            <rect x="686" y="344" width="128" height="22" rx="11" fill="var(--wifi-fill)"/>
+            <text x="750" y="359" text-anchor="middle" class="svg-label" fill="var(--wifi)">shared network</text>
+          </g>
+
+          <!-- Tier 4 -->
+          <g>
+            <rect x="160" y="412" width="672" height="78" rx="14" fill="none" stroke="var(--wifi)" stroke-opacity="0.45" stroke-width="2" stroke-dasharray="8 7"/>
+            <circle cx="196" cy="451" r="19" fill="none" stroke="var(--wifi)" stroke-width="2" stroke-dasharray="4 4"/>
+            <text x="196" y="458" text-anchor="middle" class="svg-tier" fill="var(--wifi)">4</text>
+            <text x="230" y="442" class="svg-strong">Phone hotspot, joined by the Mac</text>
+            <text x="230" y="466" class="svg-sub">No shared network — the phone hosts a hotspot, the Mac joins it</text>
+            <rect x="686" y="428" width="128" height="22" rx="11" fill="var(--chip-solid)" stroke="var(--line)"/>
+            <text x="750" y="443" text-anchor="middle" class="svg-label">full speed</text>
+            <rect x="686" y="456" width="128" height="22" rx="11" fill="var(--warm-fill)"/>
+            <text x="750" y="471" text-anchor="middle" class="svg-label" fill="var(--warm)">you say yes</text>
+          </g>
+
+          <text x="496" y="530" text-anchor="middle" class="svg-sub">Tiers 2–4 are opened for one payload and torn down after. Tier 1 stays free throughout — that is the whole point.</text>
+        </svg>
+        <figcaption>The ladder. The link never drops lower than it needs, and never climbs higher than the payload justifies.</figcaption>
+      </figure>
+
+      <div class="how-grid">
+        <figure class="figure figure-inset">
+          <svg viewBox="0 0 420 230" role="img" aria-labelledby="pktTitle pktDesc" class="art art-mid">
+            <title id="pktTitle">The packet envelope</title>
+            <desc id="pktDesc">Every message is one line of JSON with three fields: id holding a millisecond timestamp, type holding a name such as bridge.clipboard, and body holding the parameters. Lines are separated by a newline character.</desc>
+            <rect x="12" y="24" width="396" height="62" rx="10" fill="var(--surface-2)" stroke="var(--line)"/>
+            <text x="28" y="60" class="svg-code"><tspan fill="var(--ble)">{"id"</tspan><tspan fill="var(--muted)">: </tspan><tspan fill="var(--warm)">1760000000000</tspan><tspan fill="var(--muted)">, </tspan><tspan fill="var(--ble)">"type"</tspan><tspan fill="var(--muted)">: </tspan><tspan fill="var(--ok)">"bridge.clipboard"</tspan><tspan fill="var(--muted)">,</tspan></text>
+            <text x="28" y="78" class="svg-code"><tspan fill="var(--ble)"> "body"</tspan><tspan fill="var(--muted)">: {</tspan><tspan fill="var(--ble)">"content"</tspan><tspan fill="var(--muted)">: </tspan><tspan fill="var(--ok)">"…"</tspan><tspan fill="var(--muted)">}}</tspan><tspan fill="var(--wifi)">\n</tspan></text>
+            <path d="M40 98v16M210 98v16M372 98v16" stroke="var(--line)" stroke-width="1.5"/>
+            <text x="40" y="132" text-anchor="middle" class="svg-label">timestamp</text>
+            <text x="210" y="132" text-anchor="middle" class="svg-label">packet type</text>
+            <text x="372" y="132" text-anchor="middle" class="svg-label">payload</text>
+            <rect x="12" y="152" width="396" height="58" rx="10" fill="var(--surface-3)" stroke="var(--line)" stroke-dasharray="6 5"/>
+            <text x="30" y="176" class="svg-sub">No delivery guarantee, no response guarantee.</text>
+            <text x="30" y="196" class="svg-sub">Every handler is idempotent and tolerates packets it did not expect.</text>
+          </svg>
+          <figcaption>Ten packet types, one envelope. Identical on every tier — the higher tiers are just another stream.</figcaption>
+        </figure>
+
+        <figure class="figure figure-inset">
+          <svg viewBox="0 0 420 230" role="img" aria-labelledby="quadTitle quadDesc" class="art art-mid">
+            <title id="quadTitle">Behaviour by range and network</title>
+            <desc id="quadDesc">A two by two matrix. In Bluetooth range with a shared network, everything works and files go over Wi-Fi. In Bluetooth range with no shared network, control and small files work over Bluetooth, with the hotspot tier available for large ones. Out of Bluetooth range but on a shared network, control and files keep flowing over the LAN. Out of range and off the network, the link is down.</desc>
+            <text x="118" y="22" text-anchor="middle" class="svg-label">same Wi-Fi</text>
+            <text x="300" y="22" text-anchor="middle" class="svg-label">no shared network</text>
+            <text x="14" y="76" class="svg-label">in BLE</text>
+            <text x="14" y="90" class="svg-label">range</text>
+            <text x="14" y="168" class="svg-label">out of</text>
+            <text x="14" y="182" class="svg-label">range</text>
+
+            <rect x="62" y="34" width="156" height="84" rx="10" fill="var(--tier1-fill)" stroke="var(--ble)" stroke-opacity="0.5"/>
+            <text x="78" y="60" class="svg-strong" fill="var(--ble)">Tier 1 + 3</text>
+            <text x="78" y="82" class="svg-sub">Control on BLE,</text>
+            <text x="78" y="100" class="svg-sub">files at full Wi-Fi speed.</text>
+
+            <rect x="230" y="34" width="156" height="84" rx="10" fill="var(--surface-2)" stroke="var(--line)"/>
+            <text x="246" y="60" class="svg-strong">Tier 1 + 2</text>
+            <text x="246" y="82" class="svg-sub">Control on BLE, small</text>
+            <text x="246" y="100" class="svg-sub">files on RFCOMM; 4 on ask.</text>
+
+            <rect x="62" y="130" width="156" height="84" rx="10" fill="var(--tier3-fill)" stroke="var(--wifi)" stroke-opacity="0.45"/>
+            <text x="78" y="156" class="svg-strong" fill="var(--wifi)">Tier 3 only</text>
+            <text x="78" y="178" class="svg-sub">Phone in the next room —</text>
+            <text x="78" y="196" class="svg-sub">LAN carries control too.</text>
+
+            <rect x="230" y="130" width="156" height="84" rx="10" fill="var(--surface-3)" stroke="var(--line)" stroke-dasharray="6 5"/>
+            <text x="246" y="156" class="svg-strong" fill="var(--muted)">Link down</text>
+            <text x="246" y="178" class="svg-sub">The Mac says so plainly</text>
+            <text x="246" y="196" class="svg-sub">and keeps watching.</text>
+          </svg>
+          <figcaption>Out of Bluetooth range is not the same as gone. Tier 3 doubles as the control fallback.</figcaption>
+        </figure>
+      </div>
+
+      <ol class="steps">
+        <li><span class="step-n">1</span><div><h3>The phone advertises</h3><p>The foreground service broadcasts one Bridge service UUID — the only constant in the build. Nothing about either device is known in advance.</p></div></li>
+        <li><span class="step-n">2</span><div><h3>The Mac scans and connects</h3><p>It reads an identity characteristic — a randomly generated device id, a name, a type and two capability arrays — then opens an L2CAP channel for the session.</p></div></li>
+        <li><span class="step-n">3</span><div><h3>You confirm once</h3><p>The phone asks to pair; the Mac shows the request in its menu bar and waits. Nothing is trusted until you accept it yourself.</p></div></li>
+        <li><span class="step-n">4</span><div><h3>It stays up</h3><p>Walk away and the Mac says out of range; walk back and it reconnects without you touching anything. Capability arrays, not a version number, decide what each peer may send.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── FEATURES ─────────────────────────── -->
+  <section class="section" id="features">
+    <div class="wrap">
+      <p class="kicker">What it does</p>
+      <h2 class="section-title">Four things, done properly.</h2>
+      <p class="section-lede">Bridge speaks the KDE Connect wire format — a public, stable protocol — rather than inventing a private one.</p>
+
+      <div class="feat-grid">
+        <article class="feat">
+          <svg viewBox="0 0 220 140" class="feat-art" role="img" aria-label="A phone notification appearing on the Mac with a reply box">
+            <rect x="8" y="26" width="58" height="104" rx="11" fill="var(--surface-2)" stroke="var(--line)" stroke-width="2"/>
+            <rect x="16" y="34" width="42" height="88" rx="6" fill="var(--screen-a)"/>
+            <rect x="22" y="44" width="30" height="18" rx="5" fill="var(--ok)" opacity="0.3"/>
+            <path d="M74 62h30" stroke="var(--ble)" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="3 6"/>
+            <path d="M98 57l7 5-7 5" fill="none" stroke="var(--ble)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="112" y="18" width="100" height="56" rx="10" fill="var(--card-fill)" stroke="var(--card-edge)" stroke-width="2"/>
+            <circle cx="128" cy="36" r="8" fill="var(--ok)"/>
+            <rect x="142" y="30" width="46" height="7" rx="3.5" fill="var(--screen-strong)"/>
+            <rect x="142" y="44" width="58" height="6" rx="3" fill="var(--screen-line)"/>
+            <rect x="124" y="56" width="76" height="6" rx="3" fill="var(--screen-line)"/>
+            <rect x="112" y="84" width="100" height="30" rx="9" fill="var(--surface-3)" stroke="var(--ble)" stroke-opacity="0.5" stroke-width="2"/>
+            <rect x="124" y="95" width="46" height="7" rx="3.5" fill="var(--ble)" opacity="0.7"/>
+            <path d="M186 92l12 7-12 7z" fill="var(--ble)"/>
+            <path d="M104 118h-24" stroke="var(--ok)" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="3 6"/>
+            <path d="M86 113l-7 5 7 5" fill="none" stroke="var(--ok)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <h3>Notification mirror, with reply</h3>
+          <p>Phone notifications land in macOS Notification Center. Where the notification supports a reply, you type it on the Mac and it goes back out through the phone.</p>
+          <p class="feat-meta"><code>bridge.notification</code> · <code>bridge.notification.reply</code></p>
+        </article>
+
+        <article class="feat">
+          <svg viewBox="0 0 220 140" class="feat-art" role="img" aria-label="Text copied on one device appearing on the other">
+            <rect x="14" y="30" width="80" height="80" rx="10" fill="var(--surface-2)" stroke="var(--line)" stroke-width="2"/>
+            <rect x="40" y="22" width="28" height="16" rx="5" fill="var(--surface-3)" stroke="var(--line)" stroke-width="2"/>
+            <rect x="28" y="54" width="52" height="7" rx="3.5" fill="var(--ble)" opacity="0.75"/>
+            <rect x="28" y="70" width="40" height="7" rx="3.5" fill="var(--screen-line)"/>
+            <rect x="28" y="86" width="46" height="7" rx="3.5" fill="var(--screen-line)"/>
+            <rect x="126" y="30" width="80" height="80" rx="10" fill="var(--surface-2)" stroke="var(--line)" stroke-width="2"/>
+            <rect x="152" y="22" width="28" height="16" rx="5" fill="var(--surface-3)" stroke="var(--line)" stroke-width="2"/>
+            <rect x="140" y="54" width="52" height="7" rx="3.5" fill="var(--ble)" opacity="0.75"/>
+            <rect x="140" y="70" width="40" height="7" rx="3.5" fill="var(--screen-line)"/>
+            <rect x="140" y="86" width="46" height="7" rx="3.5" fill="var(--screen-line)"/>
+            <path d="M100 70h20" stroke="var(--ble)" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="3 6"/>
+            <path d="M114 65l7 5-7 5" fill="none" stroke="var(--ble)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="110" cy="118" r="11" fill="var(--surface-3)" stroke="var(--line)" stroke-width="2"/>
+            <path d="M110 112v6l4 3" stroke="var(--warm)" stroke-width="2" stroke-linecap="round" fill="none"/>
+          </svg>
+          <h3>Clipboard, both ways</h3>
+          <p>Copy on one device, paste on the other. Each side stamps its clip with a timestamp and ignores anything staler than what it already holds, so reconnecting never ping-pongs an old clipboard back at you.</p>
+          <p class="feat-meta"><code>bridge.clipboard</code> · manual on Android 16 — <a href="#limits">see limitations</a></p>
+        </article>
+
+        <article class="feat">
+          <svg viewBox="0 0 220 140" class="feat-art" role="img" aria-label="A file moving between two devices over a wide channel">
+            <g>
+              <path d="M24 34h34l12 12v54a6 6 0 0 1-6 6H24a6 6 0 0 1-6-6V40a6 6 0 0 1 6-6Z" fill="var(--surface-2)" stroke="var(--line)" stroke-width="2"/>
+              <path d="M58 34v12h12" fill="none" stroke="var(--line)" stroke-width="2"/>
+              <rect x="28" y="60" width="32" height="6" rx="3" fill="var(--screen-line)"/>
+              <rect x="28" y="74" width="24" height="6" rx="3" fill="var(--screen-line)"/>
+            </g>
+            <rect x="86" y="54" width="110" height="32" rx="16" fill="var(--wifi)" opacity="0.14"/>
+            <path d="M92 70h98" stroke="var(--wifi)" stroke-width="3" stroke-linecap="round" stroke-dasharray="10 8"/>
+            <path d="M182 63l9 7-9 7" fill="none" stroke="var(--wifi)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <text x="141" y="44" text-anchor="middle" class="svg-label" fill="var(--wifi)">Wi-Fi, full speed</text>
+            <rect x="178" y="94" width="30" height="36" rx="7" fill="var(--surface-2)" stroke="var(--line)" stroke-width="2"/>
+            <rect x="183" y="99" width="20" height="26" rx="3" fill="var(--screen-a)"/>
+          </svg>
+          <h3>Files, both directions</h3>
+          <p>Send without unlocking the phone or opening a browser. Bridge names a tier and a destination, the receiver opens that channel, the bytes move, the channel closes — the control link stays free the whole time.</p>
+          <p class="feat-meta"><code>bridge.share.request</code> · tiers 2, 3 and 4</p>
+        </article>
+
+        <article class="feat">
+          <svg viewBox="0 0 220 140" class="feat-art" role="img" aria-label="Phone battery level shown in the Mac menu bar">
+            <rect x="18" y="38" width="184" height="26" rx="8" fill="var(--surface-3)" stroke="var(--line)" stroke-width="2"/>
+            <circle cx="36" cy="51" r="6" fill="var(--ble)"/>
+            <rect x="50" y="47" width="54" height="8" rx="4" fill="var(--screen-line)"/>
+            <rect x="140" y="44" width="34" height="16" rx="5" fill="none" stroke="var(--screen-strong)" stroke-width="2"/>
+            <rect x="143" y="47" width="22" height="10" rx="2.5" fill="var(--ok)"/>
+            <rect x="176" y="48" width="4" height="8" rx="1.5" fill="var(--screen-strong)"/>
+            <rect x="60" y="82" width="100" height="42" rx="10" fill="var(--card-fill)" stroke="var(--card-edge)" stroke-width="2"/>
+            <path d="M104 90l-10 16h9l-3 12 12-17h-9z" fill="var(--warm)"/>
+            <rect x="124" y="96" width="28" height="7" rx="3.5" fill="var(--screen-strong)"/>
+            <rect x="124" y="108" width="20" height="6" rx="3" fill="var(--screen-line)"/>
+          </svg>
+          <h3>Battery on the menu bar</h3>
+          <p>Charge level and charging state, pushed from the phone and visible from the Mac's menu bar — no app to open, no phone to pick up.</p>
+          <p class="feat-meta"><code>bridge.battery</code></p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── SECURITY ─────────────────────────── -->
+  <section class="section section-alt" id="security">
+    <div class="wrap">
+      <p class="kicker">Security &amp; privacy</p>
+      <h2 class="section-title">There is no server, so there is nothing to trust but the two devices.</h2>
+      <p class="section-lede">
+        Each device generates a self-signed certificate once, at first launch, and keeps it forever.
+        The fingerprint of that certificate <em>is</em> the device's identity. There is no password,
+        no account, and nothing in the middle to subpoena.
+      </p>
+
+      <div class="sec-grid">
+        <figure class="figure">
+          <svg viewBox="0 0 440 430" role="img" aria-labelledby="pairTitle pairDesc" class="art art-mid">
+            <title id="pairTitle">The pairing handshake</title>
+            <desc id="pairDesc">A sequence between Mac and phone: the phone advertises, the Mac connects and both exchange identity and certificate. The phone sends a pair request and the Mac asks you to confirm it in the menu bar. Only after you accept does each side pin the other's fingerprint. Every later connection is mutual TLS against the pinned certificate, and packets from an unpaired device are dropped before parsing.</desc>
+
+            <text x="66" y="24" text-anchor="middle" class="svg-strong">Mac</text>
+            <text x="374" y="24" text-anchor="middle" class="svg-strong">Phone</text>
+            <line x1="66" y1="36" x2="66" y2="396" stroke="var(--line)" stroke-width="2"/>
+            <line x1="374" y1="36" x2="374" y2="396" stroke="var(--line)" stroke-width="2"/>
+
+            <path d="M366 60H74" stroke="var(--ble)" stroke-width="2" stroke-linecap="round"/>
+            <path d="M82 54l-8 6 8 6" fill="none" stroke="var(--ble)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <text x="220" y="50" text-anchor="middle" class="svg-sub">advertises the Bridge service UUID</text>
+
+            <path d="M74 104h292" stroke="var(--ble)" stroke-width="2" stroke-linecap="round"/>
+            <path d="M358 98l8 6-8 6" fill="none" stroke="var(--ble)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <text x="220" y="94" text-anchor="middle" class="svg-sub">connects · identity + certificate</text>
+
+            <rect x="86" y="130" width="268" height="78" rx="12" fill="var(--surface-2)" stroke="var(--line)" stroke-width="2"/>
+            <text x="220" y="154" text-anchor="middle" class="svg-label">phone sends a pair request · the Mac asks you</text>
+            <g>
+              <rect x="128" y="164" width="184" height="32" rx="8" fill="var(--chip-solid)" stroke="var(--ble)" stroke-opacity="0.5"/>
+              <text x="220" y="187" text-anchor="middle" class="svg-code" fill="var(--ble)">Pair with this phone?</text>
+            </g>
+
+            <text x="220" y="230" text-anchor="middle" class="svg-sub">you accept in the Mac menu bar</text>
+
+            <path d="M74 262h292" stroke="var(--ok)" stroke-width="2" stroke-linecap="round"/>
+            <path d="M358 256l8 6-8 6" fill="none" stroke="var(--ok)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M366 290H74" stroke="var(--ok)" stroke-width="2" stroke-linecap="round"/>
+            <path d="M82 284l-8 6 8 6" fill="none" stroke="var(--ok)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <text x="220" y="252" text-anchor="middle" class="svg-sub" fill="var(--ok)">pair: true</text>
+            <text x="220" y="316" text-anchor="middle" class="svg-sub" fill="var(--ok)">each side pins the other's fingerprint</text>
+
+            <rect x="86" y="334" width="268" height="62" rx="12" fill="var(--ok-fill)" stroke="var(--ok)" stroke-opacity="0.4" stroke-width="2"/>
+            <g>
+              <rect x="104" y="350" width="24" height="18" rx="3" fill="none" stroke="var(--ok)" stroke-width="2"/>
+              <path d="M110 350v-6a6 6 0 0 1 12 0v6" fill="none" stroke="var(--ok)" stroke-width="2"/>
+            </g>
+            <text x="220" y="358" text-anchor="middle" class="svg-strong" fill="var(--ok)">mutual TLS, pinned certs</text>
+            <text x="220" y="380" text-anchor="middle" class="svg-sub">every connection after this one</text>
+          </svg>
+          <figcaption>Pair once. Nothing is trusted until you accept it on the Mac, and an unknown device gets dropped before it is parsed.</figcaption>
+        </figure>
+
+        <ul class="sec-list">
+          <li>
+            <h3>Nothing leaves the two devices</h3>
+            <p>No relay, no broker, no account, no telemetry. Bluetooth and your own Wi-Fi are the entire network path; the internet is never in it.</p>
+          </li>
+          <li>
+            <h3>Unpaired packets are dropped</h3>
+            <p>Dropped before parsing — an unknown device cannot even get its JSON looked at.</p>
+          </li>
+          <li>
+            <h3>A changed fingerprint closes the connection</h3>
+            <p>It is never silently re-paired. A reinstall and an impostor look identical from the outside, so both require a deliberate re-pair by you.</p>
+          </li>
+          <li>
+            <h3>No device identity is baked in</h3>
+            <p>The device id is random, generated once at first launch, and derived from no hardware identifier. One service UUID is the only constant in the build.</p>
+          </li>
+          <li>
+            <h3>Unpair is one tap</h3>
+            <p>Either side can drop the pin and go back to advertising. Pairing a different phone is an unpair and one more confirmation — no reinstall, no config file.</p>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── INSTALL ─────────────────────────── -->
+  <section class="section" id="install">
+    <div class="wrap">
+      <p class="kicker">Install</p>
+      <h2 class="section-title">Two installs, one confirmation, done.</h2>
+      <p class="section-lede">Installing the app on both devices is the only setup step. There is nothing to sign up for.</p>
+
+      <div class="install-grid">
+        <article class="install-card">
+          <div class="install-head">
+            <svg viewBox="0 0 24 24" class="install-icon" aria-hidden="true" focusable="false">
+              <rect x="2" y="4" width="20" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M1 19h22" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <h3>Mac — Homebrew</h3>
+          </div>
+          <div class="code">
+            <pre><code>brew install --cask deepakk33/tap/bridge</code></pre>
+            <button class="copy" type="button" data-copy="brew install --cask deepakk33/tap/bridge" aria-label="Copy the Homebrew install command">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="9" width="11" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              <span class="copy-text">Copy</span>
+            </button>
+          </div>
+          <p>Bridge lives in the menu bar, not the Dock. On first run macOS asks for Bluetooth, Notifications and Local Network — all three are needed.</p>
+          <p class="warn">
+            <strong>Ad-hoc signed, not notarized by Apple.</strong> There is no Apple Developer Program
+            membership behind this build, so Gatekeeper has not blessed it. The cask clears the quarantine
+            attribute on install; if you download the app by hand, macOS will refuse to open it until you
+            allow it in System Settings → Privacy &amp; Security. Read the cask and the source first if that
+            trade-off matters to you — it should.
+          </p>
+        </article>
+
+        <article class="install-card">
+          <div class="install-head">
+            <svg viewBox="0 0 24 24" class="install-icon" aria-hidden="true" focusable="false">
+              <rect x="6" y="2" width="12" height="20" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M10 18.5h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <h3>Android — sideload the APK</h3>
+          </div>
+          <div class="code">
+            <pre><code>https://github.com/deepakk33/Bridge/releases/latest</code></pre>
+            <button class="copy" type="button" data-copy="https://github.com/deepakk33/Bridge/releases/latest" aria-label="Copy the releases page URL">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="9" width="11" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              <span class="copy-text">Copy</span>
+            </button>
+          </div>
+          <p>
+            Download the APK from the <a href="https://github.com/deepakk33/Bridge/releases/latest" rel="noopener">latest release</a>
+            and install it. Bridge is not on Google Play, so your phone will ask you to allow installs from
+            your browser or file manager once.
+          </p>
+          <p>Then grant Bluetooth and Notifications when prompted, enable <strong>Notification access</strong> in Settings (the app links you straight there), and let Bridge ignore battery optimisation so the service is not killed.</p>
+        </article>
+      </div>
+
+      <p class="section-foot">
+        Open both apps and accept the pair request on the Mac. From then on it reconnects on its own.
+        Requires macOS 15 (Sequoia) or later, Android 12 (API 31) or later, and Bluetooth LE on both.
+      </p>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── LIMITATIONS ─────────────────────────── -->
+  <section class="section section-alt" id="limits">
+    <div class="wrap">
+      <p class="kicker">Honest limitations</p>
+      <h2 class="section-title">What Bridge does not do, and why.</h2>
+      <p class="section-lede">
+        Some of this is a choice. Some of it is the operating system saying no. Either way you
+        should know it before you install, not after.
+      </p>
+
+      <div class="limit-grid">
+        <article class="limit limit-major">
+          <div class="limit-head">
+            <svg viewBox="0 0 56 56" class="limit-art" aria-hidden="true" focusable="false">
+              <rect x="10" y="6" width="36" height="44" rx="7" fill="var(--surface-2)" stroke="var(--warm)" stroke-width="2"/>
+              <rect x="20" y="2" width="16" height="10" rx="3" fill="var(--surface-3)" stroke="var(--warm)" stroke-width="2"/>
+              <rect x="18" y="24" width="20" height="4" rx="2" fill="var(--warm)" opacity="0.7"/>
+              <rect x="18" y="33" width="14" height="4" rx="2" fill="var(--muted)"/>
+              <path d="M38 40l10 10M48 40l-10 10" stroke="var(--warm)" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+            <h3>Clipboard sync is manual on Android, not automatic</h3>
+          </div>
+          <p>
+            Automatic <em>background</em> clipboard sync is <strong>not possible on Android 16 without
+            rooting the phone</strong>. The OS made <code>READ_CLIPBOARD_IN_BACKGROUND</code> role-managed,
+            so it cannot be granted to a sideloaded app — not by ADB, not by Shizuku, only by root. This is
+            not something a future release of Bridge can fix.
+          </p>
+          <p>So the clipboard works deliberately instead:</p>
+          <ul class="limit-ul">
+            <li><strong>Phone → Mac:</strong> tap the <em>Bridge Clipboard</em> Quick Settings tile, or just open the app — opening it sends the current clip.</li>
+            <li><strong>Mac → Phone:</strong> open the app. It applies whatever the Mac last copied; clips that arrived while it was backgrounded are cached and flushed on focus.</li>
+          </ul>
+          <p>Mac-side reading is unrestricted, so the direction that annoys you least is the one that still works instantly.</p>
+        </article>
+
+        <article class="limit">
+          <div class="limit-head">
+            <svg viewBox="0 0 56 56" class="limit-art" aria-hidden="true" focusable="false">
+              <rect x="4" y="12" width="48" height="31" rx="5" fill="var(--surface-2)" stroke="var(--line)" stroke-width="2"/>
+              <path d="M18 48h20" stroke="var(--line)" stroke-width="2.5" stroke-linecap="round"/>
+              <path d="M18 20l20 15M38 20L18 35" stroke="var(--muted)" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+            <h3>No screen mirroring</h3>
+          </div>
+          <p>Bridge does not mirror or control the phone's screen. <a href="https://github.com/Genymobile/scrcpy" rel="noopener">scrcpy</a> already does that well over USB or ADB-over-Wi-Fi; duplicating it badly would help nobody.</p>
+        </article>
+
+        <article class="limit">
+          <div class="limit-head">
+            <svg viewBox="0 0 56 56" class="limit-art" aria-hidden="true" focusable="false">
+              <rect x="6" y="10" width="18" height="36" rx="4" fill="var(--surface-2)" stroke="var(--ok)" stroke-width="2"/>
+              <rect x="32" y="10" width="18" height="36" rx="4" fill="var(--surface-3)" stroke="var(--line)" stroke-width="2" stroke-dasharray="5 4"/>
+              <circle cx="15" cy="51" r="2.5" fill="var(--ok)"/>
+              <circle cx="41" cy="51" r="2.5" fill="var(--muted)"/>
+            </svg>
+            <h3>One phone at a time</h3>
+          </div>
+          <p>A Mac is paired to exactly one phone, and a phone to one Mac. Either side can unpair and pair with a different device at any moment — but fan-out to several phones at once is out of scope.</p>
+        </article>
+
+        <article class="limit">
+          <div class="limit-head">
+            <svg viewBox="0 0 56 56" class="limit-art" aria-hidden="true" focusable="false">
+              <path d="M28 6l20 8v14c0 11-8.5 19-20 22C16.5 47 8 39 8 28V14z" fill="var(--surface-2)" stroke="var(--line)" stroke-width="2"/>
+              <path d="M20 28l6 6 11-12" fill="none" stroke="var(--muted)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 4"/>
+            </svg>
+            <h3>Unsigned by Apple, sideloaded on Android</h3>
+          </div>
+          <p>No Apple Developer Program, no Play Store listing. That means no review queue and no platform policy — and also no notarization and no store vetting. The source is public precisely so that trade-off is yours to check.</p>
+        </article>
+
+        <article class="limit">
+          <div class="limit-head">
+            <svg viewBox="0 0 56 56" class="limit-art" aria-hidden="true" focusable="false">
+              <path d="M8 34a20 20 0 0 1 40 0" fill="none" stroke="var(--wifi)" stroke-width="2.5" stroke-linecap="round"/>
+              <path d="M16 40a12 12 0 0 1 24 0" fill="none" stroke="var(--wifi)" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+              <circle cx="28" cy="46" r="3.5" fill="var(--wifi)"/>
+              <path d="M44 12l8 8M52 12l-8 8" stroke="var(--warm)" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+            <h3>The hotspot tier costs you your Wi-Fi</h3>
+          </div>
+          <p>A Mac has one Wi-Fi radio, and macOS cannot host a hotspot at all any more. So tier 4 means the phone hosts and the Mac leaves its current network to join — never automatic, always a button with a warning, and the Mac rejoins afterwards.</p>
+        </article>
+
+        <article class="limit">
+          <div class="limit-head">
+            <svg viewBox="0 0 56 56" class="limit-art" aria-hidden="true" focusable="false">
+              <rect x="8" y="8" width="40" height="40" rx="9" fill="var(--surface-2)" stroke="var(--line)" stroke-width="2"/>
+              <path d="M18 28h20" stroke="var(--muted)" stroke-width="3" stroke-linecap="round"/>
+              <path d="M28 18v20" stroke="var(--muted)" stroke-width="3" stroke-linecap="round" opacity="0.35"/>
+            </svg>
+            <h3>Aggressive battery managers can still kill it</h3>
+          </div>
+          <p>Bridge runs a foreground service and survives being swiped from recents, but some Android skins are more aggressive than stock. Setting Bridge to unrestricted battery usage is part of setup for a reason.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── FAQ ─────────────────────────── -->
+  <section class="section" id="faq">
+    <div class="wrap wrap-narrow">
+      <p class="kicker">FAQ</p>
+      <h2 class="section-title">Questions worth asking.</h2>
+
+      <div class="faq">
+        <details>
+          <summary>Does it need Wi-Fi?</summary>
+          <p>No. The resident link is Bluetooth LE, and it carries presence, notifications, clipboard and all control — with Wi-Fi switched off entirely. Wi-Fi is only climbed to when you move a file big enough to justify it, and if there is no shared network, small files still go over Bluetooth Classic.</p>
+        </details>
+        <details>
+          <summary>Does anything touch the internet?</summary>
+          <p>No. There is no server, no relay and no account in the design, so there is nothing for Bridge to call home to. The only network path is the radio between your two devices, plus your own LAN when a file is large enough to use it.</p>
+        </details>
+        <details>
+          <summary>Which devices work?</summary>
+          <p>Any Mac on macOS 15 (Sequoia) or later, and any Android phone on Android 12 (API 31) or later, both with Bluetooth LE. No device id, serial, name or address is baked into either build — everything about the pair is discovered at runtime.</p>
+        </details>
+        <details>
+          <summary>Is it really free?</summary>
+          <p>Yes. MIT licensed, source on GitHub, no paid tier, no upsell, nothing to subscribe to. It was built to solve one person's problem and costs nothing to give away.</p>
+        </details>
+        <details>
+          <summary>Why not just use AirDrop or Quick Share?</summary>
+          <p>AirDrop does not speak to Android at all, and Quick Share for desktop does not speak to macOS. Both are also file-transfer tools: they will not mirror a notification, let you reply from the Mac, sync a clipboard or show you the phone's battery. Bridge is the resident link, not a one-shot send.</p>
+        </details>
+        <details>
+          <summary>What happens to my data?</summary>
+          <p>It stays on your two devices. Notifications, clips and files cross the link directly and are not stored anywhere else; there is no analytics SDK, no crash reporter and no identifier collected. The device id each app generates is random and is only ever shown to the other device.</p>
+        </details>
+        <details>
+          <summary>Why is the Mac app unsigned?</summary>
+          <p>Notarization requires a paid Apple Developer Program membership, which this project does not have. The app is ad-hoc signed with a self-signed certificate instead, which is enough for macOS to run it but not enough for Gatekeeper to vouch for it. The Homebrew cask handles the quarantine attribute; the source is public so you can build it yourself if you would rather not trust a binary.</p>
+        </details>
+        <details>
+          <summary>How do I pair a different phone?</summary>
+          <p>Open the Mac menu-bar panel and tap <strong>Unpair</strong> — that drops the pinned fingerprint and puts the Mac back into scanning. Install Bridge on the new phone, open it, and accept the pair request on the Mac. No reinstall on the Mac, no configuration file, no build change.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-grid">
+    <div>
+      <a class="brand" href="#top" aria-label="Bridge, back to top">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+          <path d="M5 21c0-6.1 4.9-11 11-11s11 4.9 11 11" fill="none" stroke="var(--ble)" stroke-width="2.6" stroke-linecap="round"/>
+          <circle cx="5" cy="21" r="3" fill="var(--ble)"/>
+          <circle cx="27" cy="21" r="3" fill="var(--wifi)"/>
+        </svg>
+        <span>Bridge</span>
+      </a>
+      <p class="footer-note">Two devices, one machine, nothing in between.</p>
+    </div>
+    <nav class="footer-links" aria-label="Project links">
+      <h2>Project</h2>
+      <a href="https://github.com/deepakk33/Bridge" rel="noopener">Source on GitHub</a>
+      <a href="https://github.com/deepakk33/Bridge/releases/latest" rel="noopener">Latest release</a>
+      <a href="https://github.com/deepakk33/Bridge/blob/main/docs/PRD.md" rel="noopener">Requirements &amp; design</a>
+      <a href="https://github.com/deepakk33/Bridge/issues" rel="noopener">Issues</a>
+    </nav>
+    <div class="footer-links">
+      <h2>Requirements</h2>
+      <p>macOS 15 (Sequoia) or later</p>
+      <p>Android 12 (API 31) or later</p>
+      <p>Bluetooth LE on both devices</p>
+      <p>Wi-Fi only for large files</p>
+    </div>
+  </div>
+  <div class="wrap footer-base">
+    <p>MIT licensed · no cloud, no account, no telemetry</p>
+    <p>Built because nobody else was going to — your phone and your laptop were always in the same room anyway.</p>
+  </div>
+</footer>
+
+<script src="script.js" defer></script>
+</body>
+</html>

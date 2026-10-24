@@ -45,7 +45,7 @@ final class BLEManager: NSObject, ObservableObject {
 
         centralManager = CBCentralManager(delegate: self, queue: .main)
 
-        pairingManager.configure { [weak self] packet in
+        pairingManager.configure(localDeviceId: deviceId) { [weak self] packet in
             self?.sendPacket(packet)
         }
         notificationManager.configure { [weak self] packet in

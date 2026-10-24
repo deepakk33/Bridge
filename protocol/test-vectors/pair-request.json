@@ -24,6 +24,30 @@
       "serialized": "{\"id\":1728000011000,\"type\":\"bridge.pair\",\"body\":{\"pair\":true}}\n"
     },
     {
+      "name": "pair_request_kind",
+      "packet": {
+        "id": 1728000010500,
+        "type": "bridge.pair",
+        "body": {
+          "pair": true,
+          "kind": "request"
+        }
+      },
+      "serialized": "{\"id\":1728000010500,\"type\":\"bridge.pair\",\"body\":{\"pair\":true,\"kind\":\"request\"}}\n"
+    },
+    {
+      "name": "pair_accept_kind",
+      "packet": {
+        "id": 1728000011500,
+        "type": "bridge.pair",
+        "body": {
+          "pair": true,
+          "kind": "accept"
+        }
+      },
+      "serialized": "{\"id\":1728000011500,\"type\":\"bridge.pair\",\"body\":{\"pair\":true,\"kind\":\"accept\"}}\n"
+    },
+    {
       "name": "pair_reject",
       "packet": {
         "id": 1728000012000,

@@ -79,16 +79,26 @@ data class BridgePacket(
             }
         )
 
+        /**
+         * `kind` disambiguates the two `pair: true` packets. Peers that predate it
+         * omit the field; both sides still fall back to state-based interpretation.
+         */
         fun pairRequest(): BridgePacket = BridgePacket(
             id = System.currentTimeMillis(),
             type = "bridge.pair",
-            body = buildJsonObject { put("pair", true) }
+            body = buildJsonObject {
+                put("pair", true)
+                put("kind", "request")
+            }
         )
 
         fun pairAccept(): BridgePacket = BridgePacket(
             id = System.currentTimeMillis(),
             type = "bridge.pair",
-            body = buildJsonObject { put("pair", true) }
+            body = buildJsonObject {
+                put("pair", true)
+                put("kind", "accept")
+            }
         )
 
         fun pairReject(): BridgePacket = BridgePacket(
