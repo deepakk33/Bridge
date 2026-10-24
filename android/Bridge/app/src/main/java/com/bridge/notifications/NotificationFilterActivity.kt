@@ -51,7 +51,8 @@ class NotificationFilterActivity : AppCompatActivity() {
             setPadding(dp(24), dp(20), dp(24), dp(20))
         }
         val masterLabel = TextView(this).apply {
-            text = "Mute all notifications"
+            // "Mute all notifications" read as if it silenced the phone itself.
+            text = "Pause mirroring to the Mac"
             textSize = 18f
             layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
         }
@@ -68,8 +69,10 @@ class NotificationFilterActivity : AppCompatActivity() {
         }
 
         emptyHint = TextView(this).apply {
-            text = "Apps appear here after they post a notification.\n" +
-                "Turn one on to mirror it to the Mac."
+            text = "No apps yet.\n\n" +
+                "An app is added to this list the first time it sends you a " +
+                "notification, so use your phone for a while and they will show up.\n\n" +
+                "Nothing is sent to your Mac until you switch an app on here."
             textSize = 14f
             gravity = Gravity.CENTER
             setPadding(dp(32), dp(48), dp(32), dp(32))
