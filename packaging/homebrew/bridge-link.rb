@@ -1,4 +1,4 @@
-cask "bridge" do
+cask "bridge-link" do
   version "0.1.1"
   sha256 "ac50b04cc3dd8df6a5b744949a878b1954ef5e351b0642ea99323f7293d24bd0"
 

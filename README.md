@@ -16,7 +16,7 @@ Installing the app on both devices is the only setup step — the two find each 
 Bluetooth LE and pair. Nothing device-specific is baked into either build.
 
 ```sh
-brew install --cask deepakk33/tap/bridge      # Mac
+brew install --cask deepakk33/tap/bridge-link      # Mac
 # Android: sideload the APK from the latest release
 ```
 
