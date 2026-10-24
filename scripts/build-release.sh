@@ -34,12 +34,23 @@ ZIP="$DIST/Bridge-$VERSION.zip"
 rm -f "$ZIP"
 ditto -c -k --keepParent "$APP" "$ZIP"
 
-echo "==> Building Android APK"
-(cd "$ROOT/android/Bridge" && ./gradlew --quiet assembleRelease 2>/dev/null \
-    || ./gradlew --quiet assembleDebug)
-APK="$(find "$ROOT/android/Bridge/app/build/outputs/apk" -name "*.apk" -print0 \
-    | xargs -0 ls -t | head -1)"
-[ -n "$APK" ] || { echo "ERROR: no APK produced" >&2; exit 1; }
+echo "==> Building Android APK (signed release)"
+if [ ! -f "$HOME/.bridge/keystore.properties" ]; then
+    echo "ERROR: $HOME/.bridge/keystore.properties missing — release would be unsigned." >&2
+    echo "       A debug-signed APK must never be published: the debug key is public." >&2
+    exit 1
+fi
+(cd "$ROOT/android/Bridge" && ./gradlew --quiet assembleRelease)
+APK="$ROOT/android/Bridge/app/build/outputs/apk/release/app-release.apk"
+[ -f "$APK" ] || { echo "ERROR: no release APK produced" >&2; exit 1; }
+# Refuse to ship anything not signed by the release key.
+APKSIGNER="$(find "${ANDROID_HOME:-/opt/homebrew/share/android-commandlinetools}" \
+    -name apksigner 2>/dev/null | sort | tail -1)"
+if [ -n "$APKSIGNER" ]; then
+    "$APKSIGNER" verify "$APK" || { echo "ERROR: APK signature invalid" >&2; exit 1; }
+else
+    echo "WARNING: apksigner not found; signature not verified" >&2
+fi
 cp "$APK" "$DIST/bridge-$VERSION.apk"
 
 SHA="$(shasum -a 256 "$ZIP" | cut -d' ' -f1)"
