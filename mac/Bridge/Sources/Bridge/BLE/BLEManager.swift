@@ -45,6 +45,10 @@ final class BLEManager: NSObject, ObservableObject {
 
         centralManager = CBCentralManager(delegate: self, queue: .main)
 
+        pairingManager.onPairConfirmationPending = { [weak self] deviceName in
+            self?.notificationManager.postPairConfirmationPending(deviceName: deviceName)
+        }
+
         pairingManager.configure(localDeviceId: deviceId) { [weak self] packet in
             self?.sendPacket(packet)
         }

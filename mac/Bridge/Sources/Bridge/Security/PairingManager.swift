@@ -12,6 +12,10 @@ final class PairingManager: ObservableObject {
     @Published var state: PairingState = .unpaired
     @Published var incomingPairRequest: PairRequestInfo?
 
+    /// Called when a confirmation is staged, so the app can surface it outside the
+    /// menu-bar panel (the sheet only renders while that panel is open).
+    var onPairConfirmationPending: ((String) -> Void)?
+
     struct PairRequestInfo: Identifiable {
         let id = UUID()
         let deviceId: String
@@ -177,6 +181,18 @@ final class PairingManager: ObservableObject {
             if kind == "accept" {
                 Self.logger.info("Unsolicited pair accept from \(deviceName) — treating it as a request")
             }
+            // First run: an empty trust store already means "auto-pair with whatever
+            // we find" (see setPeerIdentity). Staging a confirmation here instead would
+            // strand the peer, which is waiting on a reply — and the prompt only renders
+            // while the menu-bar panel happens to be open. Confirmation is the gate for
+            // the case that actually needs a human: a device we do not already trust
+            // arriving when we are paired to something else.
+            if TrustStore.shared.isEmpty {
+                Self.logger.info("Incoming pair request from \(deviceName) — trust store empty, accepting")
+                presentPairConfirmation(deviceId: deviceId, deviceName: deviceName, fingerprint: fingerprint)
+                acceptIncomingPair()
+                return
+            }
             presentPairConfirmation(deviceId: deviceId, deviceName: deviceName, fingerprint: fingerprint)
             Self.logger.info("Incoming pair request from \(deviceName)")
 
@@ -199,6 +215,7 @@ final class PairingManager: ObservableObject {
             deviceName: deviceName,
             fingerprint: fingerprint
         )
+        onPairConfirmationPending?(deviceName)
     }
 
     private func handlePairRejectOrUnpair() {
