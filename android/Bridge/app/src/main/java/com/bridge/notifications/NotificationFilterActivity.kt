@@ -7,6 +7,7 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -33,6 +34,7 @@ class NotificationFilterActivity : AppCompatActivity() {
     private val store by lazy { NotificationFilterStore.init(applicationContext) }
 
     private lateinit var emptyHint: TextView
+    private lateinit var allDeniedBanner: LinearLayout
     private lateinit var recycler: RecyclerView
     private val adapter = AppAdapter()
 
@@ -71,6 +73,29 @@ class NotificationFilterActivity : AppCompatActivity() {
             setBackgroundColor(Color.parseColor("#33888888"))
         }
 
+        // Deny-by-default's cost: apps have notified but none are on, so nothing is
+        // mirroring and the list alone does not say so. Offers the one tap out.
+        allDeniedBanner = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(20), dp(24), dp(20))
+            visibility = View.GONE
+            addView(TextView(this@NotificationFilterActivity).apply {
+                text = "No apps are mirroring.\n\n" +
+                    "Nothing reaches your Mac until you switch an app on below."
+                textSize = 14f
+            })
+            addView(Button(this@NotificationFilterActivity).apply {
+                text = "Enable all"
+                layoutParams = LinearLayout.LayoutParams(WRAP, WRAP).apply {
+                    topMargin = dp(12)
+                }
+                setOnClickListener {
+                    store.allowAllSeen()
+                    loadApps()
+                }
+            })
+        }
+
         emptyHint = TextView(this).apply {
             text = "No apps yet.\n\n" +
                 "An app is added to this list the first time it sends you a " +
@@ -91,6 +116,7 @@ class NotificationFilterActivity : AppCompatActivity() {
         root.addView(masterRow)
         root.addView(divider)
         root.addView(emptyHint)
+        root.addView(allDeniedBanner)
         root.addView(recycler)
         setContentView(root)
     }
@@ -105,11 +131,14 @@ class NotificationFilterActivity : AppCompatActivity() {
         val seen = store.state.value.seen.toList()
         if (seen.isEmpty()) {
             emptyHint.visibility = View.VISIBLE
+            allDeniedBanner.visibility = View.GONE
             recycler.visibility = View.GONE
             adapter.submit(emptyList())
             return
         }
         emptyHint.visibility = View.GONE
+        allDeniedBanner.visibility =
+            if (store.state.value.allowed.isEmpty()) View.VISIBLE else View.GONE
         recycler.visibility = View.VISIBLE
 
         lifecycleScope.launch {

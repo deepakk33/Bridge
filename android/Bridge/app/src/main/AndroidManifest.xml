@@ -21,6 +21,24 @@
         android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!--
+      BR-6: Android 11+ package visibility. Without this, getApplicationLabel() fails for
+      nearly every app and the notification filter list shows raw package names
+      (com.axis.mobile, com.bt.bms, …), which makes the list unusable and the allow-list
+      unfixable by the user. Declared narrowly rather than with QUERY_ALL_PACKAGES, which
+      is Play-policy restricted and broader than this app needs: Bridge only ever resolves
+      a label for an app that has already posted a notification to its listener.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"

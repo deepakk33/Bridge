@@ -23,17 +23,17 @@ class BridgeNotificationListener : NotificationListenerService() {
 
         var packetSender: ((BridgePacket) -> Unit)? = null
 
-        private val replyCache = object : LinkedHashMap<String, CachedReplyAction>(
-            REPLY_CACHE_MAX + 1, 0.75f, true
-        ) {
-            override fun removeEldestEntry(
-                eldest: MutableMap.MutableEntry<String, CachedReplyAction>?
-            ): Boolean = size > REPLY_CACHE_MAX
+        private val replyCache = ReplyActionCache<CachedReplyAction>(REPLY_CACHE_MAX) {
+            it.notificationKey
         }
 
-        fun getCachedAction(requestReplyId: String): CachedReplyAction? {
-            return synchronized(replyCache) { replyCache.remove(requestReplyId) }
-        }
+        /**
+         * Reads without consuming: a RemoteInput stays usable for as long as its
+         * notification is live, so a conversation can be replied to more than once.
+         * Eviction belongs to [onNotificationRemoved], keyed by notification.
+         */
+        fun getCachedAction(requestReplyId: String): CachedReplyAction? =
+            replyCache.get(requestReplyId)
 
         fun isListenerEnabled(pm: PackageManager, packageName: String): Boolean {
             val cn = ComponentName(packageName, BridgeNotificationListener::class.java.name)
@@ -106,13 +106,14 @@ class BridgeNotificationListener : NotificationListenerService() {
             val remoteInputs = action.remoteInputs
             if (remoteInputs != null && remoteInputs.isNotEmpty() && requestReplyId == null) {
                 requestReplyId = UUID.randomUUID().toString()
-                synchronized(replyCache) {
-                    replyCache[requestReplyId!!] = CachedReplyAction(
+                replyCache.put(
+                    requestReplyId!!,
+                    CachedReplyAction(
                         action = action,
                         remoteInputs = remoteInputs,
                         notificationKey = notifId
                     )
-                }
+                )
             }
         }
 
@@ -129,10 +130,21 @@ class BridgeNotificationListener : NotificationListenerService() {
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
-        synchronized(replyCache) {
-            val toRemove = replyCache.entries.filter { it.value.notificationKey == sbn.key }
-            toRemove.forEach { replyCache.remove(it.key) }
-        }
+        if (sbn.packageName == packageName) return
+
+        replyCache.evictNotification(sbn.key)
+
+        // Tell the Mac to drop its copy. Without this, every notification read on the
+        // phone leaves a stale one on the Mac. Dropped if the link is down, matching
+        // the rule that a late notification is noise.
+        //
+        // Only for apps that are allowed, so the constant churn of never-mirrored
+        // notifications (foreground services especially) does not reach the channel.
+        // Deliberately not gated on master mute: pausing stops new notifications going
+        // out, but the Mac should still be told about ones it already shows. An app
+        // disallowed between posting and removal leaves one stale notification.
+        if (!filterStore.isAllowed(sbn.packageName)) return
+        packetSender?.invoke(BridgePacket.notificationRequest(cancel = sbn.key))
     }
 
     fun cancelNotificationByKey(key: String) {

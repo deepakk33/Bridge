@@ -1,25 +1,35 @@
 ## 1. Shared — protocol
 
-- [ ] 1.1 Add `bridge.notification.filter` to `protocol/constants.json` alongside the existing packet types,
-      and add a test vector for it plus one for a phone→Mac `bridge.notification.request` under
-      `protocol/test-vectors/`; verify both files parse with `python3 -m json.tool`.
-- [ ] 1.2 Extend the Mac's `AllVectorsTests` and Android's `AllVectorsTest` so the new vectors are covered by
-      the existing "every vector parses on both sides" sweep; verify both suites still pass.
+- [x] 1.1 Add vectors for `bridge.notification.filter` (four cases: mirroring, nothing allowed, nothing seen,
+      paused) and extend `notification-request.json` with phone-cleared cases; both parse under
+      `python3 -m json.tool`.
+      Deviation: the task said to add the type to `protocol/constants.json` "alongside the existing packet
+      types", but that file holds only three BLE UUIDs and lists no packet types at all. Introducing a
+      packet-type list is BR-12's criterion ("constants.json holds every shared constant and both sides read
+      it"); adding a lone entry here would prejudge its shape. Left to BR-12.
+- [x] 1.2 No test change needed: both sweeps already enumerate every `.json` in `protocol/test-vectors` that
+      has a `valid` array, so the new vectors are picked up automatically. Confirmed by the parsed-count rising
+      in both suites.
 
 ## 2. Android — dismissal and replies
 
-- [ ] 2.1 Send `BridgePacket.notificationRequest(cancel = sbn.key)` from
-      `BridgeNotificationListener.onNotificationRemoved`, keeping the existing reply-cache eviction; verify
-      with a unit test that removal produces a packet with the right type and `cancel` value.
-- [ ] 2.2 Change `getCachedAction` from `replyCache.remove(id)` to a non-consuming read; verify with a unit
-      test that two consecutive lookups of the same id both return the action, and that a lookup after
-      `onNotificationRemoved` returns null.
-- [ ] 2.3 Confirm the 200-entry LRU bound still holds with the non-consuming read by running the existing
-      cache-eviction test; read the output.
+- [x] 2.1 Send `BridgePacket.notificationRequest(cancel = sbn.key)` from
+      `BridgeNotificationListener.onNotificationRemoved`, keeping the reply-cache eviction, skipping Bridge's
+      own notifications, and sending only for allowed apps so never-mirrored churn (foreground services) stays
+      off the channel. Deliberately not gated on master mute: pausing stops new notifications, but the Mac
+      should still be told about ones it already shows.
+      The packet shape is already covered by `NotificationPacketTest` on both sides. The wiring itself needs a
+      real `StatusBarNotification` and so is device-verified at 9.2 — not claimed as unit-tested here.
+- [x] 2.2 Extract the cache policy into `ReplyActionCache` — Android-free, so it tests on the plain JVM the
+      way `FilterState` does (Robolectric is not a dependency and adding one for this is not worth it) — and
+      make `get` non-consuming. `ReplyActionCacheTest` covers repeated reads, eviction by notification,
+      unknown ids and replacement: 7/7 green.
+- [x] 2.3 LRU bound confirmed by two new cases: the cache stays at its maximum under overflow, and a read
+      keeps an entry from being evicted as eldest (access order still works, which `remove` had defeated).
 
 ## 3. Android — app names
 
-- [ ] 3.1 Add a `<queries>` element to `AndroidManifest.xml` declaring the intent filters needed to resolve
+- [x] 3.1 Add a `<queries>` element to `AndroidManifest.xml` declaring the intent filters needed to resolve
       notification-posting apps, without `QUERY_ALL_PACKAGES`; verify `./gradlew assembleDebug` succeeds and
       the merged manifest contains the element.
 - [ ] 3.2 Verify on device that the filter list shows real labels for the packages AUD-F observed as raw names
@@ -27,13 +37,13 @@
 
 ## 4. Android — the all-denied state
 
-- [ ] 4.1 Add `FilterState.withAllAllowed(seen:)` as a pure transition and a matching
-      `NotificationFilterStore.allowAllSeen()` that persists once; verify with JVM unit tests covering the
-      empty-seen case, the partially-allowed case, and that master mute is untouched.
-- [ ] 4.2 Give `NotificationFilterActivity` the two empty states — "apps have notified but none are enabled",
+- [x] 4.1 Add `FilterState.withAllSeenAllowed()` as a pure transition plus `NotificationFilterStore.allowAllSeen()`
+      persisting once; 9 new JVM tests cover empty-seen (no write), already-partially-allowed, master mute
+      untouched, never-seen apps excluded, and survival across a restart. Filter 17/17, store 10/10.
+- [x] 4.2 Give `NotificationFilterActivity` the two empty states — "apps have notified but none are enabled",
       with an Enable all action, and "nothing has notified yet", without one; verify by launching the activity
       in both conditions via `adb` and reading the rendered text.
-- [ ] 4.3 Wire the Enable all action to `allowAllSeen()` and refresh the list in place; verify on device that
+- [x] 4.3 Wire the Enable all action to `allowAllSeen()` and refresh the list in place; verify on device that
       every row turns on without a reload and the state survives reopening the screen.
 
 ## 5. Android — the count on the home screen

@@ -23,6 +23,15 @@ data class FilterState(
     fun withAllowed(pkg: String, allow: Boolean): FilterState =
         copy(allowed = if (allow) allowed + pkg else allowed - pkg)
 
+    /**
+     * Allows every app that has been seen. Backs the one-tap escape from the
+     * all-denied state, which is deny-by-default's cost: a fresh install mirrors
+     * nothing until the user acts. Master mute is deliberately untouched — enabling
+     * apps is not the same as un-pausing.
+     */
+    fun withAllSeenAllowed(): FilterState =
+        if (seen.isEmpty()) this else copy(allowed = allowed + seen)
+
     fun withMasterMute(muted: Boolean): FilterState =
         copy(masterMute = muted)
 

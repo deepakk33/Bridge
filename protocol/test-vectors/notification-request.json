@@ -1,5 +1,5 @@
 {
-  "description": "Valid bridge.notification.request packets for iter-3 notification dismiss",
+  "description": "Valid bridge.notification.request packets. The type carries a dismissal in both directions and the packet is identical either way: the Mac sends it when the user dismisses a mirrored banner, and the phone sends it when a notification is cleared or withdrawn there. The receiver drops its copy of the named notification.",
   "valid": [
     {
       "name": "cancel_notification",
@@ -12,6 +12,32 @@
       },
       "expectedFields": {
         "cancel": "com.whatsapp|0|null|1234"
+      }
+    },
+    {
+      "name": "cleared_on_phone",
+      "packet": {
+        "id": 1697300003000,
+        "type": "bridge.notification.request",
+        "body": {
+          "cancel": "0|com.google.android.apps.messaging|2020|null|10234"
+        }
+      },
+      "expectedFields": {
+        "cancel": "0|com.google.android.apps.messaging|2020|null|10234"
+      }
+    },
+    {
+      "name": "cleared_with_tag_in_key",
+      "packet": {
+        "id": 1697300004000,
+        "type": "bridge.notification.request",
+        "body": {
+          "cancel": "0|com.android.shell|2020|tag_bridge_test|2000"
+        }
+      },
+      "expectedFields": {
+        "cancel": "0|com.android.shell|2020|tag_bridge_test|2000"
       }
     }
   ]

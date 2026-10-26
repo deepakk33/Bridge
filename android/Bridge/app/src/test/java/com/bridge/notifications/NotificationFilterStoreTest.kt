@@ -87,4 +87,50 @@ class NotificationFilterStoreTest {
         assertFalse(store.isMuted())
         assertFalse(store.shouldForward("com.anything"))
     }
+
+    // --- BR-6: one-tap escape from the all-denied state ---
+
+    @Test
+    fun `allowAllSeen allows every seen app and persists once`() {
+        val persistence = FakePersistence(seen = setOf("com.a", "com.b", "com.c"))
+        val store = NotificationFilterStore(persistence)
+
+        store.allowAllSeen()
+
+        assertEquals(setOf("com.a", "com.b", "com.c"), store.state.value.allowed)
+        assertEquals("the write must reach persistence", setOf("com.a", "com.b", "com.c"), persistence.allowed)
+        assertTrue(store.shouldForward("com.b"))
+    }
+
+    @Test
+    fun `allowAllSeen with nothing seen does not write`() {
+        val persistence = FakePersistence()
+        val store = NotificationFilterStore(persistence)
+
+        store.allowAllSeen()
+
+        assertTrue(store.state.value.allowed.isEmpty())
+        assertTrue(persistence.allowed.isEmpty())
+    }
+
+    @Test
+    fun `allowAllSeen leaves master mute alone`() {
+        val persistence = FakePersistence(muted = true, seen = setOf("com.a"))
+        val store = NotificationFilterStore(persistence)
+
+        store.allowAllSeen()
+
+        assertTrue(store.isMuted())
+        assertFalse("allowed but still paused", store.shouldForward("com.a"))
+    }
+
+    @Test
+    fun `allowAllSeen survives a restart`() {
+        val persistence = FakePersistence(seen = setOf("com.a", "com.b"))
+        NotificationFilterStore(persistence).allowAllSeen()
+
+        val reopened = NotificationFilterStore(persistence)
+        assertTrue(reopened.isAllowed("com.a"))
+        assertTrue(reopened.isAllowed("com.b"))
+    }
 }
