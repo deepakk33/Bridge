@@ -32,6 +32,7 @@ final class BLEManager: NSObject, ObservableObject {
     private var isVerified = false
     private var lastDisconnect: DisconnectReason?
     private var healthTimer: Timer?
+    private var loggedHealth: LinkHealth?
     private var deviceId: String
     private var pairingStateCancellable: AnyCancellable?
 
@@ -155,6 +156,11 @@ final class BLEManager: NSObject, ObservableObject {
         lastSeenText = (linkHealth == .connected || lastSeen == nil)
             ? nil
             : LinkHealthEvaluator.lastSeenText(lastSeen: lastSeen)
+
+        if linkHealth != loggedHealth {
+            loggedHealth = linkHealth
+            Self.logger.info("Link health: \(String(describing: self.linkHealth), privacy: .public)")
+        }
     }
 
     /// The peer is verified when it has told us who it is and the trust store agrees.
@@ -444,7 +450,7 @@ extension BLEManager: CBCentralManagerDelegate {
             if lastDisconnect != .local {
                 lastDisconnect = Self.disconnectReason(from: error)
             }
-            Self.logger.info("Disconnect reason: \(String(describing: self.lastDisconnect))")
+            Self.logger.info("Disconnect reason: \(String(describing: self.lastDisconnect), privacy: .public)")
             handleDisconnect()
         }
     }

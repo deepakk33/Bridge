@@ -69,6 +69,9 @@
 
 ## 6. Device test (MacBook Air M3 + Galaxy S25)
 
+Run 2026-10-26. The phone was BLE-connected but not reachable over adb, so the criteria that
+need the phone driven (force-stop, carry out of range, service restart) could not be exercised.
+
 - [ ] 6.1 Force-stop `com.bridge.app` with the phone on the desk: the panel shows "Not responding"
       and the restart guidance, not "Out of range". Record the observed `CBError` code; if it does
       not discriminate, apply the design's "Link lost" fallback and report the criterion as it
