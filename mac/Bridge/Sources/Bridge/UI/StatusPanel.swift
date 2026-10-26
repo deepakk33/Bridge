@@ -97,7 +97,7 @@ struct StatusPanel: View {
             HStack(spacing: 4) {
                 Image(systemName: batteryState.sfSymbol)
                     .foregroundStyle(batteryState.tintColor)
-                Text("Phone: \(level)%")
+                Text(batteryState.isCharging ? "Phone: \(level)% · Charging" : "Phone: \(level)%")
                     .font(.caption)
             }
             .foregroundStyle(batteryState.tintColor)

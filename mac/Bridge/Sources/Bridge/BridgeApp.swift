@@ -96,20 +96,25 @@ final class PhoneBatteryState: ObservableObject {
         if let observer { NotificationCenter.default.removeObserver(observer) }
     }
 
+    /// SF Symbols ships a charging variant only for the full glyph (`battery.100.bolt`), so
+    /// appending `.bolt` to a partial level resolved to nothing and drew a blank gap while the
+    /// phone was charging. The level symbol stands alone; charging is stated in the label.
     var sfSymbol: String {
-        guard let level else { return "battery.0" }
-        let base: String
+        guard let level else { return "battery.0percent" }
         switch level {
-        case 76...100: base = "battery.100"
-        case 51...75: base = "battery.75"
-        case 26...50: base = "battery.50"
-        case 11...25: base = "battery.25"
-        default: base = "battery.0"
+        case 76...100: return "battery.100percent"
+        case 51...75: return "battery.75percent"
+        case 26...50: return "battery.50percent"
+        case 11...25: return "battery.25percent"
+        default: return "battery.0percent"
         }
-        return isCharging ? "\(base).bolt" : base
     }
 
     var tintColor: Color {
+        Self.tintColor(level: level, isCharging: isCharging)
+    }
+
+    nonisolated static func tintColor(level: Int?, isCharging: Bool) -> Color {
         if let level, level <= 15, !isCharging {
             return .red
         }
