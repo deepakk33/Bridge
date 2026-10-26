@@ -1,0 +1,81 @@
+## 1. Health model (Mac)
+
+- [ ] 1.1 Add `.verifying` and `.disconnected` cases to `LinkHealth` and extend
+      `LinkHealthEvaluator.guidance(for:)` — `.verifying` and `.disconnected` return nil, `.dead`
+      keeps its restart copy. Verify by extending `LinkHealthTests` to assert the guidance for
+      every case, including the two new ones.
+- [ ] 1.2 Add a disconnect-reason input to `LinkHealthEvaluator.evaluate` (`lastDisconnect:
+      DisconnectReason?` with cases `local`, `supervisionTimeout`, `peerTerminated`, `unknown`)
+      and apply the D2 precedence: peripheral connected + silence ≥ dead threshold → `.dead`;
+      peripheral disconnected → reason decides. Verify with unit tests covering each reason plus
+      the still-connected silent-death case.
+- [ ] 1.3 Add an `isVerified` input so an open channel with an unverified peer evaluates to
+      `.verifying`. Verify with a unit test that `bleConnected: true, isVerified: false` never
+      yields `.connected` regardless of `lastSeen`.
+
+## 2. Send result (Mac)
+
+- [ ] 2.1 Make `L2CAPChannel.writeToStream` loop until every byte is written and return `Bool`;
+      return false on a closed/absent stream, a write error, or a loop that makes no progress.
+      Verify by unit-testing the loop's byte accounting against a stubbed writer that accepts a
+      fixed chunk size.
+- [ ] 2.2 Make `L2CAPChannel.send` return that `Bool`, false on a serialisation failure. Verify
+      the test from 2.1 covers the serialisation-failure path.
+- [ ] 2.3 Make `BLEManager.sendPacket` return the channel's result, and return false early when
+      the peer is unverified and the packet is not `bridge.identity` or `bridge.pair`. Verify by
+      grepping every `sendPacket` call site for a discarded result that now matters, and by
+      confirming `NotificationManager`'s reply path reaches `postDeliveryFailure()` on false.
+
+## 3. Wiring (Mac)
+
+- [ ] 3.1 Track `peripheralConnected`, `isVerified` and the last `CBError`-derived
+      `DisconnectReason` in `BLEManager`, set from the Core Bluetooth delegate callbacks and
+      `handleIdentityPacket`. Verify the app builds and the logs show the reason on a real
+      disconnect.
+- [ ] 3.2 Add `@Published private(set) var linkHealth` and a private `refreshHealth()` that feeds
+      the evaluator from those inputs plus `pingWatchdog.lastSeen`; call it from every input's
+      setter and from the packet-received path. Verify with `xcodebuild … build`.
+- [ ] 3.3 Transition to `.connected` only on verification: the L2CAP open handler goes to
+      `.connecting`, and `handleIdentityPacket` plus the existing `pairingManager` sink promote to
+      `.connected` when the trust store agrees. Verify on device that the panel shows "Verifying"
+      between channel-open and identity, then "Connected".
+- [ ] 3.4 Start a 10 s re-evaluation `Timer` while a channel is open and invalidate it on
+      disconnect. Verify by observing the panel change from "Connected" to stale without any user
+      action within 70 s of killing packet flow.
+
+## 4. Presentation (Mac)
+
+- [ ] 4.1 Switch `StatusPanel.statusSection` and `isConnected` onto `linkHealth`, with a distinct
+      line per state and the `guidance(for:)` line rendered under a problem state. Verify by
+      opening the panel in each reachable state on device.
+- [ ] 4.2 Switch `BridgeApp.menuBarIcon` onto `linkHealth` with a distinct symbol for `.dead` vs
+      `.outOfRange` vs `.verifying`. Verify visually in the menu bar.
+- [ ] 4.3 Show the last-seen line for `.stale`, `.dead` and `.outOfRange`, sourced from
+      `LinkHealthEvaluator.lastSeenText(lastSeen:)` rather than `LinkStateMachine.lastSeenText`.
+      Verify the text updates on the 10 s tick.
+- [ ] 4.4 Gate the battery row, the menu bar battery, the mirroring summary and `Send File…` on
+      `linkHealth == .connected`. Verify the battery disappears when the link goes stale.
+- [ ] 4.5 Confirm no file under `mac/Bridge/Sources/Bridge/UI/` or `BridgeApp.swift` still
+      references `currentLinkState` (`grep -rn currentLinkState mac/Bridge/Sources/Bridge/UI
+      mac/Bridge/Sources/Bridge/BridgeApp.swift` returns nothing).
+
+## 5. Verify
+
+- [ ] 5.1 `xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge build` succeeds — read
+      the output.
+- [ ] 5.2 `xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge test` succeeds — read
+      the output.
+- [ ] 5.3 `openspec validate br-3-make-the-link-state-tell-the-truth --strict` passes.
+
+## 6. Device test (MacBook Air M3 + Galaxy S25)
+
+- [ ] 6.1 Force-stop `com.bridge.app` with the phone on the desk: the panel shows "Not responding"
+      and the restart guidance, not "Out of range". Record the observed `CBError` code; if it does
+      not discriminate, apply the design's "Link lost" fallback and report the criterion as it
+      actually behaves.
+- [ ] 6.2 Carry the phone out of BLE range: the panel shows "Out of range" with a last-seen line.
+- [ ] 6.3 Reply to a mirrored notification during a dead link: the "Reply could not be delivered"
+      notification appears.
+- [ ] 6.4 Watch a fresh connect: the panel does not say "Connected" before identity is verified.
+- [ ] 6.5 Restart the phone service: the panel returns to "Connected" and the battery reading
+      reappears within 10 s of the first packet.
