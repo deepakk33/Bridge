@@ -19,7 +19,7 @@ place a work item is born. One row per item, one detail block per row.
 |----|-------|--------|--------|
 | BR-1 | Grey out the app list while mirroring is paused | done | `work/br-1-mute-greys-app-list` |
 | BR-2 | Render the Mac panel as a window, not an NSMenu | done | `work/br-2-render-the-mac-panel-as-a-window` |
-| BR-3 | Make the link state tell the truth | ready | |
+| BR-3 | Make the link state tell the truth | in-progress | `work/br-3-make-the-link-state-tell-the-truth` |
 | BR-4 | Transport security: decide, then close the gap | idea | |
 | BR-5 | Pairing: six-digit confirmation and a device picker | idea | |
 | BR-6 | Notification mirroring: dismissal, replies, app names | done | `work/br-6-notification-mirroring` |
