@@ -18,7 +18,7 @@ place a work item is born. One row per item, one detail block per row.
 | ID | Title | Status | Branch |
 |----|-------|--------|--------|
 | BR-1 | Grey out the app list while mirroring is paused | done | `work/br-1-mute-greys-app-list` |
-| BR-2 | Render the Mac panel as a window, not an NSMenu | in-progress | `work/br-2-render-the-mac-panel-as-a-window` |
+| BR-2 | Render the Mac panel as a window, not an NSMenu | done | `work/br-2-render-the-mac-panel-as-a-window` |
 | BR-3 | Make the link state tell the truth | ready | |
 | BR-4 | Transport security: decide, then close the gap | idea | |
 | BR-5 | Pairing: six-digit confirmation and a device picker | idea | |
@@ -70,12 +70,18 @@ this menu" copy is false, and `.sheet` cannot present, which is why `PairPromptV
 unreachable and pairing was made automatic.
 **Platforms**: mac
 **Done when**:
-- [ ] each permission renders as one row: dot, name, status, action
-- [ ] dragging a file onto the open panel sends it to the phone
-- [ ] a pending pair confirmation is visible without reopening the panel
-- [ ] `Send File…` is visually distinct from the labels around it
+- [x] each permission renders as one row: dot, name, status, action
+- [~] dragging a file onto the open panel sends it to the phone — **not achievable**; the
+      panel is dismissed as soon as another app takes key focus and does not spring open
+      during a drag, so the affordance and its copy were removed rather than faked
+- [~] a pending pair confirmation is visible without reopening the panel — the banner is
+      built and its rendering verified, but `PairingManager` auto-accepts while the trust
+      store is empty, so it cannot be reached until BR-5 removes that
+- [x] `Send File…` is visually distinct from the labels around it
 **Notes**: `AUD-A`. Accessibility dump of the live app is in the audit. Unblocks BR-5's
-confirmation UI and part of BR-11.
+confirmation UI and part of BR-11. Shipped 2026-10-26 — see `docs/ITERATIONS.md` for the two
+criteria that could not be met as written and why. Also carried a Mac packet-serialisation
+fix that properly belongs to BR-12, and a battery-glyph fix.
 
 ### BR-3 — Make the link state tell the truth
 
