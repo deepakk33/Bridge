@@ -69,16 +69,24 @@
 
 ## 6. Device test (MacBook Air M3 + Galaxy S25)
 
-Run 2026-10-26. The phone was BLE-connected but not reachable over adb, so the criteria that
-need the phone driven (force-stop, carry out of range, service restart) could not be exercised.
+Run 2026-10-26 on a MacBook Air M3 (macOS 26.6.2) with the Galaxy S25 BLE-connected. The phone
+was **not reachable over adb** and could not be driven, so every criterion that needs the phone
+force-stopped, moved, or restarted is reported **untested**, not passed.
 
-- [ ] 6.1 Force-stop `com.bridge.app` with the phone on the desk: the panel shows "Not responding"
-      and the restart guidance, not "Out of range". Record the observed `CBError` code; if it does
-      not discriminate, apply the design's "Link lost" fallback and report the criterion as it
-      actually behaves.
-- [ ] 6.2 Carry the phone out of BLE range: the panel shows "Out of range" with a last-seen line.
-- [ ] 6.3 Reply to a mirrored notification during a dead link: the "Reply could not be delivered"
-      notification appears.
-- [ ] 6.4 Watch a fresh connect: the panel does not say "Connected" before identity is verified.
-- [ ] 6.5 Restart the phone service: the panel returns to "Connected" and the battery reading
-      reappears within 10 s of the first packet.
+- [ ] 6.1 **UNTESTED** — force-stop `com.bridge.app` with the phone on the desk: expect
+      "Not responding" plus the restart guidance. Needs adb or hands on the phone. The
+      `CBError` code this hinges on is therefore also unobserved; `Disconnect reason:` is
+      logged at public visibility so one run will settle it.
+- [ ] 6.2 **UNTESTED** — carry the phone out of BLE range: expect "Out of range" with a
+      last-seen line. Needs someone to walk away with the phone.
+- [ ] 6.3 **UNTESTED** — reply into a dead link and expect the delivery-failure notification.
+      Depends on 6.1. The send path's failure reporting is covered by `FramedWriterTests`, and
+      the watchdog callback that was silently dead is covered by `PingWatchdogTests`
+      (`testTimeoutCallbackFiresAfterSilence` fails against the pre-fix code).
+- [x] 6.4 **PASS** — a fresh connect does not claim "Connected" before verification. Observed:
+      `15:23:00.603 Link health: outOfRange` → `15:23:21.408 Link health: verifying` →
+      `15:23:22.011 Link health: connected`, with four `Dropping packet from untrusted device`
+      lines in the 603 ms the peer was unverified.
+- [ ] 6.5 **UNTESTED** — restart the phone service and expect "Connected" plus the battery
+      reading within 10 s. Depends on 6.1. The connect half was observed in 6.4; the
+      recover-from-dead half was not.
