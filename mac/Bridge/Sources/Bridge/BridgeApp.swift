@@ -45,6 +45,7 @@ struct BridgeApp: App {
                 }
             }
         }
+        .menuBarExtraStyle(.window)
     }
 
     private var menuBarIcon: String {

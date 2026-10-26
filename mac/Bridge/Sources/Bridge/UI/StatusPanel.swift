@@ -7,27 +7,35 @@ struct StatusPanel: View {
     @ObservedObject var permissions: PermissionChecker
     @ObservedObject var fileTransfer: FileTransferManager
 
+    private var isConnected: Bool {
+        bleManager.currentLinkState == .connected
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
+            pairSection
             headerSection
-            Divider()
             statusSection
             Divider()
             transferSection
-            Divider()
             permissionSection
             Divider()
             actionSection
         }
+        .frame(width: 260)
+        .padding(12)
         .dropDestination(for: URL.self) { urls, _ in
-            guard let url = urls.first else { return false }
+            guard isConnected, let url = urls.first else { return false }
             fileTransfer.sendFile(at: url, sharedNetworkAvailable: true)
             return true
         }
-        .sheet(item: Binding(
-            get: { bleManager.pairingManager.incomingPairRequest },
-            set: { bleManager.pairingManager.incomingPairRequest = $0 }
-        )) { request in
+    }
+
+    /// Rendered above everything else so a pending request is the first thing the panel
+    /// shows. A sheet cannot be relied upon from the non-activating window-style panel.
+    @ViewBuilder
+    private var pairSection: some View {
+        if let request = bleManager.pairingManager.incomingPairRequest {
             PairPromptView(
                 request: request,
                 onAccept: { bleManager.pairingManager.acceptIncomingPair() },
@@ -49,6 +57,8 @@ struct StatusPanel: View {
             if let name = bleManager.connectedDeviceName {
                 Label(name, systemImage: "link.circle.fill")
                     .foregroundStyle(.green)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             } else {
                 Label("Connected", systemImage: "link.circle.fill")
                     .foregroundStyle(.green)
@@ -76,9 +86,11 @@ struct StatusPanel: View {
             Text("Paired with \(name)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
         }
 
-        if bleManager.currentLinkState == .connected, let level = batteryState.level {
+        if isConnected, let level = batteryState.level {
             HStack(spacing: 4) {
                 Image(systemName: batteryState.sfSymbol)
                     .foregroundStyle(batteryState.tintColor)
@@ -100,7 +112,10 @@ struct StatusPanel: View {
                 fileTransfer.sendFile(at: url, sharedNetworkAvailable: true)
             }
         }
-        .disabled(bleManager.currentLinkState != .connected)
+        .buttonStyle(.borderedProminent)
+        .disabled(!isConnected)
+        // The window-style panel does not expose button titles to VoiceOver on its own.
+        .accessibilityLabel("Send File")
 
         switch fileTransfer.state {
         case .idle:
@@ -125,32 +140,45 @@ struct StatusPanel: View {
                 .foregroundStyle(.red)
         }
 
-        Text("Drag a file onto this menu to send it to your phone.")
-            .font(.caption2)
-            .foregroundStyle(.tertiary)
+        if isConnected {
+            Text("Drag a file onto this panel to send it to your phone.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
     }
 
+    /// Granted permissions are omitted, so the section's presence is itself the signal.
     @ViewBuilder
     private var permissionSection: some View {
-        Text("Permissions")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        ForEach(permissions.items) { item in
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(color(for: item.status))
-                    .frame(width: 8, height: 8)
-                Text(item.name)
-                    .font(.caption)
-                Spacer()
-                Text(item.status.label)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                if item.status != .granted, let urlString = item.settingsURL, let url = URL(string: urlString) {
-                    Button(item.status == .notRequested ? "Request" : "Fix") {
-                        NSWorkspace.shared.open(url)
+        let attention = permissions.needsAttention
+        if !attention.isEmpty {
+            Text("Permissions")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.top, 4)
+            ForEach(attention) { item in
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(color(for: item.status))
+                        .frame(width: 8, height: 8)
+                    Text(item.name)
+                        .font(.caption)
+                        .lineLimit(1)
+                    Spacer()
+                    Text(item.status.label)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    if let urlString = item.settingsURL, let url = URL(string: urlString) {
+                        Button(item.status == .notRequested ? "Request" : "Fix") {
+                            NSWorkspace.shared.open(url)
+                        }
+                        .font(.caption2)
+                        .accessibilityLabel(
+                            item.status == .notRequested
+                                ? "Request \(item.name) permission"
+                                : "Fix \(item.name) permission"
+                        )
                     }
-                    .font(.caption2)
                 }
             }
         }
@@ -170,17 +198,20 @@ struct StatusPanel: View {
             Button("Unpair") {
                 bleManager.pairingManager.unpair()
             }
+            .accessibilityLabel("Unpair")
         }
 
         if case .unpaired = bleManager.pairingManager.state {
             Button("Pair") {
                 bleManager.pairingManager.requestPairing()
             }
+            .accessibilityLabel("Pair")
         }
 
         Button("Quit Bridge") {
             NSApplication.shared.terminate(nil)
         }
         .keyboardShortcut("q")
+        .accessibilityLabel("Quit Bridge")
     }
 }

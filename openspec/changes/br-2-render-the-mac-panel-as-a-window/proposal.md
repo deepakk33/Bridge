@@ -62,7 +62,8 @@ same tier ladder it uses today.
 **Permissions** — no new grant on either side. Mac TCC (Bluetooth, Notifications, Local Network) is unchanged;
 this change only alters how those three are displayed. No Android permission is touched.
 
-**APIs and dependencies** — none added. `.menuBarExtraStyle(.window)` is macOS 13+; the project targets macOS 26.
+**APIs and dependencies** — none added. `.menuBarExtraStyle(.window)` is macOS 13+; the project's deployment
+target is macOS 15.0.
 
 **Verification** — the four acceptance criteria are visual and interactive, so they are checked on the MacBook
 Air M3 against the Galaxy S25, not by unit test. `PermissionChecker` gains a pure, testable filter so the
