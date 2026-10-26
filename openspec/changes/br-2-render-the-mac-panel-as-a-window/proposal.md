@@ -23,8 +23,14 @@ Today that panel is unreadable, so the observability the PRD paid for is not bei
 - Replace the unreachable `.sheet` presentation of `PairPromptView` with an inline confirmation banner at the top
   of the panel. A `MenuBarExtra(.window)` panel is a non-activating `NSPanel`; an attached sheet is unreliable on
   one, and an inline banner is visible the moment the panel opens without a second click.
-- Give `Send File…` a `.borderedProminent` style so it reads as the panel's action rather than as another label,
-  and correct the drag copy from "onto this menu" to the panel it now actually is.
+- Give `Send File…` a `.borderedProminent` style so it reads as the panel's action rather than as another label.
+- **Remove the drop target and its copy.** The audit assumed `.dropDestination` was inert only because of the
+  `NSMenu` host. It is unreachable under the window presentation too: the panel is dismissed the moment another
+  app takes key focus, so pressing the mouse on a file in Finder closes it before a drag can start, and dragging
+  over the menu bar icon does not spring it open (checked twice on the MacBook Air M3). The line *"Drag a file
+  onto this menu…"* was false before this change and would have stayed false after it, so it goes, along with
+  the handler behind it. Accepting a drop would mean owning an `NSStatusItem` directly — see design.md D1 —
+  which is its own piece of work, not this one.
 
 Not in scope, and deliberately left to their own items: the link states this panel renders are still the ones
 BR-3 calls dishonest, the Local Network row still reports a status nothing sets (BR-11), and the six-digit code

@@ -35,9 +35,8 @@
 - [x] 4.2 Replace the `.sheet` in `StatusPanel` with a `@ViewBuilder` `pairSection` rendered above
       `headerSection` when `incomingPairRequest != nil`; verify that with no request pending the panel's layout
       is byte-identical to task 2.1's result.
-- [ ] 4.3 Make the drop closure return `false` when `currentLinkState != .connected` so a drop while disconnected
-      is rejected by the system rather than silently queued; verify by dragging a file onto the panel with the
-      phone disconnected and observing the drag snap back.
+- [x] 4.3 Superseded by 8.6: the drop target was removed, so there is no drop closure to gate. The send control
+      is still correctly disabled while disconnected — verified `enabled=false` on device.
 
 ## 5. Mac — automated verification
 
@@ -58,8 +57,10 @@
 
 - [x] 7.1 With the phone paired and connected, open the panel and confirm each listed permission renders as one
       row — dot, name, status, action on a single line — and that granted permissions are absent.
-- [ ] 7.2 Drag a file from Finder onto the open panel and confirm it arrives on the phone, and that the panel
-      shows preparing → in-progress → sent.
+- [x] 7.2 Reworked by 8.6. Dragging onto the panel is not achievable (panel dismisses on focus loss; no
+      spring-load from the menu bar icon — two attempts on device), so the affordance was removed. Sending via
+      the panel's send control was confirmed on device: panel showed preparing → "Sending over Wi-Fi…" and the
+      phone logged `Receiving br2-wifi-test.bin (614400 bytes)`, completing once both devices shared a subnet.
 - [ ] 7.3 Trigger a pair request from the phone against an unpaired Mac, open the panel, and confirm the
       confirmation is visible immediately with the device name and fingerprint, that Reject leaves both trust
       stores unchanged, and that a second request accepted inline pairs both sides.
@@ -79,5 +80,7 @@
 - [x] 8.3 Align the permission row as info-left, action-right; verified on the live panel.
 - [x] 8.4 Remove the pair banner's keyboard shortcuts and key it on the request id; verified by build. The
       Escape/Return hazard is reasoned from the inline placement, not reproduced on device — see 7.3.
+- [x] 8.6 Remove the drop target and its instructional copy after device testing proved the affordance
+      unreachable; spec delta updated to state the constraint rather than assert the capability.
 - [x] 8.5 Confirm the permission section is not stale under `.window`: four panel opens produced four
       `Permission refresh` log entries, so `onAppear` fires per open and the reviewed concern does not hold.

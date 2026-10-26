@@ -29,21 +29,27 @@ achievable.
 
 ---
 
-### Requirement: File drop onto the open panel
+### Requirement: The panel does not claim a drop target it cannot offer
 
-The Mac panel SHALL accept a file dragged onto it and send that file to the paired phone, using the same
-transport selection as the panel's own send action.
+The menu bar panel is dismissed as soon as another application takes key focus, so pressing the mouse on a file
+in Finder closes it before a drag can begin, and dragging over the menu bar icon does not spring it open. A drop
+target on the panel is therefore unreachable in normal use. The panel SHALL NOT display instructional copy about
+dragging a file onto it, and SHALL NOT present a drop affordance it cannot honour.
 
-#### Scenario: Dropped file is sent
+Verified on a MacBook Air M3: with the panel open, starting a drag in Finder dismissed it; hovering the dragged
+file over the menu bar icon opened nothing on two attempts.
 
-- **WHEN** the user drags a file from Finder onto the open panel while the phone is connected
-- **THEN** the file is sent to the phone over the tier the transport ladder selects, and the panel reports the
-  transfer's progress and outcome
+Sending a file from the Mac remains available through the panel's own send action, which is unaffected.
 
-#### Scenario: Drop affordance matches reality
+#### Scenario: No drag instruction is shown
 
-- **WHEN** the panel displays instructional copy about dragging a file
-- **THEN** that copy describes the surface that actually accepts the drop
+- **WHEN** the user opens the panel in any connection state
+- **THEN** the panel shows no text inviting the user to drag a file onto it
+
+#### Scenario: Sending a file is still offered
+
+- **WHEN** the phone is connected and the user opens the panel
+- **THEN** the panel offers a send control that opens a file chooser and sends the chosen file
 
 ## MODIFIED Requirements
 

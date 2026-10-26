@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct StatusPanel: View {
     @ObservedObject var bleManager: BLEManager
@@ -24,11 +23,6 @@ struct StatusPanel: View {
         }
         .frame(width: 260)
         .padding(12)
-        .dropDestination(for: URL.self) { urls, _ in
-            guard isConnected, let url = urls.first else { return false }
-            fileTransfer.sendFile(at: url, sharedNetworkAvailable: true)
-            return true
-        }
     }
 
     /// Rendered above everything else so a pending request is the first thing the panel
@@ -143,11 +137,6 @@ struct StatusPanel: View {
                 .foregroundStyle(.red)
         }
 
-        if isConnected {
-            Text("Drag a file onto this panel to send it to your phone.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-        }
     }
 
     /// Granted permissions are omitted, so the section's presence is itself the signal.
