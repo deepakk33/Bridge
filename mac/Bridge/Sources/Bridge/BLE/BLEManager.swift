@@ -286,7 +286,7 @@ extension BLEManager: CBCentralManagerDelegate {
                 Self.logger.warning("Bluetooth powered off")
                 transitionLink(to: .bluetoothOff)
                 connectedDeviceName = nil
-        mirroringState = nil
+                mirroringState = nil
             case .unauthorized:
                 Self.logger.error("Bluetooth unauthorized")
                 transitionLink(to: .bluetoothOff)

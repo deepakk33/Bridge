@@ -252,7 +252,8 @@ class L2capServer(
             val capabilities = listOf(
                 "bridge.ping", "bridge.pair",
                 "bridge.notification", "bridge.notification.reply",
-                "bridge.notification.request", "bridge.battery",
+                "bridge.notification.request", "bridge.notification.filter",
+                "bridge.battery",
                 "bridge.clipboard", "bridge.clipboard.connect",
                 "bridge.share.request"
             )

@@ -247,6 +247,9 @@ class BridgeService : Service() {
 
         blePeripheral?.setOnPairCompletedHandler {
             batteryMonitor?.sendInitialBattery()
+            // On a first pairing the connect handler runs before trust exists and the
+            // Mac drops the packet, leaving it on "unknown" all session.
+            sendNotificationFilterState()
         }
         registerReceiver(
             clipboardTestReceiver,
@@ -302,7 +305,12 @@ class BridgeService : Service() {
             cached.action.actionIntent.send(this, 0, intent)
             Log.i(TAG, "Reply delivered for $requestReplyId")
 
-            BridgeNotificationListener.instance?.cancelNotificationByKey(cached.notificationKey)
+            // Deliberately does NOT cancel the notification. Cancelling fired
+            // onNotificationRemoved, which evicted the cached RemoteInput, so a second
+            // reply to the same conversation was dropped — the bug the non-consuming
+            // cache read was meant to fix. The originating app owns its notification's
+            // lifetime after a reply, and whatever it does now reaches the Mac through
+            // the dismissal packet.
         } catch (e: Exception) {
             Log.e(TAG, "Failed to deliver reply", e)
         }

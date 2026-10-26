@@ -35,6 +35,7 @@ class NotificationFilterActivity : AppCompatActivity() {
 
     private lateinit var emptyHint: TextView
     private lateinit var allDeniedBanner: LinearLayout
+    private lateinit var enableAllButton: Button
     private lateinit var recycler: RecyclerView
     private val adapter = AppAdapter()
 
@@ -63,6 +64,7 @@ class NotificationFilterActivity : AppCompatActivity() {
             setOnCheckedChangeListener { _, checked ->
                 store.setMasterMute(checked)
                 adapter.setMuted(checked)
+                refreshBanner()
             }
         }
         masterRow.addView(masterLabel)
@@ -80,11 +82,10 @@ class NotificationFilterActivity : AppCompatActivity() {
             setPadding(dp(24), dp(20), dp(24), dp(20))
             visibility = View.GONE
             addView(TextView(this@NotificationFilterActivity).apply {
-                text = "No apps are mirroring.\n\n" +
-                    "Nothing reaches your Mac until you switch an app on below."
+                id = BANNER_TEXT_ID
                 textSize = 14f
             })
-            addView(Button(this@NotificationFilterActivity).apply {
+            enableAllButton = Button(this@NotificationFilterActivity).apply {
                 text = "Enable all"
                 layoutParams = LinearLayout.LayoutParams(WRAP, WRAP).apply {
                     topMargin = dp(12)
@@ -93,7 +94,8 @@ class NotificationFilterActivity : AppCompatActivity() {
                     store.allowAllSeen()
                     loadApps()
                 }
-            })
+            }
+            addView(enableAllButton)
         }
 
         emptyHint = TextView(this).apply {
@@ -137,9 +139,8 @@ class NotificationFilterActivity : AppCompatActivity() {
             return
         }
         emptyHint.visibility = View.GONE
-        allDeniedBanner.visibility =
-            if (store.state.value.allowed.isEmpty()) View.VISIBLE else View.GONE
         recycler.visibility = View.VISIBLE
+        refreshBanner()
 
         lifecycleScope.launch {
             val rows = withContext(Dispatchers.IO) {
@@ -160,6 +161,33 @@ class NotificationFilterActivity : AppCompatActivity() {
             }
             adapter.submit(rows)
         }
+    }
+
+    /**
+     * Shown only while nothing would reach the Mac. Paused is called out separately:
+     * while master mute is on, enabling apps changes nothing, so inviting the user to
+     * switch one on would be the same kind of false instruction this screen exists to
+     * remove.
+     */
+    private fun refreshBanner() {
+        val state = store.state.value
+        if (state.seen.isEmpty()) {
+            allDeniedBanner.visibility = View.GONE
+            return
+        }
+        val nothingMirroring = state.masterMute || state.allowed.isEmpty()
+        allDeniedBanner.visibility = if (nothingMirroring) View.VISIBLE else View.GONE
+        if (!nothingMirroring) return
+
+        allDeniedBanner.findViewById<TextView>(BANNER_TEXT_ID).text = when {
+            state.masterMute ->
+                "Mirroring is paused.\n\n" +
+                    "Nothing reaches your Mac until you turn the switch above off."
+            else ->
+                "No apps are mirroring.\n\n" +
+                    "Nothing reaches your Mac until you switch an app on below."
+        }
+        enableAllButton.visibility = if (state.allowed.isEmpty()) View.VISIBLE else View.GONE
     }
 
     private data class AppRow(
@@ -224,6 +252,7 @@ class NotificationFilterActivity : AppCompatActivity() {
             holder.sw.setOnCheckedChangeListener { _, checked ->
                 store.setAllowed(item.pkg, checked)
                 items[holder.bindingAdapterPosition] = item.copy(allowed = checked)
+                refreshBanner()
             }
         }
 
@@ -243,6 +272,7 @@ class NotificationFilterActivity : AppCompatActivity() {
     companion object {
         private const val MATCH = ViewGroup.LayoutParams.MATCH_PARENT
         private const val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
+        private val BANNER_TEXT_ID = View.generateViewId()
         private val ID_ICON = View.generateViewId()
         private val ID_LABEL = View.generateViewId()
         private val ID_SWITCH = View.generateViewId()
