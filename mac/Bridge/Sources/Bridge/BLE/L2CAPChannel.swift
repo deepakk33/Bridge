@@ -26,6 +26,9 @@ final class L2CAPChannel: NSObject, @unchecked Sendable {
     )
 
     private static let bufferSize = 4096
+    /// Past this, the stream is not backed up, it is gone. Queued bytes are dropped
+    /// rather than held for a drain event that is not coming.
+    private static let pendingWriteLimit = 64 * 1024
 
     init(channel: CBL2CAPChannel) {
         self.channel = channel
@@ -124,6 +127,10 @@ final class L2CAPChannel: NSObject, @unchecked Sendable {
 
         // Writing ahead of a queued tail would interleave two lines, so queue behind it.
         guard pendingWrite.isEmpty else {
+            guard pendingWrite.count + data.count <= Self.pendingWriteLimit else {
+                Self.logger.error("Output stream stalled; dropping \(data.count) bytes")
+                return false
+            }
             pendingWrite.append(data)
             Self.logger.warning("Output stream backed up; queued \(data.count) bytes")
             return false
@@ -141,11 +148,25 @@ final class L2CAPChannel: NSObject, @unchecked Sendable {
             return true
         }
 
+        // A broken stream is not backpressure — queueing behind it would grow forever
+        // and no space-available event is coming to drain it.
         if let error = outputStream.streamError {
             Self.logger.error("Stream write error: \(error.localizedDescription)")
+            pendingWrite.removeAll()
+            return false
         }
-        pendingWrite = Data(data.dropFirst(max(written, 0)))
+
+        let remainder = Data(data.dropFirst(max(written, 0)))
+        guard pendingWrite.count + remainder.count <= Self.pendingWriteLimit else {
+            Self.logger.error("Output stream stalled; dropping \(remainder.count) queued bytes")
+            pendingWrite.removeAll()
+            return false
+        }
+        pendingWrite = remainder
         Self.logger.warning("Partial write: \(max(written, 0))/\(data.count) bytes, remainder queued")
+        // Reported as a failure even though the tail may still go out: BR-3 exists to stop
+        // this call claiming a success it cannot see, and a stalled stream is the case the
+        // delivery-failure notification is for. A rare duplicate beats a silent drop.
         return false
     }
 
@@ -226,6 +247,7 @@ extension L2CAPChannel: StreamDelegate {
             flushPendingWrite()
         case .errorOccurred:
             Self.logger.error("Stream error: \(aStream.streamError?.localizedDescription ?? "unknown")")
+            pendingWrite.removeAll()
         case .endEncountered:
             Self.logger.info("Stream ended")
             close()

@@ -61,12 +61,13 @@ enum LinkHealthEvaluator {
             case .supervisionTimeout, .unknown, nil: return .outOfRange
             }
         }
-        if !isVerified { return .verifying }
-        guard let lastSeen else { return .connected }
+        // Silence outranks verification: a peer that opened a socket and then went quiet
+        // is a dead service, not a handshake in progress.
+        guard let lastSeen else { return isVerified ? .connected : .verifying }
         let elapsed = now.timeIntervalSince(lastSeen)
         if elapsed >= deadThreshold { return .dead }
         if elapsed >= staleThreshold { return .stale(seconds: Int(elapsed)) }
-        return .connected
+        return isVerified ? .connected : .verifying
     }
 
     /// "Last seen: just now" / "Xs ago" / "Xm ago" per spec.

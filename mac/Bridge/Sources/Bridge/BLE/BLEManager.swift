@@ -79,7 +79,6 @@ final class BLEManager: NSObject, ObservableObject {
         healthTimer = Timer.scheduledTimer(withTimeInterval: Self.healthTick, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refreshHealth() }
         }
-        refreshHealth()
     }
 
     /// How often the health is recomputed. Bounds the gap between a threshold being
@@ -131,9 +130,12 @@ final class BLEManager: NSObject, ObservableObject {
         return channel.send(packet)
     }
 
-    /// The only packets worth sending to a peer we have not yet verified — they are
-    /// what makes the verification happen.
-    private static let preVerificationPacketTypes: Set<String> = ["bridge.identity", "bridge.pair"]
+    /// The only packets worth sending to a peer we have not yet verified: the two that
+    /// make verification happen, plus the heartbeat — a ping carries no data, and without
+    /// it the peer's own watchdog tears the link down while a pair prompt is unanswered.
+    private static let preVerificationPacketTypes: Set<String> = [
+        "bridge.identity", "bridge.pair", "bridge.ping"
+    ]
 
     private func transitionLink(to newState: LinkState) {
         linkState.transition(to: newState)
@@ -150,7 +152,9 @@ final class BLEManager: NSObject, ObservableObject {
             isVerified: isVerified,
             lastDisconnect: lastDisconnect
         )
-        lastSeenText = linkHealth == .connected ? nil : LinkHealthEvaluator.lastSeenText(lastSeen: lastSeen)
+        lastSeenText = (linkHealth == .connected || lastSeen == nil)
+            ? nil
+            : LinkHealthEvaluator.lastSeenText(lastSeen: lastSeen)
     }
 
     /// The peer is verified when it has told us who it is and the trust store agrees.

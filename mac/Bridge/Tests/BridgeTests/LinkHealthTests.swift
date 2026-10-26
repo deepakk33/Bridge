@@ -96,8 +96,33 @@ final class LinkHealthTests: XCTestCase {
                 lastSeen: now.addingTimeInterval(-age), now: now,
                 bleConnected: true, bluetoothOn: true, isVerified: false
             )
-            XCTAssertEqual(h, .verifying, "age \(age)s should still read as verifying")
+            XCTAssertNotEqual(h, .connected, "age \(age)s must never read as connected")
         }
+    }
+
+    func testUnverifiedRecentPeerIsVerifying() {
+        let h = LinkHealthEvaluator.evaluate(
+            lastSeen: now.addingTimeInterval(-5), now: now,
+            bleConnected: true, bluetoothOn: true, isVerified: false
+        )
+        XCTAssertEqual(h, .verifying)
+    }
+
+    /// A socket that opened and then went quiet is a dead service, not a slow handshake.
+    func testUnverifiedPeerGoneQuietIsDeadNotVerifying() {
+        let h = LinkHealthEvaluator.evaluate(
+            lastSeen: now.addingTimeInterval(-95), now: now,
+            bleConnected: true, bluetoothOn: true, isVerified: false
+        )
+        XCTAssertEqual(h, .dead)
+    }
+
+    func testUnverifiedPeerGoingQuietIsStale() {
+        let h = LinkHealthEvaluator.evaluate(
+            lastSeen: now.addingTimeInterval(-65), now: now,
+            bleConnected: true, bluetoothOn: true, isVerified: false
+        )
+        XCTAssertEqual(h, .stale(seconds: 65))
     }
 
     func testBluetoothOffBeatsVerifying() {

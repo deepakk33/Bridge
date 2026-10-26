@@ -66,8 +66,10 @@ final class PingWatchdog {
         let elapsed = Date().timeIntervalSince(last)
         if elapsed > watchdogTimeout {
             Self.logger.warning("Watchdog timeout: no packet for \(String(format: "%.0f", elapsed))s")
+            // stop() clears onTimeout, so hold the callback before tearing down.
+            let callback = onTimeout
             stop()
-            onTimeout?()
+            callback?()
         }
     }
 }
