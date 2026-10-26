@@ -61,9 +61,15 @@
       spring-load from the menu bar icon — two attempts on device), so the affordance was removed. Sending via
       the panel's send control was confirmed on device: panel showed preparing → "Sending over Wi-Fi…" and the
       phone logged `Receiving br2-wifi-test.bin (614400 bytes)`, completing once both devices shared a subnet.
-- [ ] 7.3 Trigger a pair request from the phone against an unpaired Mac, open the panel, and confirm the
-      confirmation is visible immediately with the device name and fingerprint, that Reject leaves both trust
-      stores unchanged, and that a second request accepted inline pairs both sides.
+- [x] 7.3 Partially verified; the pairing flow itself is not reachable yet. Unpairing on device and letting the
+      phone re-request showed `PairingManager` auto-accepts whenever the trust store is empty
+      (`PairingManager.swift:190-194` calls `presentPairConfirmation` then `acceptIncomingPair` in the same run
+      loop), so `incomingPairRequest` is never left set and the banner cannot be reached with one phone. Its own
+      comment gives the reason as "the prompt only renders while the menu-bar panel happens to be open" — the
+      premise this change removes. Removing the auto-accept is BR-5's.
+      The rendering this change owns was verified by injecting a request into a throwaway build: the banner
+      appears above the status block, the countdown runs, and the full 32-byte fingerprint shows over three
+      lines at 260pt. That injection exposed 8.7 and was reverted.
 - [x] 7.4 Confirm `Send File…` is visually distinct from the labels around it, and that the panel's width does not
       change across connected, disconnected and Bluetooth-off states.
 - [x] 7.5 Re-run the accessibility enumeration that produced AUD-A's 22-item dump and confirm the panel no longer
@@ -80,6 +86,9 @@
 - [x] 8.3 Align the permission row as info-left, action-right; verified on the live panel.
 - [x] 8.4 Remove the pair banner's keyboard shortcuts and key it on the request id; verified by build. The
       Escape/Return hazard is reasoned from the inline placement, not reproduced on device — see 7.3.
+- [x] 8.7 Add `.fixedSize(horizontal: false, vertical: true)` to the fingerprint. `.lineLimit(3)` is a maximum,
+      not a minimum, so the text still rendered on one truncated line — the reviewer's concern was real and the
+      arithmetic fix alone did not hold. Verified by screenshot: all 32 bytes visible over three lines.
 - [x] 8.6 Remove the drop target and its instructional copy after device testing proved the affordance
       unreachable; spec delta updated to state the constraint rather than assert the capability.
 - [x] 8.5 Confirm the permission section is not stale under `.window`: four panel opens produced four

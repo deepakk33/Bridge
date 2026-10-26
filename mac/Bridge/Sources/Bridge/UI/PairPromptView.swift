@@ -25,8 +25,10 @@ struct PairPromptView: View {
             Text(formatFingerprint(request.fingerprint))
                 .font(.system(.caption2, design: .monospaced))
                 // A SHA-256 fingerprint formats to 95 characters and needs three lines here.
-                // Truncating it would hide exactly the span where a mismatch shows up.
+                // Truncating it would hide exactly the span where a mismatch shows up, and
+                // lineLimit alone is a maximum — without fixedSize the text stays on one line.
                 .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
                 .padding(6)
                 .frame(maxWidth: .infinity, alignment: .leading)
