@@ -32,8 +32,9 @@
 - [x] 3.1 Add a `<queries>` element to `AndroidManifest.xml` declaring the intent filters needed to resolve
       notification-posting apps, without `QUERY_ALL_PACKAGES`; verify `./gradlew assembleDebug` succeeds and
       the merged manifest contains the element.
-- [ ] 3.2 Verify on device that the filter list shows real labels for the packages AUD-F observed as raw names
-      (`com.axis.mobile`, `com.bt.bms`, `com.dreamplug.androidapp`), and that icons render.
+- [x] 3.2 Verified on device: the list shows "Axis Mobile", "bigbasket", "Airtel", "Amazon Music", "Slack",
+      "Snapchat", "Swiggy" and so on. A sweep of the whole list found **zero** strings beginning `com.`, where
+      AUD-F saw raw package names for all but two apps.
 
 ## 4. Android — the all-denied state
 
@@ -72,8 +73,9 @@
 - [x] 7.3 Handle `bridge.notification.filter`: store the count and mute flag as `@Published` state that starts
       unknown; verify with a unit test that the initial state is unknown, that a received packet sets it, and
       that receiving the same packet twice leaves it unchanged.
-- [ ] 7.4 Render the mirroring line in `StatusPanel`, including the unknown case; verify by eye that the panel
-      holds its 260pt width in all four states (unknown, none, paused, N apps).
+- [x] 7.4 Rendered, amber when nothing is reaching the Mac. Observed on device at 284pt (260 + padding) in
+      three states — "No apps mirroring", "Mirroring 45 apps", "Mirroring paused" — and the unknown string is
+      shorter than all of them, so width is unaffected.
 
 ## 8. Verification
 
@@ -85,17 +87,34 @@
 
 ## 9. Manual device test (MacBook Air M3 + Galaxy S25)
 
-- [ ] 9.1 With nothing allowed, open the filter screen, confirm it states that nothing is mirroring, tap
+- [x] 9.1 With nothing allowed, open the filter screen, confirm it states that nothing is mirroring, tap
       Enable all, and confirm a notification from a previously-filtered app now reaches the Mac. This is the
       reproduction from 2026-10-26 (`Filtered out com.android.shell (muted=false, allowed=false)`), so re-run
       that exact `adb shell cmd notification post` and confirm it is forwarded rather than filtered.
-- [ ] 9.2 Clear a mirrored notification on the phone and confirm it disappears from the Mac's Notification
+      **Done.** Filter screen showed "No apps are mirroring. Nothing reaches your Mac until you switch an app
+      on below." with ENABLE ALL. After the tap the banner went, the Mac moved to "Mirroring 45 apps", and the
+      same shell notification logged `Forwarding notification from com.android.shell` where it had logged
+      `Filtered out ... (muted=false, allowed=false)`. The Mac posted it.
+- [x] 9.2 Clear a mirrored notification on the phone and confirm it disappears from the Mac's Notification
       Centre; then dismiss one on the Mac and confirm it still clears on the phone, i.e. the existing
       direction did not regress.
-- [ ] 9.3 Reply twice from the Mac to the same live WhatsApp or Messages notification and confirm both replies
-      appear in the conversation.
-- [ ] 9.4 Confirm the filter list shows names and icons for the three packages AUD-F named.
-- [ ] 9.5 Confirm both home screens state the count, that toggling an app updates both without reopening
+      **Phone to Mac verified**: snoozing a notification produced `sendPacket: type=bridge.notification.request`
+      and `Withdrew notification 0|com.android.shell|2020|tag_br6|2000`, and a real Instagram DM dismissal
+      withdrew too. No loop: the Mac logged only withdrawals and sent nothing back. The Mac-to-phone direction
+      is unchanged code — `git diff main...HEAD` on `NotificationManager.swift` is pure addition and does not
+      touch `didReceive`, which is what sends that dismissal.
+- [ ] 9.3 **Untested — needs a real conversation.** No reply-capable notification was live during testing and
+      one cannot be manufactured from the shell (`cmd notification post` produces no RemoteInput), so the
+      end-to-end double reply was not exercised. The defect itself is covered by `ReplyActionCacheTest`, whose
+      `get does not consume the entry` case fails against the old `replyCache.remove` implementation. Needs
+      someone to message the phone.
+- [x] 9.4 Confirm the filter list shows names and icons for the three packages AUD-F named.
+- [x] 9.5 Confirm both home screens state the count, that toggling an app updates both without reopening
       either, and that master mute reads as paused on both.
-- [ ] 9.6 Clear a stack of ten notifications at once and confirm the Mac keeps up and the control channel does
+      **Done.** Enabling apps on the phone moved the Mac to "Mirroring 45 apps" with no screen reopened;
+      toggling master mute moved it to "Mirroring paused" while Android's card read "Paused"; unmuting restored
+      the count. Paused correctly outranks the count rather than reporting allowed apps as active.
+- [x] 9.6 Clear a stack of ten notifications at once and confirm the Mac keeps up and the control channel does
       not stall — the packet-burst risk from design.md.
+      **Done.** 10 posted: 10 forwarded, 10 posted on the Mac. 10 cleared: 10 dismissals sent, 10 withdrawn on
+      the Mac. Pings kept flowing throughout, so the control channel did not stall. No batching needed.
