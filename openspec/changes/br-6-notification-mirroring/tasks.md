@@ -118,3 +118,33 @@
       not stall — the packet-burst risk from design.md.
       **Done.** 10 posted: 10 forwarded, 10 posted on the Mac. 10 cleared: 10 dismissals sent, 10 withdrawn on
       the Mac. Pings kept flowing throughout, so the control channel did not stall. No batching needed.
+
+## 10. Review fixes, re-verified on device (2026-10-26)
+
+- [x] 10.1 Fix 2 (count on a first pairing) verified on a real unpair/re-pair cycle. The log shows the race
+      the fix exists for: `sendPacket: bridge.notification.filter` at 14:36:36.278 from the connect handler,
+      `Sent pair request` at .330, `Pair accepted` at .389, then a second send at .392 from the new
+      pair-completed handler. Without that second send the Mac would have dropped the only copy and read
+      "unknown" all session. Panel afterwards: "Paired with SM-S931B | Mirroring 43 apps".
+- [x] 10.2 Fix 6 (banner ignored master mute) verified: with mirroring paused the banner now reads
+      "Mirroring is paused. Nothing reaches your Mac until you turn the switch above off." and Enable all is
+      hidden, where it previously told the user to switch on an app that would mirror nothing.
+- [x] 10.3 Fix 7 (banner only refreshed on load) verified: the banner appeared and cleared live as master mute
+      was toggled, with no screen reopened. The per-app toggle uses the same `refreshBanner()` path.
+- [x] 10.4 Dismissal re-confirmed against a real app after the fixes: a WhatsApp notification was mirrored and
+      then withdrawn on the Mac when cleared on the phone.
+- [ ] 10.5 Fix 1 (reply no longer cancels the notification) **untested on device**, for the same reason as 9.3:
+      it needs a live reply-capable conversation. Covered by `ReplyActionCacheTest`, but the end-to-end double
+      reply has never run.
+
+### Found while testing, not part of BR-6
+
+- **A fresh pairing can fail outright and leave both sides unpaired.** Unpairing from the Mac and letting the
+  phone re-pair produced `PairingManager: Pair packet before peer identity — ignoring` on the Mac and
+  `Pair request timed out with no response — giving up locally` on the phone 30 s later. The devices stayed
+  unpaired until the phone's service was restarted, after which pairing succeeded. This is a race between the
+  pair request and identity processing, and it belongs to BR-5.
+- **A notification was mirrored before pairing completed.** At 14:35:27.625, between the failed pair request
+  and the timeout, the Mac posted a Photos notification from a peer it had not trusted. That is AUD-C's
+  pre-identity packet gap (`if let peerId = peerDeviceId, let peerFp = peerFingerprint` skips the trust check
+  when identity has not been recorded), observed live. It belongs to BR-4.
