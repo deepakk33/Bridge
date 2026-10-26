@@ -22,7 +22,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-3 | Make the link state tell the truth | ready | |
 | BR-4 | Transport security: decide, then close the gap | idea | |
 | BR-5 | Pairing: six-digit confirmation and a device picker | idea | |
-| BR-6 | Notification mirroring: dismissal, replies, app names | ready | |
+| BR-6 | Notification mirroring: dismissal, replies, app names | in-progress | `work/br-6-notification-mirroring` |
 | BR-7 | Add a Disconnect control to both apps | ready | |
 | BR-8 | File transfer: sanitise, cap, authenticate, confirm | ready | |
 | BR-9 | Clipboard: stop the dead poll, stop the silent send | ready | |
