@@ -45,4 +45,78 @@ final class LinkHealthTests: XCTestCase {
     func testConnectedHasNoGuidance() {
         XCTAssertNil(LinkHealthEvaluator.guidance(for: .connected))
     }
+
+    // MARK: - Disconnect reason (BR-3)
+
+    func testPeerTerminatedDisconnectIsDeadNotOutOfRange() {
+        let h = LinkHealthEvaluator.evaluate(
+            lastSeen: now.addingTimeInterval(-2), now: now,
+            bleConnected: false, bluetoothOn: true, lastDisconnect: .peerTerminated
+        )
+        XCTAssertEqual(h, .dead)
+    }
+
+    func testSupervisionTimeoutIsOutOfRange() {
+        let h = LinkHealthEvaluator.evaluate(
+            lastSeen: now.addingTimeInterval(-2), now: now,
+            bleConnected: false, bluetoothOn: true, lastDisconnect: .supervisionTimeout
+        )
+        XCTAssertEqual(h, .outOfRange)
+    }
+
+    func testLocalDisconnectIsDisconnected() {
+        let h = LinkHealthEvaluator.evaluate(
+            lastSeen: now, now: now,
+            bleConnected: false, bluetoothOn: true, lastDisconnect: .local
+        )
+        XCTAssertEqual(h, .disconnected)
+    }
+
+    func testUnknownDisconnectFallsBackToOutOfRange() {
+        let h = LinkHealthEvaluator.evaluate(
+            lastSeen: now, now: now,
+            bleConnected: false, bluetoothOn: true, lastDisconnect: .unknown
+        )
+        XCTAssertEqual(h, .outOfRange)
+    }
+
+    func testSilentDeathWhileStillConnectedBeatsDisconnectReason() {
+        let h = LinkHealthEvaluator.evaluate(
+            lastSeen: now.addingTimeInterval(-95), now: now,
+            bleConnected: true, bluetoothOn: true, lastDisconnect: .supervisionTimeout
+        )
+        XCTAssertEqual(h, .dead)
+    }
+
+    // MARK: - Verification (BR-3)
+
+    func testUnverifiedPeerIsNeverConnected() {
+        for age in [0.0, 10.0, 65.0, 200.0] {
+            let h = LinkHealthEvaluator.evaluate(
+                lastSeen: now.addingTimeInterval(-age), now: now,
+                bleConnected: true, bluetoothOn: true, isVerified: false
+            )
+            XCTAssertEqual(h, .verifying, "age \(age)s should still read as verifying")
+        }
+    }
+
+    func testBluetoothOffBeatsVerifying() {
+        let h = LinkHealthEvaluator.evaluate(
+            lastSeen: now, now: now,
+            bleConnected: true, bluetoothOn: false, isVerified: false
+        )
+        XCTAssertEqual(h, .bluetoothOff)
+    }
+
+    // MARK: - Guidance (BR-3)
+
+    func testGuidanceIsDefinedForEveryState() {
+        XCTAssertNotNil(LinkHealthEvaluator.guidance(for: .dead))
+        XCTAssertNotNil(LinkHealthEvaluator.guidance(for: .outOfRange))
+        XCTAssertNotNil(LinkHealthEvaluator.guidance(for: .bluetoothOff))
+        XCTAssertNil(LinkHealthEvaluator.guidance(for: .connected))
+        XCTAssertNil(LinkHealthEvaluator.guidance(for: .verifying))
+        XCTAssertNil(LinkHealthEvaluator.guidance(for: .disconnected))
+        XCTAssertNil(LinkHealthEvaluator.guidance(for: .stale(seconds: 65)))
+    }
 }

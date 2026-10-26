@@ -36,7 +36,7 @@ struct BridgeApp: App {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.yellow)
                 }
-                if bleManager.currentLinkState == .connected,
+                if bleManager.linkHealth == .connected,
                    let level = batteryState.level {
                     Image(systemName: batteryState.sfSymbol)
                         .foregroundStyle(batteryState.tintColor)
@@ -49,15 +49,21 @@ struct BridgeApp: App {
     }
 
     private var menuBarIcon: String {
-        switch bleManager.currentLinkState {
+        switch bleManager.linkHealth {
         case .connected:
             return "link.circle.fill"
-        case .connecting:
+        case .verifying:
+            return "ellipsis.circle"
+        case .stale:
+            return "exclamationmark.circle"
+        case .dead:
+            return "exclamationmark.triangle.fill"
+        case .outOfRange:
             return "antenna.radiowaves.left.and.right"
-        case .disconnected:
-            return "link.circle"
         case .bluetoothOff:
             return "xmark.circle"
+        case .disconnected:
+            return "link.circle"
         }
     }
 }

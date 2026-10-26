@@ -6,8 +6,10 @@ struct StatusPanel: View {
     @ObservedObject var permissions: PermissionChecker
     @ObservedObject var fileTransfer: FileTransferManager
 
+    /// A working link, not merely an open socket. Everything that shows phone data or
+    /// sends to the phone hangs off this.
     private var isConnected: Bool {
-        bleManager.currentLinkState == .connected
+        bleManager.linkHealth == .connected
     }
 
     var body: some View {
@@ -49,7 +51,7 @@ struct StatusPanel: View {
 
     @ViewBuilder
     private var statusSection: some View {
-        switch bleManager.currentLinkState {
+        switch bleManager.linkHealth {
         case .connected:
             if let name = bleManager.connectedDeviceName {
                 Label(name, systemImage: "link.circle.fill")
@@ -61,22 +63,42 @@ struct StatusPanel: View {
                     .foregroundStyle(.green)
             }
 
-        case .connecting:
-            Label("Out of range", systemImage: "antenna.radiowaves.left.and.right")
+        case .verifying:
+            Label("Verifying…", systemImage: "ellipsis.circle")
                 .foregroundStyle(.secondary)
-            if let text = bleManager.linkState.lastSeenText {
-                Text(text)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
 
-        case .disconnected:
-            Label("Disconnected", systemImage: "link.circle")
+        case .stale:
+            Label("Waiting for the phone", systemImage: "exclamationmark.circle")
+                .foregroundStyle(.orange)
+
+        case .dead:
+            Label("Not responding", systemImage: "exclamationmark.triangle.fill")
+                .foregroundStyle(.red)
+
+        case .outOfRange:
+            Label("Out of range", systemImage: "antenna.radiowaves.left.and.right")
                 .foregroundStyle(.secondary)
 
         case .bluetoothOff:
             Label("Bluetooth off", systemImage: "xmark.circle")
                 .foregroundStyle(.red)
+
+        case .disconnected:
+            Label("Disconnected", systemImage: "link.circle")
+                .foregroundStyle(.secondary)
+        }
+
+        if let text = bleManager.lastSeenText, showsLastSeen {
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+
+        if let guidance = LinkHealthEvaluator.guidance(for: bleManager.linkHealth) {
+            Text(guidance)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
 
         if case .paired(_, let name) = bleManager.pairingManager.state {
@@ -180,6 +202,15 @@ struct StatusPanel: View {
                     }
                 }
             }
+        }
+    }
+
+    /// Only states where a previous packet time is the useful part of the story —
+    /// "Verifying" and "Disconnected" are about this moment, not about a gap.
+    private var showsLastSeen: Bool {
+        switch bleManager.linkHealth {
+        case .stale, .dead, .outOfRange: return true
+        case .connected, .verifying, .bluetoothOff, .disconnected: return false
         }
     }
 

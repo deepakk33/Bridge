@@ -27,6 +27,7 @@
 		69CF4BD0E971F9CC842F7214 /* TrustStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7EFB7EF978217A8DAB5F29A /* TrustStoreTests.swift */; };
 		7119C8B066E708DA6105AD72 /* MirroringStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6352397936B6C09C52E78697 /* MirroringStateTests.swift */; };
 		74023612371A00373BF81B07 /* PayloadClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69FC0E53777F564A0AE74EC3 /* PayloadClient.swift */; };
+		79281DEFD35F2E69D77A034B /* FramedWriterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5AF27C7B66F8ADEEB4537D6 /* FramedWriterTests.swift */; };
 		8233CAFAD0D7B6A9F953D36F /* TrustStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84DAE9B943673867F6E91824 /* TrustStore.swift */; };
 		83FB28C1575F47D4535D342C /* CertificateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56B364144621CA738A409CA7 /* CertificateManager.swift */; };
 		87BEA2175104ABBFF8505E1C /* LinkHealthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0443ED625311A6173521E3A9 /* LinkHealthTests.swift */; };
@@ -93,6 +94,7 @@
 		92405DBC9DC528F2C17A32E3 /* BridgePacket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgePacket.swift; sourceTree = "<group>"; };
 		9AAD4D7391D72CAFC163F99B /* FileTransferManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTransferManager.swift; sourceTree = "<group>"; };
 		A05D2EFA77CC7611034C95F6 /* PingPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PingPacketTests.swift; sourceTree = "<group>"; };
+		A5AF27C7B66F8ADEEB4537D6 /* FramedWriterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FramedWriterTests.swift; sourceTree = "<group>"; };
 		A7EFB7EF978217A8DAB5F29A /* TrustStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrustStoreTests.swift; sourceTree = "<group>"; };
 		A7F6AEAAFE8B7A3039814426 /* BridgeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeApp.swift; sourceTree = "<group>"; };
 		ABD9184A949EFAF49F053D20 /* BridgePacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgePacketTests.swift; sourceTree = "<group>"; };
@@ -135,6 +137,7 @@
 				86DD549D144C99B0C9AAC869 /* AllVectorsTests.swift */,
 				ABD9184A949EFAF49F053D20 /* BridgePacketTests.swift */,
 				352D3EE8282E7F7AC124CB70 /* ClipboardPacketTests.swift */,
+				A5AF27C7B66F8ADEEB4537D6 /* FramedWriterTests.swift */,
 				F1F277B0176220A76331FCC3 /* IdentityPacketTests.swift */,
 				0443ED625311A6173521E3A9 /* LinkHealthTests.swift */,
 				6352397936B6C09C52E78697 /* MirroringStateTests.swift */,
@@ -325,6 +328,7 @@
 				970A6E486B671EAF219376D9 /* AllVectorsTests.swift in Sources */,
 				BBB52C374052D155182228CA /* BridgePacketTests.swift in Sources */,
 				9752467E7B12213672547F27 /* ClipboardPacketTests.swift in Sources */,
+				79281DEFD35F2E69D77A034B /* FramedWriterTests.swift in Sources */,
 				2B3E105AD9ECD6573157ECD8 /* IdentityPacketTests.swift in Sources */,
 				87BEA2175104ABBFF8505E1C /* LinkHealthTests.swift in Sources */,
 				7119C8B066E708DA6105AD72 /* MirroringStateTests.swift in Sources */,
