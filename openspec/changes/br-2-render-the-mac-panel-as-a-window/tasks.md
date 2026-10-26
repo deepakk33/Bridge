@@ -43,14 +43,16 @@
 
 - [x] 5.1 Run `xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge build` and read the output; no new
       warnings under Swift 6 strict concurrency, no force unwraps introduced.
-- [ ] 5.2 Run `xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge test` and read the output; the full
-      suite including the new `needsAttention` tests passes.
+- [x] 5.2 Run `xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge test` and read the output; the full
+      suite including the new `needsAttention` tests passes. (84/84 green once the pre-existing
+      `testSerializedMatchesVector` failure was fixed — see 8.1.)
 - [x] 5.3 Run `openspec validate --change br-2-render-the-mac-panel-as-a-window` and read the output.
 
 ## 6. Android
 
-- [x] 6.1 No Android work in this change. Verify that claim by confirming `git diff main...HEAD -- android/` is
-      empty before the review gate.
+- [x] 6.1 No Android source change in this change. Verified `git diff main...HEAD -- android/` is empty.
+      Android's suite was still re-run because the packet encoder changed on the Mac side: 190/190 green via
+      `./gradlew test --rerun-tasks`.
 
 ## 7. Shared — manual device test (MacBook Air M3 + Galaxy S25)
 
@@ -65,3 +67,17 @@
       change across connected, disconnected and Bluetooth-off states.
 - [x] 7.5 Re-run the accessibility enumeration that produced AUD-A's 22-item dump and confirm the panel no longer
       reports flattened disabled menu items.
+
+## 8. Added during review (user-directed, outside the original plan)
+
+- [x] 8.1 Emit packet keys as `id`, `type`, `body` on the Mac to match `protocol/test-vectors` and the Android
+      encoder, which disagreed with the Mac's `.sortedKeys` output; verified by `testSerializedMatchesVector`
+      passing on Mac and Android's 190 tests still green.
+- [x] 8.2 Return a battery symbol that resolves while charging — SF Symbols has no partial-level `.bolt` variant,
+      so the glyph was blank below 76%; verified by `PhoneBatteryStateTests` resolving every reachable symbol
+      against `NSImage`, and by eye on the panel at 60% charging.
+- [x] 8.3 Align the permission row as info-left, action-right; verified on the live panel.
+- [x] 8.4 Remove the pair banner's keyboard shortcuts and key it on the request id; verified by build. The
+      Escape/Return hazard is reasoned from the inline placement, not reproduced on device — see 7.3.
+- [x] 8.5 Confirm the permission section is not stale under `.window`: four panel opens produced four
+      `Permission refresh` log entries, so `onAppear` fires per open and the reviewed concern does not hold.

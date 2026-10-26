@@ -55,9 +55,16 @@ None. This change re-renders surfaces that `ui/mac-status-panel` and `ui/permiss
   banner. Its 30-second auto-reject timer survives the move and becomes real for the first time, since the view
   is now on screen whenever the panel is open.
 
-**Transport tiers** — none. No packet, no transport and no protocol change; `bridge.pair` handling is untouched
-and the file-drop path reuses the existing `FileTransferManager.sendFile(at:sharedNetworkAvailable:)` across the
-same tier ladder it uses today.
+**Transport tiers** — none. No transport change; `bridge.pair` handling is untouched and the file-drop path
+reuses the existing `FileTransferManager.sendFile(at:sharedNetworkAvailable:)` across the same tier ladder it
+uses today.
+
+**Serialization, added during review at the user's direction** — `BridgePacket.serialize()` emitted keys
+alphabetically (`.sortedKeys`) while Android's encoder and `protocol/test-vectors` both use declaration order, so
+the two platforms produced different bytes for the same packet and `testSerializedMatchesVector` failed on Mac
+only. The Mac encoder now emits `id`, `type`, `body` in that order. The wire is unaffected — both sides already
+parsed either ordering — and the vectors and the Android encoder are unchanged. This is BR-12's territory and was
+taken here by an explicit decision, recorded so the scope of this change is not misread later.
 
 **Permissions** — no new grant on either side. Mac TCC (Bluetooth, Notifications, Local Network) is unchanged;
 this change only alters how those three are displayed. No Android permission is touched.
