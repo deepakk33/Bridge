@@ -58,7 +58,10 @@ class NotificationFilterActivity : AppCompatActivity() {
         }
         val masterSwitch = SwitchCompat(this).apply {
             isChecked = store.isMuted()
-            setOnCheckedChangeListener { _, checked -> store.setMasterMute(checked) }
+            setOnCheckedChangeListener { _, checked ->
+                store.setMasterMute(checked)
+                adapter.setMuted(checked)
+            }
         }
         masterRow.addView(masterLabel)
         masterRow.addView(masterSwitch)
@@ -98,6 +101,7 @@ class NotificationFilterActivity : AppCompatActivity() {
     }
 
     private fun loadApps() {
+        adapter.setMuted(store.isMuted())
         val seen = store.state.value.seen.toList()
         if (seen.isEmpty()) {
             emptyHint.visibility = View.VISIBLE
@@ -138,10 +142,20 @@ class NotificationFilterActivity : AppCompatActivity() {
 
     private inner class AppAdapter : RecyclerView.Adapter<AppAdapter.Holder>() {
         private val items = mutableListOf<AppRow>()
+        // Applied via setMuted() in loadApps(): reading store.isMuted() here would touch
+        // applicationContext before the Context is attached and crash the activity.
+        private var muted = false
 
         fun submit(rows: List<AppRow>) {
             items.clear()
             items.addAll(rows)
+            notifyDataSetChanged()
+        }
+
+        /** Master mute overrides every row, so grey out and disable the list while muted. */
+        fun setMuted(value: Boolean) {
+            if (muted == value) return
+            muted = value
             notifyDataSetChanged()
         }
 
@@ -173,6 +187,8 @@ class NotificationFilterActivity : AppCompatActivity() {
             val item = items[position]
             holder.icon.setImageDrawable(item.icon)
             holder.label.text = item.label
+            holder.itemView.alpha = if (muted) 0.4f else 1f
+            holder.sw.isEnabled = !muted
             // Clear the listener before mutating isChecked so recycled rows don't fire it.
             holder.sw.setOnCheckedChangeListener(null)
             holder.sw.isChecked = item.allowed
