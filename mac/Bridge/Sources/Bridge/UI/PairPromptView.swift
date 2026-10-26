@@ -24,8 +24,9 @@ struct PairPromptView: View {
 
             Text(formatFingerprint(request.fingerprint))
                 .font(.system(.caption2, design: .monospaced))
-                .lineLimit(2)
-                .truncationMode(.middle)
+                // A SHA-256 fingerprint formats to 95 characters and needs three lines here.
+                // Truncating it would hide exactly the span where a mismatch shows up.
+                .lineLimit(3)
                 .textSelection(.enabled)
                 .padding(6)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -37,18 +38,18 @@ struct PairPromptView: View {
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 8) {
+                // No keyboard shortcuts: inline in the panel, Escape is the dismiss key and
+                // Return the default action, so either would pair or refuse a peer by accident.
                 Button("Reject") {
                     cleanup()
                     onReject()
                 }
-                .keyboardShortcut(.cancelAction)
                 .accessibilityLabel("Reject pair request from \(request.deviceName)")
 
                 Button("Accept") {
                     cleanup()
                     onAccept()
                 }
-                .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
                 .accessibilityLabel("Accept pair request from \(request.deviceName)")
             }

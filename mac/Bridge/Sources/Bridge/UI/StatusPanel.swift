@@ -41,6 +41,9 @@ struct StatusPanel: View {
                 onAccept: { bleManager.pairingManager.acceptIncomingPair() },
                 onReject: { bleManager.pairingManager.rejectIncomingPair() }
             )
+            // A replacement request reuses this view, so tie identity to the request or the
+            // second one inherits the first's countdown.
+            .id(request.id)
         }
     }
 
@@ -164,10 +167,10 @@ struct StatusPanel: View {
                     Text(item.name)
                         .font(.caption)
                         .lineLimit(1)
-                    Spacer()
                     Text(item.status.label)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                    Spacer()
                     if let urlString = item.settingsURL, let url = URL(string: urlString) {
                         Button(item.status == .notRequested ? "Request" : "Fix") {
                             NSWorkspace.shared.open(url)
