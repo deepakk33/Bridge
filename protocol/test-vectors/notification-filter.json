@@ -1,0 +1,73 @@
+{
+  "description": "Valid bridge.notification.filter packets. The phone reports how many apps are mirroring so the Mac can state it without guessing; it is sent on connect and on every filter change. Mac-to-phone does not exist for this type — the Mac never changes the phone's filter.",
+  "valid": [
+    {
+      "name": "three_apps_mirroring",
+      "packet": {
+        "id": 1697300010000,
+        "type": "bridge.notification.filter",
+        "body": {
+          "allowed": 3,
+          "seen": 47,
+          "muted": false
+        }
+      },
+      "expectedFields": {
+        "allowed": 3,
+        "seen": 47,
+        "muted": false
+      }
+    },
+    {
+      "name": "nothing_allowed_yet",
+      "packet": {
+        "id": 1697300011000,
+        "type": "bridge.notification.filter",
+        "body": {
+          "allowed": 0,
+          "seen": 47,
+          "muted": false
+        }
+      },
+      "expectedFields": {
+        "allowed": 0,
+        "seen": 47,
+        "muted": false
+      }
+    },
+    {
+      "name": "nothing_seen_yet",
+      "packet": {
+        "id": 1697300012000,
+        "type": "bridge.notification.filter",
+        "body": {
+          "allowed": 0,
+          "seen": 0,
+          "muted": false
+        }
+      },
+      "expectedFields": {
+        "allowed": 0,
+        "seen": 0,
+        "muted": false
+      }
+    },
+    {
+      "name": "paused_with_apps_allowed",
+      "packet": {
+        "id": 1697300013000,
+        "type": "bridge.notification.filter",
+        "body": {
+          "allowed": 3,
+          "seen": 47,
+          "muted": true
+        }
+      },
+      "expectedFields": {
+        "allowed": 3,
+        "seen": 47,
+        "muted": true
+      }
+    }
+  ]
+}

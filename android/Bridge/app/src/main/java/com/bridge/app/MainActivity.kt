@@ -23,6 +23,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.bridge.notifications.BridgeNotificationListener
 import com.bridge.notifications.NotificationFilterActivity
+import com.bridge.notifications.NotificationFilterStore
 import com.bridge.permissions.PermissionStatus
 import com.bridge.permissions.PermissionStatusChecker
 import com.bridge.security.TrustStore
@@ -37,6 +38,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var appGlyph: ImageView
     private lateinit var notificationsSection: MaterialCardView
     private lateinit var notifAccessButton: Button
+    private lateinit var notifMirroringCount: TextView
     private lateinit var clipboardStatus: TextView
     private lateinit var sendClipboardButton: Button
     private lateinit var permissionStatus: TextView
@@ -79,6 +81,7 @@ class MainActivity : AppCompatActivity() {
         appGlyph = findViewById(R.id.app_glyph)
         notificationsSection = findViewById(R.id.notifications_section)
         notifAccessButton = findViewById(R.id.notif_access_button)
+        notifMirroringCount = findViewById(R.id.notif_mirroring_count)
         clipboardStatus = findViewById(R.id.clipboard_status)
         sendClipboardButton = findViewById(R.id.send_clipboard_button)
         permissionStatus = findViewById(R.id.permission_status)
@@ -247,6 +250,7 @@ class MainActivity : AppCompatActivity() {
         // Handshake on open: confirm the link is really alive, not stale "connected".
         if (BridgeService.LinkStatus.isSocketConnected) BridgeService.requestHandshake()
         checkNotificationAccess()
+        updateMirroringCount()
         updateClipboardStatus()
         updatePermissionStatus()
         refreshLinkUi()
@@ -293,5 +297,21 @@ class MainActivity : AppCompatActivity() {
         val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
         val enabled = flat?.contains(cn.flattenToString()) == true
         notifAccessButton.visibility = if (enabled) View.GONE else View.VISIBLE
+    }
+
+    /**
+     * States how many apps are mirroring, so a phone that is forwarding nothing says so
+     * here rather than only inside the filter screen. Paused outranks the count: an
+     * allowed app is not mirroring while master mute is on.
+     */
+    private fun updateMirroringCount() {
+        val state = NotificationFilterStore.init(applicationContext).state.value
+        notifMirroringCount.text = when {
+            state.masterMute -> getString(R.string.mirroring_paused)
+            state.allowed.isEmpty() -> getString(R.string.mirroring_none)
+            else -> resources.getQuantityString(
+                R.plurals.mirroring_app_count, state.allowed.size, state.allowed.size
+            )
+        }
     }
 }

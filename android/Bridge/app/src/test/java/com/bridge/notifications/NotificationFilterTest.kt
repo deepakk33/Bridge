@@ -88,6 +88,45 @@ class NotificationFilterTest {
         assertFalse(NotificationGate.isStructuralSkip(isOngoing = false, isForegroundService = false, isGroupSummary = false))
     }
 
+    // --- BR-6: one-tap escape from the all-denied state ---
+
+    @Test
+    fun `enabling all allows every seen app`() {
+        val state = FilterState(seen = setOf("com.a", "com.b", "com.c"))
+        val after = state.withAllSeenAllowed()
+
+        assertEquals(setOf("com.a", "com.b", "com.c"), after.allowed)
+        assertTrue(after.shouldForward("com.a"))
+        assertTrue(after.shouldForward("com.c"))
+    }
+
+    @Test
+    fun `enabling all keeps apps that were already allowed`() {
+        val state = FilterState(allowed = setOf("com.a"), seen = setOf("com.a", "com.b"))
+        assertEquals(setOf("com.a", "com.b"), state.withAllSeenAllowed().allowed)
+    }
+
+    @Test
+    fun `enabling all with nothing seen changes nothing`() {
+        val state = FilterState()
+        assertEquals(state, state.withAllSeenAllowed())
+    }
+
+    @Test
+    fun `enabling all does not touch master mute`() {
+        val muted = FilterState(masterMute = true, seen = setOf("com.a"))
+        val after = muted.withAllSeenAllowed()
+
+        assertTrue("pausing and enabling are separate choices", after.masterMute)
+        assertFalse("an allowed app stays paused while muted", after.shouldForward("com.a"))
+    }
+
+    @Test
+    fun `enabling all does not allow an app that has never been seen`() {
+        val state = FilterState(seen = setOf("com.a"))
+        assertFalse(state.withAllSeenAllowed().isAllowed("com.never-notified"))
+    }
+
     @Test
     fun `allowed app ongoing notification is still dropped by the structural skip`() {
         // Models the listener order: structural skip runs before the filter gate,

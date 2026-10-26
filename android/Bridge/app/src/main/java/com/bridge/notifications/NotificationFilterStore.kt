@@ -39,6 +39,14 @@ class NotificationFilterStore(private val persistence: FilterPersistence) {
         persistence.saveAllowed(updated.allowed)
     }
 
+    /** Allows every seen app in one write, for the filter screen's "Enable all". */
+    fun allowAllSeen() {
+        val updated = _state.value.withAllSeenAllowed()
+        if (updated == _state.value) return
+        _state.value = updated
+        persistence.saveAllowed(updated.allowed)
+    }
+
     fun setMasterMute(muted: Boolean) {
         val updated = _state.value.withMasterMute(muted)
         _state.value = updated

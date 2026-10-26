@@ -614,3 +614,92 @@ BR-11 inherits a panel whose only permission row is the dead Local Network one.
 A UI review raised polish left deliberately undone: ragged button widths, a single uniform
 spacing value that groups nothing, and `SM-S931B` shown twice (BR-11's "device name appears
 once").
+
+---
+
+## BR-6: Notification Mirroring — Dismissal, Replies, App Names
+
+**Branch**: `work/br-6-notification-mirroring` · **Change**:
+`openspec/changes/archive/2026-10-26-br-6-notification-mirroring` · **Source**: `AUD-F`
+
+### In plain terms
+
+Notification mirroring — the headline feature — was doing nothing at all, and neither screen said so.
+Forwarding is deny-by-default and the list of allowed apps starts empty, so a fresh install mirrors nothing,
+forever, in silence. On the test phone every app was off. The log said it plainly once we looked:
+`Filtered out com.android.shell (muted=false, allowed=false)`.
+
+The list that would have let you fix it was unusable too: Android hides app identities from apps that do not
+declare `<queries>`, so nearly every row showed a raw package name like `com.axis.mobile`.
+
+Now both home screens state how many apps are mirroring, the filter screen says plainly when nothing is and
+offers one tap to turn everything on, and the list shows real names and icons. Clearing a notification on the
+phone now clears it on the Mac, which it never did.
+
+The default is deliberately unchanged. Mirroring everything automatically would have sent one-time passcodes
+and banking alerts to the Mac before anyone chose to, over a channel that is still unencrypted until BR-4.
+
+### Technical summary
+
+- `onNotificationRemoved` sends `bridge.notification.request`, and the Mac acts on it. Both halves were
+  missing: the Android packet factory had zero callers, and `BLEManager` answered the type with
+  *"not applicable on Mac side"*. Sent only for notifications that could have been forwarded (same structural
+  skips as posting, then the allow-list), and deliberately not gated on master mute.
+- Reply cache extracted to `ReplyActionCache`, Android-free so it tests on the JVM like `FilterState`. `get` no
+  longer consumes, an update to a live notification evicts its previous entry rather than stacking, and
+  eviction stays keyed by notification. **`handleNotificationReply` no longer cancels the notification after
+  replying** — that cancel fired `onNotificationRemoved` and evicted the entry, which is why the obvious
+  `remove` → `get` fix alone did nothing.
+- `<queries>` in the manifest, narrower than `QUERY_ALL_PACKAGES`.
+- New packet `bridge.notification.filter` carries allowed/seen/muted. Sent on connect **and on pair
+  completion** — the connect copy goes out before trust exists and the Mac drops it, so on a first pairing the
+  pair-completed send is the one that lands. Also sent on every filter change. `MirroringState` is `nil` until
+  reported and cleared on disconnect, so the Mac never shows an invented or stale count.
+- `FilterState.withAllSeenAllowed()` plus an "Enable all" banner, which states the paused case separately
+  because enabling apps changes nothing while muted.
+
+Mac 98 tests, Android 113. Vectors added for the new type and for phone-cleared dismissals; both sweeps pick
+them up automatically.
+
+### Hardware validation (2026-10-26, MacBook Air M3 + Galaxy S25 SM-S931B)
+
+- The AUD-F reproduction: the same `adb shell cmd notification post` that logged `Filtered out` now logs
+  `Forwarding notification from com.android.shell`, and the Mac posts it.
+- Filter list: real labels throughout — a sweep found **zero** strings starting `com.`, where AUD-F saw raw
+  names for all but two apps.
+- Dismissal phone → Mac on both a shell notification and real Instagram and WhatsApp notifications, with no
+  echo loop (the Mac logged only withdrawals and sent nothing back).
+- Counts on both screens: "No apps on yet" → "Mirroring 45 apps" → "Mirroring paused", pushed live with no
+  screen reopened. Paused outranks the count.
+- First pairing: verified on a real unpair/re-pair that the pair-completed send is what delivers the count.
+- Burst: 10 posted → 10 forwarded → 10 on the Mac; 10 cleared → 10 withdrawn; pings never stopped.
+
+### Known issues / degradations
+
+- **The double reply was never tested end to end.** It needs a live reply-capable conversation, and
+  `cmd notification post` cannot produce a RemoteInput. `ReplyActionCacheTest` covers the cache defect and
+  fails against the old implementation, but the headline behaviour has not run on hardware.
+- **Replying no longer dismisses the notification.** The originating app owns its notification after a reply;
+  whatever it does now reaches the Mac through the dismissal packet. An app that neither updates nor cancels
+  its own notification will leave it on screen where Bridge used to clear it.
+- An app disallowed between posting and removal leaves one stale notification on the Mac.
+- A dismissal that happens while the link is down is dropped, not queued, matching this capability's existing
+  rule that a late notification is noise.
+- The count is refreshed in `onResume` on Android rather than collected from the store's flow. The only way to
+  change the filter is the filter screen, which must be left to see the home screen, so this covers every
+  current path — but a future in-place toggle would not update it.
+
+### Found while testing, and left for their owners
+
+- **A fresh pairing can fail and leave both devices unpaired.** Unpairing from the Mac produced
+  `Pair packet before peer identity — ignoring` on the Mac and `Pair request timed out` on the phone 30 s
+  later; they stayed unpaired until the phone's service restarted. A race between the pair request and
+  identity processing — **BR-5**.
+- **A notification was mirrored from an untrusted peer**, posted between the failed pair request and its
+  timeout. AUD-C's pre-identity gap, observed live — **BR-4**.
+
+### What the next item builds on
+
+BR-4 and BR-5 both gained concrete, reproduced evidence from this item's testing. `protocol/constants.json`
+still lists no packet types, so `bridge.notification.filter` was not added there; building that list is BR-12's
+criterion and was deliberately left to it.

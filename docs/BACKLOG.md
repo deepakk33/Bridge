@@ -22,7 +22,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-3 | Make the link state tell the truth | ready | |
 | BR-4 | Transport security: decide, then close the gap | idea | |
 | BR-5 | Pairing: six-digit confirmation and a device picker | idea | |
-| BR-6 | Notification mirroring: dismissal, replies, app names | ready | |
+| BR-6 | Notification mirroring: dismissal, replies, app names | done | `work/br-6-notification-mirroring` |
 | BR-7 | Add a Disconnect control to both apps | ready | |
 | BR-8 | File transfer: sanitise, cap, authenticate, confirm | ready | |
 | BR-9 | Clipboard: stop the dead poll, stop the silent send | ready | |
@@ -143,7 +143,8 @@ pending the BR-4 decision, since the two land together.
 
 **Scope**: send `bridge.notification.request` from `onNotificationRemoved`; change
 `getCachedAction` from `remove` to `get` and evict on removal instead; add `<queries>` to the
-Android manifest; surface the enabled-app count on both home screens.
+Android manifest; surface the enabled-app count on both home screens; give the filter screen
+a loud empty state with a one-tap "Enable all".
 **Why**: `BridgePacket.notificationRequest()` has zero callers on Android, so clearing a
 notification on the phone leaves a ghost on the Mac forever. `getCachedAction` consumes the
 cache entry, so a second reply to the same notification is silently dropped. Without
@@ -153,12 +154,27 @@ allow-list is deny-by-default and seeded only by apps that have already posted, 
 install mirrors nothing and neither screen says so.
 **Platforms**: both, android
 **Done when**:
-- [ ] clearing a notification on the phone clears it on the Mac
-- [ ] two consecutive replies to one notification both arrive
-- [ ] every row in the filter list shows an app name and icon
-- [ ] both home screens state how many apps are mirroring
+- [x] clearing a notification on the phone clears it on the Mac
+- [~] two consecutive replies to one notification both arrive — **untested on hardware**; needs a
+      live reply-capable conversation, which the shell cannot produce. The cache defect behind it
+      is fixed and unit-tested, and the cancel-after-reply that would have defeated the fix is gone
+- [x] every row in the filter list shows an app name and icon
+- [x] both home screens state how many apps are mirroring
+- [x] with nothing allowed, the filter screen says so and offers one tap to enable every
+      seen app; after that tap a notification from any of them reaches the Mac
 **Notes**: `AUD-F`. The `<queries>` change is two manifest lines and makes the deny-by-default
 problem fixable by the user, so it is worth pulling forward even if the rest waits.
+
+Decisions taken 2026-10-26, after a live reproduction on SM-S931B
+(`BridgeNotifListener: Filtered out com.android.shell (muted=false, allowed=false)` — the
+allow-list was empty, which is why nothing had been mirroring):
+- **Deny-by-default stays.** Nothing leaves the phone until the user says so. The fix is to
+  make the empty state loud and give one tap to a working setup, not to flip the default.
+  Allow-by-default was rejected: it would mirror OTP and banking notifications before the
+  user chose anything, over a wire that is still plaintext until BR-4.
+- **No migration for existing installs.** An upgrade does not seed `allowed` from `seen`;
+  the same empty state and the same one tap apply, so the privacy promise reads the same
+  for a new install and an upgraded one.
 
 ### BR-7 — Add a Disconnect control to both apps
 

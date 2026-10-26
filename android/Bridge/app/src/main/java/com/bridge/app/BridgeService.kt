@@ -24,6 +24,7 @@ import com.bridge.filetransfer.FileReceiver
 import com.bridge.filetransfer.FileTransferCoordinator
 import com.bridge.filetransfer.TransferNotifier
 import com.bridge.notifications.BridgeNotificationListener
+import com.bridge.notifications.NotificationFilterStore
 import com.bridge.permissions.PermissionStatusChecker
 import com.bridge.protocol.BridgePacket
 import com.bridge.security.CertificateManager
@@ -246,6 +247,9 @@ class BridgeService : Service() {
 
         blePeripheral?.setOnPairCompletedHandler {
             batteryMonitor?.sendInitialBattery()
+            // On a first pairing the connect handler runs before trust exists and the
+            // Mac drops the packet, leaving it on "unknown" all session.
+            sendNotificationFilterState()
         }
         registerReceiver(
             clipboardTestReceiver,
@@ -260,9 +264,28 @@ class BridgeService : Service() {
             if (connectPacket != null) {
                 blePeripheral?.sendPacket(connectPacket)
             }
+            sendNotificationFilterState()
+        }
+
+        // Keep the Mac's mirroring count honest as the user toggles apps.
+        serviceScope.launch {
+            NotificationFilterStore.init(applicationContext).state.collect {
+                sendNotificationFilterState()
+            }
         }
 
         checkPermissionsOnStart()
+    }
+
+    private fun sendNotificationFilterState() {
+        val state = NotificationFilterStore.init(applicationContext).state.value
+        blePeripheral?.sendPacket(
+            BridgePacket.notificationFilter(
+                allowed = state.allowed.size,
+                seen = state.seen.size,
+                muted = state.masterMute
+            )
+        )
     }
 
     private fun handleNotificationReply(requestReplyId: String, message: String) {
@@ -282,7 +305,12 @@ class BridgeService : Service() {
             cached.action.actionIntent.send(this, 0, intent)
             Log.i(TAG, "Reply delivered for $requestReplyId")
 
-            BridgeNotificationListener.instance?.cancelNotificationByKey(cached.notificationKey)
+            // Deliberately does NOT cancel the notification. Cancelling fired
+            // onNotificationRemoved, which evicted the cached RemoteInput, so a second
+            // reply to the same conversation was dropped — the bug the non-consuming
+            // cache read was meant to fix. The originating app owns its notification's
+            // lifetime after a reply, and whatever it does now reaches the Mac through
+            // the dismissal packet.
         } catch (e: Exception) {
             Log.e(TAG, "Failed to deliver reply", e)
         }
