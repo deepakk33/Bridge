@@ -17,7 +17,7 @@ place a work item is born. One row per item, one detail block per row.
 
 | ID | Title | Status | Branch |
 |----|-------|--------|--------|
-| BR-1 | Grey out the app list while mirroring is paused | in-progress | `work/br-1-mute-greys-app-list` |
+| BR-1 | Grey out the app list while mirroring is paused | done | `work/br-1-mute-greys-app-list` |
 
 ## Items
 
@@ -32,11 +32,11 @@ polarity to ON = block, which contradicts the allow-list model and the copy ship
 `0c31a23`. Port the greying only.
 **Platforms**: android
 **Done when**:
-- [ ] with the master switch ON, every app row is dimmed and its switch cannot be toggled
-- [ ] turning the master switch OFF restores full opacity and tappable switches, same screen,
+- [x] with the master switch ON, every app row is dimmed and its switch cannot be toggled
+- [x] turning the master switch OFF restores full opacity and tappable switches, same screen,
       no reload
-- [ ] opening the screen while already paused shows the dimmed state immediately
-- [ ] per-app switch polarity is unchanged — ON still means "mirror this app"
+- [x] opening the screen while already paused shows the dimmed state immediately
+- [x] per-app switch polarity is unchanged — ON still means "mirror this app"
 **Notes**: `adapter.setMuted()` must not read `store.isMuted()` at adapter construction — the
 store lazily touches `applicationContext` before the Context is attached and the activity
 crashes. Default the field false and apply the real value in `loadApps()`. The polarity

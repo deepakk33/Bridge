@@ -471,3 +471,53 @@ swiping the task from recents no longer kills the link.
 (e.g. a manual "test link" button). If root ever becomes acceptable, the clipboard
 overlay scaffolding history and `flushPendingRemote` cache show exactly where a
 privileged background read/write would slot in.
+
+## BR-1: Grey Out the App List While Mirroring Is Paused
+**Status**: Complete — builds clean, hardware-validated on Galaxy S25 (SM-S931B / Android 16)
+**Branch**: `work/br-1-mute-greys-app-list`
+**OpenSpec**: none — a port of already-written, already-hardware-verified code, so the
+propose phase was skipped deliberately. First item through the `docs/BACKLOG.md` pipeline.
+
+### Layman Summary
+Turning on "Pause mirroring to the Mac" stops every app from being mirrored, but the list
+of apps underneath stayed bright and tappable, so the screen looked like those apps were
+still going through. The list now fades out and stops responding while mirroring is
+paused, and comes back the moment you switch it off again.
+
+### Technical Summary
+`NotificationFilterActivity.AppAdapter` gained a `muted` flag. `onBindViewHolder` sets
+`itemView.alpha = if (muted) 0.4f else 1f` and `sw.isEnabled = !muted`; `setMuted()`
+re-binds on change and no-ops when the value is unchanged. It is called from the master
+switch's listener and from `loadApps()`, so entering the screen already paused renders
+dimmed on the first frame.
+
+`muted` defaults to `false` rather than reading `store.isMuted()` at construction: the
+adapter is a property initializer, and `NotificationFilterStore.init(applicationContext)`
+touches the Context before it is attached — doing so crashed the activity (found on the
+original branch, preserved here as a comment).
+
+Ported from `2a9119a` on the abandoned `worktree-fix+mute-greys-applist` branch. That
+commit also inverted the per-app switch polarity to ON = block and reworded the empty
+hint to match; both were **dropped**. Bridge is an allow-list (`store.setAllowed`,
+`isChecked = item.allowed`) and `0c31a23` had already rewritten that copy on `main`. The
+allowed/`shouldForward` model is untouched — this is display-only.
+
+### Hardware validation (2026-10-26, Galaxy S25 SM-S931B / Android 16)
+Release-signed build installed over the existing one (the debug signature does not match,
+and a debug install would have wiped the pairing). Driven by `adb input` + `uiautomator`:
+- Master ON → every row switch reports `enabled=false`; tapping one leaves it
+  `checked=false`; the screenshot shows the list at 40% alpha.
+- Master OFF → rows return to `enabled=true` on the same screen, no reload.
+- Paused, backed out, reopened → rows render `enabled=false` immediately.
+- Polarity unchanged: an app switched ON persists as ON across a reopen (`allowed=true`).
+
+### Known Issues / Degradations
+- The 0.4 alpha is a literal, not a theme attribute — it was not checked against a light
+  theme (the app is dark-only today).
+- The dimmed state is an adapter flag, not derived from the store flow; a mute toggled
+  from anywhere other than this screen would not redraw it until `loadApps()` runs. There
+  is no such other path today.
+
+### What the next item builds on
+First run of the `/work` pipeline end to end. `setMuted()` is the pattern for any future
+"this control is overridden" state in the filter screen.
