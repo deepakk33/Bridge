@@ -42,6 +42,7 @@
 		BC1DA1C26EB80DD0FD5F95F8 /* PermissionCheckerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3241536C325DAFEBA01D62D9 /* PermissionCheckerTests.swift */; };
 		C16EFDA9255A73CD89193263 /* PairingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE0F8609FF6A4A8A9A0FD720 /* PairingManager.swift */; };
 		C34FDDE9FB007537CDA62B2C /* TransferTierTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BBD3516611C23924253AAFF /* TransferTierTests.swift */; };
+		D357134A1CDC703E61710615 /* PhoneBatteryStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC781CF8096419A358A95D90 /* PhoneBatteryStateTests.swift */; };
 		F7452A80C0351B2D1BBCFD14 /* ShareRequestPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87D7A0814D52836AEB6121A7 /* ShareRequestPacketTests.swift */; };
 		F9178A7945E521ABDB6C670C /* FileTransferManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AAD4D7391D72CAFC163F99B /* FileTransferManager.swift */; };
 		FFB59835A37FB80721011E42 /* PayloadServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20416889391F161180DE2CC6 /* PayloadServer.swift */; };
@@ -94,6 +95,7 @@
 		AE0F8609FF6A4A8A9A0FD720 /* PairingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingManager.swift; sourceTree = "<group>"; };
 		B0F2494F49F91DB6543D7611 /* PayloadChannelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayloadChannelTests.swift; sourceTree = "<group>"; };
 		CE1964FFF4DA8D88BFABA20D /* FileReceiveController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileReceiveController.swift; sourceTree = "<group>"; };
+		EC781CF8096419A358A95D90 /* PhoneBatteryStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneBatteryStateTests.swift; sourceTree = "<group>"; };
 		F14A7876264A29DA1B376782 /* PermissionChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionChecker.swift; sourceTree = "<group>"; };
 		F1F277B0176220A76331FCC3 /* IdentityPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityPacketTests.swift; sourceTree = "<group>"; };
 		F23E809C7F4DC7042B7B1F41 /* PingHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PingHandler.swift; sourceTree = "<group>"; };
@@ -135,6 +137,7 @@
 				F79D4CCAEAE96BBDD50FBC16 /* PairPacketTests.swift */,
 				B0F2494F49F91DB6543D7611 /* PayloadChannelTests.swift */,
 				3241536C325DAFEBA01D62D9 /* PermissionCheckerTests.swift */,
+				EC781CF8096419A358A95D90 /* PhoneBatteryStateTests.swift */,
 				A05D2EFA77CC7611034C95F6 /* PingPacketTests.swift */,
 				87D7A0814D52836AEB6121A7 /* ShareRequestPacketTests.swift */,
 				8BBD3516611C23924253AAFF /* TransferTierTests.swift */,
@@ -322,6 +325,7 @@
 				0C93898C1A7925A1AB65584A /* PairPacketTests.swift in Sources */,
 				2BCFC4D3F72C5E1A49D456AD /* PayloadChannelTests.swift in Sources */,
 				BC1DA1C26EB80DD0FD5F95F8 /* PermissionCheckerTests.swift in Sources */,
+				D357134A1CDC703E61710615 /* PhoneBatteryStateTests.swift in Sources */,
 				023A58E9796C719825E7D20C /* PingPacketTests.swift in Sources */,
 				F7452A80C0351B2D1BBCFD14 /* ShareRequestPacketTests.swift in Sources */,
 				C34FDDE9FB007537CDA62B2C /* TransferTierTests.swift in Sources */,

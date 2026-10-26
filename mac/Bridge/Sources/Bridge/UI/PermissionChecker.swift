@@ -46,6 +46,12 @@ final class PermissionChecker: ObservableObject {
         items.contains { $0.status == .denied || $0.status == .restricted }
     }
 
+    /// The permissions the panel lists. A granted permission is still tracked in `items`
+    /// but is not shown: a panel that always carries green rows trains the user to skip it.
+    var needsAttention: [PermissionItem] {
+        Self.needingAttention(in: items)
+    }
+
     /// Re-query all permission states.
     func refresh() {
         var next: [PermissionItem] = []
@@ -111,6 +117,10 @@ final class PermissionChecker: ObservableObject {
         case .notDetermined: return .notRequested
         @unknown default: return .notRequested
         }
+    }
+
+    nonisolated static func needingAttention(in items: [PermissionItem]) -> [PermissionItem] {
+        items.filter { $0.status != .granted }
     }
 
     nonisolated static func mapNotification(_ status: UNAuthorizationStatus) -> PermissionStatus {

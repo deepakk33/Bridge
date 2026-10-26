@@ -521,3 +521,96 @@ and a debug install would have wiped the pairing). Driven by `adb input` + `uiau
 ### What the next item builds on
 First run of the `/work` pipeline end to end. `setMuted()` is the pattern for any future
 "this control is overridden" state in the filter screen.
+
+---
+
+## BR-2: Render the Mac Panel as a Window, Not an NSMenu
+
+**Branch**: `work/br-2-render-the-mac-panel-as-a-window` · **Change**:
+`openspec/changes/archive/2026-10-26-br-2-render-the-mac-panel-as-a-window` · **Source**: `AUD-A`
+
+### In plain terms
+
+The Mac's drop-down panel was being drawn as an old-style menu instead of a panel. That one
+missing line shredded every row: the coloured permission dot, the name and the status each
+became a separate greyed-out menu item, and 18 of the 22 items read as disabled. Adding the
+line turned it into a real panel, and the rows now sit on one line each.
+
+Two things we expected to fix turned out not to be fixable this way, and saying so is the
+point of this entry. The panel still cannot accept a dragged file — it closes the moment you
+click a file in Finder — so the line telling you to drag one was deleted rather than left
+lying. And the pairing confirmation still cannot appear, because the app accepts pair
+requests automatically before the screen ever sees them.
+
+### Technical summary
+
+- `.menuBarExtraStyle(.window)` on the `MenuBarExtra` scene. Single root cause; everything
+  below follows from it.
+- `StatusPanel`: fixed `.frame(width: 260)` + `.padding(12)` (284pt rendered, stable across
+  link states), four dividers cut to two, `Send File…` to `.borderedProminent` and disabled
+  while disconnected.
+- Permissions list only what is not granted, via `PermissionChecker.needingAttention(in:)`;
+  the section is absent when everything is held. Row is info-left / action-right.
+- `PairPromptView` reshaped from a 340pt sheet to an inline banner. Its `.sheet` could never
+  present from a non-activating panel. Keyboard shortcuts removed — inline, Escape is the
+  dismiss key and Return the default action, so either would have refused or accepted a peer
+  by accident. Keyed on `request.id` so a replacement request does not inherit the previous
+  countdown.
+- `BridgePacket.serialize()` emits `id`, `type`, `body` in order. It used `.sortedKeys` while
+  Android and `protocol/test-vectors` use declaration order, so the two platforms produced
+  different bytes for the same packet. Wire-compatible either way; taken here by explicit
+  decision though it belongs to BR-12.
+- `PhoneBatteryState.sfSymbol` no longer builds `battery.<n>.bolt`. SF Symbols ships a
+  charging variant only for the full glyph, so the icon was blank below 76% while charging —
+  in the panel and the menu bar both.
+
+Mac 84/84, Android 190/190 (`--rerun-tasks`; the vector is not a tracked Gradle input).
+
+### Hardware validation (2026-10-26, MacBook Air M3 + Galaxy S25 SM-S931B)
+
+- Accessibility enumeration: one window, no `NSMenu`, zero disabled elements. The AUD-A dump
+  had 22 flat items, 18 disabled.
+- Permission row measured at a single y-coordinate (name, status and action all at y=229).
+- Panel width 284pt in both connected and out-of-range states.
+- `Send File…` reports `enabled=false` while the link is down.
+- 600 KB file sent end to end over Wi-Fi LAN once both devices shared a subnet.
+- Battery glyph draws while charging; panel reads `Phone: 60% · Charging`.
+- Permission freshness: four panel opens produced four `Permission refresh` entries, so
+  `onAppear` fires per open under `.window`. A review finding claiming stale rows was wrong.
+
+### Known issues / degradations
+
+- **Drag-and-drop onto the panel is gone, not fixed.** The audit read `.dropDestination` as
+  inert only because of the `NSMenu` host. It is unreachable under the window presentation
+  too: the panel is dismissed as soon as another app takes key focus, and dragging over the
+  menu bar icon does not spring it open (two attempts on device). The copy and the handler
+  were removed. Real support means owning an `NSStatusItem` instead of a `MenuBarExtra`
+  scene — its own piece of work, not yet filed.
+- **The pair banner has never run against a real request.** `PairingManager.swift:190-194`
+  calls `presentPairConfirmation` then `acceptIncomingPair` in the same run loop while the
+  trust store is empty, so `incomingPairRequest` is never left set. Its comment gives the
+  reason as "the prompt only renders while the menu-bar panel happens to be open" — the
+  premise this change removes. Rendering was verified by injecting a request into a
+  throwaway build (that injection caught the fingerprint truncation below); the accept and
+  reject wiring was not.
+- **The 30-second auto-reject measures panel-open time, not wall-clock**, and contradicts
+  `presentPairConfirmation`'s own "No timeout: the user decides". Left for BR-5.
+- **Local Network is the only row the permission section ever shows**, because
+  `setLocalNetwork(_:)` still has no callers. Honest, and louder than it was between two
+  green rows. BR-11.
+- **`sendFile` still hardcodes `sharedNetworkAvailable: true`**, so the Mac always picks
+  Wi-Fi LAN and waits out a 30s timeout when the phone is unreachable. The timeout fires and
+  is logged; computing the flag for real is BR-8.
+- VoiceOver was not verified. Explicit `.accessibilityLabel`s were added because the window
+  panel does not expose button titles the way the menu items did, but the labels do not
+  surface through System Events scripting either, so only a VoiceOver pass settles it.
+- Light mode, Increase Contrast and larger text sizes were not checked.
+
+### What the next item builds on
+
+BR-5 can now present a real confirmation — that was the blocker that made pairing automatic,
+and removing the auto-accept is the one change that makes this panel's banner reachable.
+BR-11 inherits a panel whose only permission row is the dead Local Network one.
+A UI review raised polish left deliberately undone: ragged button widths, a single uniform
+spacing value that groups nothing, and `SM-S931B` shown twice (BR-11's "device name appears
+once").

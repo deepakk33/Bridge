@@ -1,5 +1,8 @@
 import SwiftUI
 
+/// The pair confirmation, rendered inline at the top of the status panel rather than as a
+/// sheet: the window-style menu bar panel is non-activating, and a sheet attached to one
+/// cannot be relied upon to present.
 struct PairPromptView: View {
     let request: PairingManager.PairRequestInfo
     let onAccept: () -> Void
@@ -9,51 +12,58 @@ struct PairPromptView: View {
     @State private var timer: Timer?
 
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "link.badge.plus")
-                .font(.system(size: 40))
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Pair Request", systemImage: "link.badge.plus")
+                .font(.subheadline.bold())
                 .foregroundStyle(.blue)
 
-            Text("Pair Request")
-                .font(.title2.bold())
-
             Text("\(request.deviceName) wants to pair")
-                .font(.body)
+                .font(.caption)
+                .lineLimit(1)
+                .truncationMode(.tail)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Certificate fingerprint:")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(formatFingerprint(request.fingerprint))
-                    .font(.system(.caption, design: .monospaced))
-                    .textSelection(.enabled)
-            }
-            .padding(8)
-            .background(Color.secondary.opacity(0.1))
-            .cornerRadius(8)
+            Text(formatFingerprint(request.fingerprint))
+                .font(.system(.caption2, design: .monospaced))
+                // A SHA-256 fingerprint formats to 95 characters and needs three lines here.
+                // Truncating it would hide exactly the span where a mismatch shows up, and
+                // lineLimit alone is a maximum — without fixedSize the text stays on one line.
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+                .padding(6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.secondary.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
 
             Text("Auto-reject in \(timeRemaining)s")
-                .font(.caption)
+                .font(.caption2)
                 .foregroundStyle(.secondary)
 
-            HStack(spacing: 16) {
+            HStack(spacing: 8) {
+                // No keyboard shortcuts: inline in the panel, Escape is the dismiss key and
+                // Return the default action, so either would pair or refuse a peer by accident.
                 Button("Reject") {
                     cleanup()
                     onReject()
                 }
-                .keyboardShortcut(.cancelAction)
+                .accessibilityLabel("Reject pair request from \(request.deviceName)")
 
                 Button("Accept") {
                     cleanup()
                     onAccept()
                 }
-                .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
+                .accessibilityLabel("Accept pair request from \(request.deviceName)")
             }
         }
-        .padding(24)
-        .frame(width: 340)
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.orange.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
         .onAppear {
+            // SwiftUI may reuse this view for a later request, so restart rather than resume.
+            timeRemaining = 30
+            timer?.invalidate()
             timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
                 timeRemaining -= 1
                 if timeRemaining <= 0 {

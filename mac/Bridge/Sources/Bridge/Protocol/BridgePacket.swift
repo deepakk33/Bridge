@@ -213,9 +213,22 @@ struct BridgePacket: @unchecked Sendable {
         guard JSONSerialization.isValidJSONObject(dict) else {
             throw BridgePacketError.invalidBody
         }
-        var data = try JSONSerialization.data(withJSONObject: dict, options: [.sortedKeys])
+        // Keys go out as id, type, body to match protocol/test-vectors and the Android
+        // encoder, which writes them in declaration order. JSONSerialization cannot preserve
+        // key order, so each value is encoded on its own and the object is assembled here.
+        let encodedType = try Self.encodeValue(type)
+        let encodedBody = try Self.encodeValue(body)
+        var data = Data(#"{"id":\#(id),"type":\#(encodedType),"body":\#(encodedBody)}"#.utf8)
         data.append(contentsOf: [0x0A]) // newline
         return data
+    }
+
+    private static func encodeValue(_ value: Any) throws -> String {
+        let data = try JSONSerialization.data(
+            withJSONObject: value,
+            options: [.sortedKeys, .fragmentsAllowed]
+        )
+        return String(decoding: data, as: UTF8.self)
     }
 
     /// Deserialize from a single line of JSON bytes (with or without trailing newline).
