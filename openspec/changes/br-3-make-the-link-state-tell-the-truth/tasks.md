@@ -69,24 +69,37 @@
 
 ## 6. Device test (MacBook Air M3 + Galaxy S25)
 
-Run 2026-10-26 on a MacBook Air M3 (macOS 26.6.2) with the Galaxy S25 BLE-connected. The phone
-was **not reachable over adb** and could not be driven, so every criterion that needs the phone
-force-stopped, moved, or restarted is reported **untested**, not passed.
+Run 2026-10-26 on a MacBook Air M3 (macOS 26.6.2) with a Galaxy S25 (SM-S931B, RZGL82QKJCB)
+over adb. Health transitions are logged at public visibility, so each result below is a log
+line, not an inference.
 
-- [ ] 6.1 **UNTESTED** — force-stop `com.bridge.app` with the phone on the desk: expect
-      "Not responding" plus the restart guidance. Needs adb or hands on the phone. The
-      `CBError` code this hinges on is therefore also unobserved; `Disconnect reason:` is
-      logged at public visibility so one run will settle it.
-- [ ] 6.2 **UNTESTED** — carry the phone out of BLE range: expect "Out of range" with a
-      last-seen line. Needs someone to walk away with the phone.
-- [ ] 6.3 **UNTESTED** — reply into a dead link and expect the delivery-failure notification.
-      Depends on 6.1. The send path's failure reporting is covered by `FramedWriterTests`, and
-      the watchdog callback that was silently dead is covered by `PingWatchdogTests`
-      (`testTimeoutCallbackFiresAfterSilence` fails against the pre-fix code).
-- [x] 6.4 **PASS** — a fresh connect does not claim "Connected" before verification. Observed:
-      `15:23:00.603 Link health: outOfRange` → `15:23:21.408 Link health: verifying` →
-      `15:23:22.011 Link health: connected`, with four `Dropping packet from untrusted device`
-      lines in the 603 ms the peer was unverified.
-- [ ] 6.5 **UNTESTED** — restart the phone service and expect "Connected" plus the battery
-      reading within 10 s. Depends on 6.1. The connect half was observed in 6.4; the
-      recover-from-dead half was not.
+- [x] 6.1 **PASS** — `adb shell am force-stop com.bridge.app` with the phone on the desk:
+      `17:55:58.141 Disconnect reason: peerTerminated` → `17:55:58.141 Link health: dead`,
+      2.1 s after the force-stop. `.dead` renders "Not responding" with the restart guidance.
+      **This settles the design's one open risk**: Core Bluetooth does distinguish a
+      remote-terminated disconnect from a supervision timeout on this hardware, so the
+      "Link lost" fallback is not needed.
+- [ ] 6.2 **PARTIALLY TESTED** — the "Out of range" state itself was observed on the
+      no-peripheral-found path (`17:55:22.055 Link health: outOfRange` at launch). What is
+      **untested** is the supervision-timeout disconnect specifically, which needs the phone
+      carried out of range; adb cannot produce it (disabling the phone's Bluetooth is a
+      peer-terminated teardown, which is a different case the spec maps to `.dead` on purpose).
+      Any disconnect reason that is not local or peer-terminated falls through to
+      `.outOfRange`, so the criterion holds by construction even if the timeout code differs.
+- [ ] 6.3 **UNTESTED** — a reply into a dead link posting the delivery-failure notification.
+      Needs a mirrored notification on screen and a human clicking Reply; not drivable from
+      here. The two halves are covered in isolation: `FramedWriterTests` for the send result,
+      and `PingWatchdogTests.testTimeoutCallbackFiresAfterSilence`, which fails against the
+      pre-fix code, for the watchdog callback that had never run.
+- [x] 6.4 **PASS** — a fresh connect does not claim "Connected" before verification:
+      `17:55:22.055 outOfRange` → `17:55:22.650 verifying` → `17:55:23.984 connected`.
+- [x] 6.5 **PASS** — restarting the phone service recovers: restart at `17:56:12`,
+      `17:56:13.020 verifying` → `17:56:13.741 connected`, ~1.7 s.
+
+### Defect found by the device test (fixed)
+
+The first restart run showed `dead` → `stale(seconds: 66)` → `verifying` → `connected`: between
+the BLE reconnect and the watchdog restarting, staleness was measured against the *previous*
+session's last packet, so a fresh link read as 66 seconds silent. `PingWatchdog.resetClock()` is
+now called on `didConnect`. The re-run above shows `dead` → `verifying` → `connected` with no
+stale step.

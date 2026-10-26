@@ -53,6 +53,12 @@ final class PingWatchdog {
         lastPacketReceived = Date()
     }
 
+    /// A new transport connection restarts the silence measurement — the gap that
+    /// preceded it belongs to the session that ended, not to this one.
+    func resetClock() {
+        lastPacketReceived = Date()
+    }
+
     var lastSeen: Date? {
         lastPacketReceived
     }

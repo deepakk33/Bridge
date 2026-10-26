@@ -418,6 +418,9 @@ extension BLEManager: CBCentralManagerDelegate {
             Self.logger.info("Connected to \(peripheral.name ?? "unnamed")")
             peripheralConnected = true
             lastDisconnect = nil
+            // Otherwise the previous session's gap is measured against this one and a
+            // fresh reconnect reads as stale before the first packet lands.
+            pingWatchdog.resetClock()
             connectedDeviceName = peripheral.name
             refreshHealth()
             peripheral.discoverServices([BridgeConstants.serviceUUID])
