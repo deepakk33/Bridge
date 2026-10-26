@@ -25,10 +25,12 @@
 		515E1D5A875306FAD192C882 /* NotificationPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81D97DF5382C0F8F6ADAC758 /* NotificationPacketTests.swift */; };
 		5E5054D22E7168E2B49CA7C8 /* PingWatchdog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BEC79646EB8C5C1774F379F /* PingWatchdog.swift */; };
 		69CF4BD0E971F9CC842F7214 /* TrustStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7EFB7EF978217A8DAB5F29A /* TrustStoreTests.swift */; };
+		7119C8B066E708DA6105AD72 /* MirroringStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6352397936B6C09C52E78697 /* MirroringStateTests.swift */; };
 		74023612371A00373BF81B07 /* PayloadClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69FC0E53777F564A0AE74EC3 /* PayloadClient.swift */; };
 		8233CAFAD0D7B6A9F953D36F /* TrustStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84DAE9B943673867F6E91824 /* TrustStore.swift */; };
 		83FB28C1575F47D4535D342C /* CertificateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56B364144621CA738A409CA7 /* CertificateManager.swift */; };
 		87BEA2175104ABBFF8505E1C /* LinkHealthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0443ED625311A6173521E3A9 /* LinkHealthTests.swift */; };
+		942247D88931C66C49ACC257 /* MirroringState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31FE223B2DF8A794FBA6D277 /* MirroringState.swift */; };
 		970A6E486B671EAF219376D9 /* AllVectorsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86DD549D144C99B0C9AAC869 /* AllVectorsTests.swift */; };
 		9749CC395955B3C5BFA2C962 /* BridgePacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92405DBC9DC528F2C17A32E3 /* BridgePacket.swift */; };
 		9752467E7B12213672547F27 /* ClipboardPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 352D3EE8282E7F7AC124CB70 /* ClipboardPacketTests.swift */; };
@@ -71,12 +73,14 @@
 		23B445C6C77FD4607AD01C3E /* StatusPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusPanel.swift; sourceTree = "<group>"; };
 		26E3CC2C1D526E810F1C97F7 /* TransferTier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferTier.swift; sourceTree = "<group>"; };
 		2F85314029FB0E73B710FCBC /* MdnsBrowser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MdnsBrowser.swift; sourceTree = "<group>"; };
+		31FE223B2DF8A794FBA6D277 /* MirroringState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MirroringState.swift; sourceTree = "<group>"; };
 		3241536C325DAFEBA01D62D9 /* PermissionCheckerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionCheckerTests.swift; sourceTree = "<group>"; };
 		352D3EE8282E7F7AC124CB70 /* ClipboardPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardPacketTests.swift; sourceTree = "<group>"; };
 		56B364144621CA738A409CA7 /* CertificateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CertificateManager.swift; sourceTree = "<group>"; };
 		58B0DE230D96A2A95E6F0C64 /* ClipboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitor.swift; sourceTree = "<group>"; };
 		58E003C57BDD9F417908C0C4 /* Bridge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Bridge.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5BEC79646EB8C5C1774F379F /* PingWatchdog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PingWatchdog.swift; sourceTree = "<group>"; };
+		6352397936B6C09C52E78697 /* MirroringStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MirroringStateTests.swift; sourceTree = "<group>"; };
 		64ABF32D683378EDAC5B5713 /* PairPromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairPromptView.swift; sourceTree = "<group>"; };
 		69FC0E53777F564A0AE74EC3 /* PayloadClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayloadClient.swift; sourceTree = "<group>"; };
 		6B2AA0107B75FB36399DA686 /* BridgeConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeConstants.swift; sourceTree = "<group>"; };
@@ -133,6 +137,7 @@
 				352D3EE8282E7F7AC124CB70 /* ClipboardPacketTests.swift */,
 				F1F277B0176220A76331FCC3 /* IdentityPacketTests.swift */,
 				0443ED625311A6173521E3A9 /* LinkHealthTests.swift */,
+				6352397936B6C09C52E78697 /* MirroringStateTests.swift */,
 				81D97DF5382C0F8F6ADAC758 /* NotificationPacketTests.swift */,
 				F79D4CCAEAE96BBDD50FBC16 /* PairPacketTests.swift */,
 				B0F2494F49F91DB6543D7611 /* PayloadChannelTests.swift */,
@@ -191,6 +196,7 @@
 		C1E16CADCEC467C535BF9C4D /* Notifications */ = {
 			isa = PBXGroup;
 			children = (
+				31FE223B2DF8A794FBA6D277 /* MirroringState.swift */,
 				82F25AD4EC1B195EEF0212A4 /* NotificationManager.swift */,
 			);
 			path = Notifications;
@@ -321,6 +327,7 @@
 				9752467E7B12213672547F27 /* ClipboardPacketTests.swift in Sources */,
 				2B3E105AD9ECD6573157ECD8 /* IdentityPacketTests.swift in Sources */,
 				87BEA2175104ABBFF8505E1C /* LinkHealthTests.swift in Sources */,
+				7119C8B066E708DA6105AD72 /* MirroringStateTests.swift in Sources */,
 				515E1D5A875306FAD192C882 /* NotificationPacketTests.swift in Sources */,
 				0C93898C1A7925A1AB65584A /* PairPacketTests.swift in Sources */,
 				2BCFC4D3F72C5E1A49D456AD /* PayloadChannelTests.swift in Sources */,
@@ -349,6 +356,7 @@
 				B60E645A6215EC13A9A12D03 /* LinkHealth.swift in Sources */,
 				33C90C8F1A70A24E835CEE38 /* LinkStateMachine.swift in Sources */,
 				0474A61D51135F61A67EEABC /* MdnsBrowser.swift in Sources */,
+				942247D88931C66C49ACC257 /* MirroringState.swift in Sources */,
 				46A3F0836126741F2EB48F7D /* NotificationManager.swift in Sources */,
 				A89163011205C65ADD146365 /* PairPromptView.swift in Sources */,
 				C16EFDA9255A73CD89193263 /* PairingManager.swift in Sources */,

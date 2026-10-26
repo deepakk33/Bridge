@@ -99,6 +99,32 @@ final class NotificationManager: NSObject, ObservableObject {
         }
     }
 
+    /// Withdraws a notification the phone says is gone. Without this, every notification
+    /// read on the phone leaves a stale copy here. Removing a delivered notification is
+    /// programmatic, so it does not run `didReceive` and cannot send a dismissal back.
+    func handleNotificationRequestPacket(_ packet: BridgePacket) {
+        guard let cancel = Self.cancelIdentifier(from: packet) else { return }
+
+        Self.withdraw(identifier: cancel)
+        Self.logger.info("Withdrew notification \(cancel, privacy: .public)")
+    }
+
+    /// The identifier to withdraw, or nil if this packet asks for nothing. Pure so the
+    /// guard is testable without a notification centre: an empty or absent `cancel`
+    /// would otherwise withdraw nothing while reading as if it had.
+    nonisolated static func cancelIdentifier(from packet: BridgePacket) -> String? {
+        guard packet.type == "bridge.notification.request",
+              let cancel = packet.body["cancel"] as? String,
+              !cancel.isEmpty else { return nil }
+        return cancel
+    }
+
+    /// Unknown identifiers are a no-op, which is what makes the handler idempotent.
+    nonisolated static func withdraw(identifier: String) {
+        UNUserNotificationCenter.current()
+            .removeDeliveredNotifications(withIdentifiers: [identifier])
+    }
+
     func handleBatteryPacket(_ packet: BridgePacket) {
         guard packet.type == "bridge.battery" else { return }
         let charge = packet.body["currentCharge"] as? Int

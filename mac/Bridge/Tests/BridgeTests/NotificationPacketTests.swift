@@ -224,4 +224,40 @@ final class NotificationPacketTests: XCTestCase {
         let hasReplyId = replyId != nil && !(replyId is NSNull)
         XCTAssertFalse(hasReplyId)
     }
+
+    // MARK: - BR-6: bridge.notification.filter
+
+    func testNotificationFilterVectorsParse() throws {
+        let url = Self.testVectorsDir.appendingPathComponent("notification-filter.json")
+        let data = try Data(contentsOf: url)
+        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let valid = json["valid"] as! [[String: Any]]
+        XCTAssertEqual(valid.count, 4, "expected mirroring, none-allowed, none-seen and paused")
+
+        for vector in valid {
+            let packetDict = vector["packet"] as! [String: Any]
+            let packetData = try JSONSerialization.data(withJSONObject: packetDict)
+            let packet = try BridgePacket.deserialize(from: packetData)
+            XCTAssertEqual(packet.type, "bridge.notification.filter")
+            XCTAssertNotNil(packet.body["allowed"] as? Int)
+            XCTAssertNotNil(packet.body["muted"] as? Bool)
+        }
+    }
+
+    func testPhoneClearedDismissalVectorsParse() throws {
+        let url = Self.testVectorsDir.appendingPathComponent("notification-request.json")
+        let data = try Data(contentsOf: url)
+        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let valid = json["valid"] as! [[String: Any]]
+
+        for vector in valid {
+            let packetDict = vector["packet"] as! [String: Any]
+            let packetData = try JSONSerialization.data(withJSONObject: packetDict)
+            let packet = try BridgePacket.deserialize(from: packetData)
+            XCTAssertEqual(packet.type, "bridge.notification.request")
+            let cancel = packet.body["cancel"] as? String
+            XCTAssertNotNil(cancel)
+            XCTAssertFalse(cancel!.isEmpty, "a dismissal with no identifier cancels nothing")
+        }
+    }
 }

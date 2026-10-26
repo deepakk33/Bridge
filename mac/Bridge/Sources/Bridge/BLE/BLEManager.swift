@@ -8,6 +8,8 @@ final class BLEManager: NSObject, ObservableObject {
     @Published var linkState: LinkStateMachine
     @Published var currentLinkState: LinkState = .disconnected
     @Published var connectedDeviceName: String?
+    /// nil until the phone reports it this connection — the Mac never invents a count.
+    @Published var mirroringState: MirroringState?
 
     let pairingManager = PairingManager()
     let pingWatchdog = PingWatchdog()
@@ -86,6 +88,7 @@ final class BLEManager: NSObject, ObservableObject {
         l2capChannel = nil
         discoveredPeripheral = nil
         connectedDeviceName = nil
+        mirroringState = nil
         peerDeviceId = nil
         peerFingerprint = nil
         transitionLink(to: .disconnected)
@@ -126,6 +129,7 @@ final class BLEManager: NSObject, ObservableObject {
         l2capChannel = nil
         psmValue = nil
         connectedDeviceName = nil
+        mirroringState = nil
         peerDeviceId = nil
         peerFingerprint = nil
         pairingManager.reset()
@@ -170,11 +174,22 @@ final class BLEManager: NSObject, ObservableObject {
             Task { await clipboardMonitor.handleClipboardConnectPacket(packet) }
         case "bridge.share.request":
             handleShareRequest(packet)
-        case "bridge.notification.reply", "bridge.notification.request":
-            Self.logger.info("Received \(packet.type) — not applicable on Mac side")
+        case "bridge.notification.request":
+            notificationManager.handleNotificationRequestPacket(packet)
+        case "bridge.notification.filter":
+            handleNotificationFilterPacket(packet)
+        case "bridge.notification.reply":
+            Self.logger.info("Received \(packet.type) — phone-bound, nothing to do here")
         default:
             Self.logger.info("Unhandled packet type: \(packet.type)")
         }
+    }
+
+    private func handleNotificationFilterPacket(_ packet: BridgePacket) {
+        guard let allowed = packet.body["allowed"] as? Int,
+              let muted = packet.body["muted"] as? Bool else { return }
+        let seen = packet.body["seen"] as? Int ?? 0
+        mirroringState = MirroringState(allowed: allowed, seen: seen, muted: muted)
     }
 
     private func handleShareRequest(_ packet: BridgePacket) {
@@ -218,7 +233,8 @@ final class BLEManager: NSObject, ObservableObject {
             let capabilities = [
                 "bridge.ping", "bridge.pair",
                 "bridge.notification", "bridge.notification.reply",
-                "bridge.notification.request", "bridge.battery",
+                "bridge.notification.request", "bridge.notification.filter",
+                "bridge.battery",
                 "bridge.clipboard", "bridge.clipboard.connect"
             ]
             let packet = BridgePacket.identity(
@@ -270,6 +286,7 @@ extension BLEManager: CBCentralManagerDelegate {
                 Self.logger.warning("Bluetooth powered off")
                 transitionLink(to: .bluetoothOff)
                 connectedDeviceName = nil
+        mirroringState = nil
             case .unauthorized:
                 Self.logger.error("Bluetooth unauthorized")
                 transitionLink(to: .bluetoothOff)

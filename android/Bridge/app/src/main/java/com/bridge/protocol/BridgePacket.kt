@@ -153,6 +153,21 @@ data class BridgePacket(
             }
         )
 
+        /**
+         * Reports how many apps are mirroring so the Mac can state it rather than
+         * guess. Sent on connect and on every filter change; the Mac never sends this
+         * type back, because it cannot change the phone's filter.
+         */
+        fun notificationFilter(allowed: Int, seen: Int, muted: Boolean): BridgePacket = BridgePacket(
+            id = System.currentTimeMillis(),
+            type = "bridge.notification.filter",
+            body = buildJsonObject {
+                put("allowed", allowed)
+                put("seen", seen)
+                put("muted", muted)
+            }
+        )
+
         fun battery(currentCharge: Int, isCharging: Boolean): BridgePacket = BridgePacket(
             id = System.currentTimeMillis(),
             type = "bridge.battery",

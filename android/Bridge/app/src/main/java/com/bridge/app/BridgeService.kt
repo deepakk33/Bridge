@@ -24,6 +24,7 @@ import com.bridge.filetransfer.FileReceiver
 import com.bridge.filetransfer.FileTransferCoordinator
 import com.bridge.filetransfer.TransferNotifier
 import com.bridge.notifications.BridgeNotificationListener
+import com.bridge.notifications.NotificationFilterStore
 import com.bridge.permissions.PermissionStatusChecker
 import com.bridge.protocol.BridgePacket
 import com.bridge.security.CertificateManager
@@ -260,9 +261,28 @@ class BridgeService : Service() {
             if (connectPacket != null) {
                 blePeripheral?.sendPacket(connectPacket)
             }
+            sendNotificationFilterState()
+        }
+
+        // Keep the Mac's mirroring count honest as the user toggles apps.
+        serviceScope.launch {
+            NotificationFilterStore.init(applicationContext).state.collect {
+                sendNotificationFilterState()
+            }
         }
 
         checkPermissionsOnStart()
+    }
+
+    private fun sendNotificationFilterState() {
+        val state = NotificationFilterStore.init(applicationContext).state.value
+        blePeripheral?.sendPacket(
+            BridgePacket.notificationFilter(
+                allowed = state.allowed.size,
+                seen = state.seen.size,
+                muted = state.masterMute
+            )
+        )
     }
 
     private fun handleNotificationReply(requestReplyId: String, message: String) {

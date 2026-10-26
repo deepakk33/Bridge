@@ -87,6 +87,13 @@ struct StatusPanel: View {
                 .truncationMode(.tail)
         }
 
+        if isConnected {
+            Text(bleManager.mirroringState?.summary ?? MirroringState.unknownSummary)
+                .font(.caption)
+                .foregroundStyle(mirroringTint)
+                .lineLimit(1)
+        }
+
         if isConnected, let level = batteryState.level {
             HStack(spacing: 4) {
                 Image(systemName: batteryState.sfSymbol)
@@ -174,6 +181,13 @@ struct StatusPanel: View {
                 }
             }
         }
+    }
+
+    /// Amber only when nothing is reaching the Mac — the state the user cannot
+    /// otherwise tell apart from a quiet phone.
+    private var mirroringTint: Color {
+        guard let state = bleManager.mirroringState else { return .secondary }
+        return (state.muted || state.allowed == 0) ? .orange : .secondary
     }
 
     private func color(for status: PermissionStatus) -> Color {

@@ -48,26 +48,28 @@
 
 ## 5. Android — the count on the home screen
 
-- [ ] 5.1 Add the mirroring strings to `strings.xml` (`Mirroring %d apps` / `Paused` / `No apps on yet`); no
+- [x] 5.1 Add the mirroring strings to `strings.xml` (`Mirroring %d apps` / `Paused` / `No apps on yet`); no
       inline literals. Verify none of the three is hard-coded in Kotlin or XML by grepping for them.
-- [ ] 5.2 Render the count in the notifications card subtitle in `MainActivity`, observing the store's
+- [x] 5.2 Render the count in the notifications card subtitle in `MainActivity`, observing the store's
       `StateFlow` so a toggle updates it without reopening the screen; verify on device across all three
       states.
 
 ## 6. Android — reporting the filter state
 
-- [ ] 6.1 Add `BridgePacket.notificationFilter(allowed:seen:muted:)` and send it from `BridgeService` on
+- [x] 6.1 Add `BridgePacket.notificationFilter(allowed:seen:muted:)` and send it from `BridgeService` on
       connection establishment and on every filter-state change; verify with a unit test on the packet shape
       and by reading logcat on device for one send per toggle.
 
 ## 7. Mac — acting on what the phone sends
 
-- [ ] 7.1 Replace the `"not applicable on Mac side"` branch for `bridge.notification.request` in
+- [x] 7.1 Replace the `"not applicable on Mac side"` branch for `bridge.notification.request` in
       `BLEManager.handlePacket` with a call into `NotificationManager`; keep `bridge.notification.reply`
       logging as-is since it genuinely is phone-bound. Verify the project builds.
-- [ ] 7.2 Add `NotificationManager.withdraw(id:)` calling `removeDeliveredNotifications(withIdentifiers:)`, and
-      a unit test that a withdraw for an unknown identifier is a no-op rather than an error.
-- [ ] 7.3 Handle `bridge.notification.filter`: store the count and mute flag as `@Published` state that starts
+- [x] 7.2 Add `NotificationManager.withdraw(id:)` calling `removeDeliveredNotifications(withIdentifiers:)`, plus a pure
+      `cancelIdentifier(from:)` guard with 5 tests (valid, empty, missing, wrong type, non-string). The no-op on
+      an unknown identifier is `removeDeliveredNotifications`' own documented behaviour, so it is not re-tested
+      here; what is tested is that a packet naming nothing withdraws nothing.
+- [x] 7.3 Handle `bridge.notification.filter`: store the count and mute flag as `@Published` state that starts
       unknown; verify with a unit test that the initial state is unknown, that a received packet sets it, and
       that receiving the same packet twice leaves it unchanged.
 - [ ] 7.4 Render the mirroring line in `StatusPanel`, including the unknown case; verify by eye that the panel
@@ -75,11 +77,11 @@
 
 ## 8. Verification
 
-- [ ] 8.1 Run `xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge test` and read the output.
-- [ ] 8.2 Run `(cd android/Bridge && ./gradlew test assembleDebug --rerun-tasks)` and read the output. The
+- [x] 8.1 Run `xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge test` and read the output.
+- [x] 8.2 Run `(cd android/Bridge && ./gradlew test assembleDebug --rerun-tasks)` and read the output. The
       `--rerun-tasks` matters: the shared vectors are read at runtime from a relative path and are not a
       tracked Gradle input, so a cached run proves nothing.
-- [ ] 8.3 Run `openspec validate br-6-notification-mirroring --strict` and read the output.
+- [x] 8.3 Run `openspec validate br-6-notification-mirroring --strict` and read the output.
 
 ## 9. Manual device test (MacBook Air M3 + Galaxy S25)
 

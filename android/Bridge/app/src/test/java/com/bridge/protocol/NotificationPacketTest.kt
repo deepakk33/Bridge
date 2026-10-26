@@ -233,4 +233,28 @@ class NotificationPacketTest {
         assertEquals(42, deserialized.body["currentCharge"]?.jsonPrimitive?.int)
         assertEquals(false, deserialized.body["isCharging"]?.jsonPrimitive?.boolean)
     }
+
+    // --- BR-6: bridge.notification.filter ---
+
+    @Test
+    fun `notificationFilter carries the counts and mute flag`() {
+        val packet = BridgePacket.notificationFilter(allowed = 3, seen = 47, muted = false)
+
+        assertEquals("bridge.notification.filter", packet.type)
+        assertEquals(3, packet.body["allowed"]?.jsonPrimitive?.int)
+        assertEquals(47, packet.body["seen"]?.jsonPrimitive?.int)
+        assertEquals(false, packet.body["muted"]?.jsonPrimitive?.boolean)
+    }
+
+    @Test
+    fun `notificationFilter round-trips through the wire format`() {
+        val original = BridgePacket.notificationFilter(allowed = 0, seen = 0, muted = true)
+        val line = String(original.serialize(), Charsets.UTF_8)
+        val back = BridgePacket.deserialize(line)
+
+        assertEquals(original.type, back.type)
+        assertEquals(0, back.body["allowed"]?.jsonPrimitive?.int)
+        assertEquals(0, back.body["seen"]?.jsonPrimitive?.int)
+        assertEquals(true, back.body["muted"]?.jsonPrimitive?.boolean)
+    }
 }

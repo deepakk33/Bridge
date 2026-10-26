@@ -17,6 +17,14 @@
     <!-- Sections -->
     <string name="section_notifications">Notifications</string>
     <string name="section_notifications_desc">Choose which apps mirror to the Mac</string>
+    <!-- BR-6: the mirroring count, so "nothing is arriving" is distinguishable from
+         "nothing is being sent" without opening the filter screen. -->
+    <plurals name="mirroring_app_count">
+        <item quantity="one">Mirroring %d app</item>
+        <item quantity="other">Mirroring %d apps</item>
+    </plurals>
+    <string name="mirroring_paused">Paused</string>
+    <string name="mirroring_none">No apps on yet</string>
     <string name="section_clipboard">Clipboard</string>
     <string name="section_permissions">Permissions</string>
 
