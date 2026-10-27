@@ -763,13 +763,18 @@ battery reading, it hides it rather than showing a stale number.
 
 ### Known issues / degradations
 
-- **Range loss was never reproduced.** Three attempts failed to drop the BLE link — it held
-  through every walk, with pings continuing — and adb cannot produce a supervision timeout, since
-  disabling the phone's Bluetooth is a peer-terminated teardown that the spec maps to `.dead` by
-  design. `.outOfRange` itself is confirmed on the no-peripheral-found path. The residual risk: if
-  genuine range loss also reports `peerTerminated`, a departed phone will read "Not responding"
-  instead of "Out of range". That is still strictly better than the previous behaviour, which
-  blamed distance for every failure including a killed service.
+- **A supervision timeout specifically was never reproduced**, though the fallback path it would
+  take is now confirmed on hardware. Three attempts to walk the phone out of range failed to drop
+  the link at all, and adb cannot force a timeout, since disabling the phone's Bluetooth is a
+  peer-terminated teardown that the spec maps to `.dead` by design.
+
+  What *was* observed live (2026-10-27 12:51:29) is a real disconnect carrying no `CBError` at
+  all — logged as "Disconnected cleanly" — which mapped to `.unknown` → `Link health: outOfRange`,
+  with an automatic reconnect 1.4 s later. So the discrimination demonstrably works in both
+  directions on this hardware: a force-stop reports `peerTerminated` and reads "Not responding",
+  while an unexplained drop reads "Out of range". The residual risk is now narrow — only if a
+  genuine range-loss timeout were reported as `peerTerminated` specifically would a departed
+  phone read "Not responding", and nothing observed suggests it would.
 - **The delivery-failure notification was not exercised end to end.** It needs a mirrored
   notification on screen and a human clicking Reply. Both halves are covered in isolation by
   `FramedWriterTests` and `PingWatchdogTests`.
