@@ -69,37 +69,58 @@
 
 ## 6. Device test (MacBook Air M3 + Galaxy S25)
 
-Run 2026-10-26 on a MacBook Air M3 (macOS 26.6.2) with a Galaxy S25 (SM-S931B, RZGL82QKJCB)
-over adb. Health transitions are logged at public visibility, so each result below is a log
-line, not an inference.
+Run 2026-10-26/27 on a MacBook Air M3 (macOS 26.6.2) with a Galaxy S25 (SM-S931B) over adb and
+BLE. Health transitions are logged at public visibility, so each result is a log line.
 
-- [x] 6.1 **PASS** — `adb shell am force-stop com.bridge.app` with the phone on the desk:
-      `17:55:58.141 Disconnect reason: peerTerminated` → `17:55:58.141 Link health: dead`,
-      2.1 s after the force-stop. `.dead` renders "Not responding" with the restart guidance.
-      **This settles the design's one open risk**: Core Bluetooth does distinguish a
-      remote-terminated disconnect from a supervision timeout on this hardware, so the
-      "Link lost" fallback is not needed.
-- [ ] 6.2 **PARTIALLY TESTED** — the "Out of range" state itself was observed on the
-      no-peripheral-found path (`17:55:22.055 Link health: outOfRange` at launch). What is
-      **untested** is the supervision-timeout disconnect specifically, which needs the phone
-      carried out of range; adb cannot produce it (disabling the phone's Bluetooth is a
-      peer-terminated teardown, which is a different case the spec maps to `.dead` on purpose).
-      Any disconnect reason that is not local or peer-terminated falls through to
-      `.outOfRange`, so the criterion holds by construction even if the timeout code differs.
+- [x] 6.1 **PASS** — `am force-stop com.bridge.app` with the phone on the desk:
+      `Disconnect reason: peerTerminated` → `Link health: dead`, 2.1 s later. `.dead` renders
+      "Not responding" with the restart guidance. **This settles the design's one open risk**:
+      Core Bluetooth does distinguish a remote-terminated disconnect from a supervision timeout
+      on this hardware, so the "Link lost" fallback is not needed.
+- [ ] 6.2 **UNVERIFIED** — the `.outOfRange` state itself was observed repeatedly on the
+      no-peripheral-found path (`12:26:40 Link health: outOfRange` before discovery). What is
+      untested is a **supervision-timeout disconnect** specifically: three attempts to carry the
+      phone out of range failed to drop the link (BLE held throughout; pings continued), and adb
+      cannot produce one — disabling the phone's Bluetooth is a peer-terminated teardown, which
+      the spec maps to `.dead` deliberately. Any reason other than local or peer-terminated falls
+      through to `.outOfRange`, so the criterion holds by construction; the residual risk is that
+      range loss also reports `peerTerminated`, in which case a departed phone would read
+      "Not responding". Carried into `docs/ITERATIONS.md` as a known gap.
 - [ ] 6.3 **UNTESTED** — a reply into a dead link posting the delivery-failure notification.
-      Needs a mirrored notification on screen and a human clicking Reply; not drivable from
-      here. The two halves are covered in isolation: `FramedWriterTests` for the send result,
-      and `PingWatchdogTests.testTimeoutCallbackFiresAfterSilence`, which fails against the
-      pre-fix code, for the watchdog callback that had never run.
-- [x] 6.4 **PASS** — a fresh connect does not claim "Connected" before verification:
-      `17:55:22.055 outOfRange` → `17:55:22.650 verifying` → `17:55:23.984 connected`.
-- [x] 6.5 **PASS** — restarting the phone service recovers: restart at `17:56:12`,
-      `17:56:13.020 verifying` → `17:56:13.741 connected`, ~1.7 s.
+      Needs a mirrored notification on screen and a human clicking Reply. Both halves are covered
+      in isolation: `FramedWriterTests` for the send result, and
+      `PingWatchdogTests.testTimeoutCallbackFiresAfterSilence`, which fails against the pre-fix
+      code, for the watchdog callback that had never run.
+- [x] 6.4 **PASS** — a fresh connect never claims "Connected" before verification. Observed on
+      three separate launches, e.g. `12:26:40 outOfRange` → `12:26:41 verifying` →
+      `12:26:42 connected`, discovery at RSSI −43 in 33 ms.
+- [x] 6.5 **PASS** — restarting the phone service recovers: restart `12:16:12`,
+      `verifying` → `connected` in ~1.7 s.
+- [x] 6.6 **PASS** (not in the original list) — `bluetoothOff` observed on two live Bluetooth
+      toggles with the app untouched: `12:20:56 bluetoothOff` → `12:21:02 outOfRange`, and again
+      at `12:21:59` / `12:22:23`. Recovery needed no restart.
 
-### Defect found by the device test (fixed)
+### Defects found by the device test (all fixed)
 
-The first restart run showed `dead` → `stale(seconds: 66)` → `verifying` → `connected`: between
-the BLE reconnect and the watchdog restarting, staleness was measured against the *previous*
-session's last packet, so a fresh link read as 66 seconds silent. `PingWatchdog.resetClock()` is
-now called on `didConnect`. The re-run above shows `dead` → `verifying` → `connected` with no
-stale step.
+1. **Stale reconnect** — the first restart run showed `dead` → `stale(seconds: 66)` →
+   `verifying` → `connected`: staleness was measured against the *previous* session's last
+   packet, so a fresh link read as 66 seconds silent. `PingWatchdog.resetClock()` is now called
+   on `didConnect`.
+2. **Unknown Bluetooth state rendered as "off"** — Core Bluetooth reports no state until its TCC
+   round-trip completes, measured at **34 s** on this machine, and goes unknown across sleep. The
+   10 s health tick read that as `poweredOff` and showed a red "Bluetooth off" with settings
+   guidance throughout. An unreported state is now `.disconnected`. This is why the app had been
+   flapping `bluetoothOff`/`outOfRange` every ~15 minutes overnight across sleep cycles.
+
+### Not a defect in this change
+
+A long stretch of the session was spent on the Mac failing to discover an advertising phone. The
+cause was **two Bridge app instances running against one phone** (a stale build from a second
+DerivedData path that the test's `pkill` pattern never matched). With a single instance,
+discovery takes 33 ms. Nothing in this change touches scanning or connecting.
+
+It did expose a real gap, filed as **BR-13**: `BLEManager` cannot tell "I asked Core Bluetooth to
+scan and nothing arrived" from "nothing is there". When the quitting instance sent `stop scan`
+with `updateScanParams:YES` seven seconds after the live instance started its own scan, the live
+app kept believing it was scanning while `bluetoothd` was not scanning for it — and it would have
+sat on "Out of range" indefinitely with no retry.

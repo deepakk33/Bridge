@@ -703,3 +703,95 @@ them up automatically.
 BR-4 and BR-5 both gained concrete, reproduced evidence from this item's testing. `protocol/constants.json`
 still lists no packet types, so `bridge.notification.filter` was not added there; building that list is BR-12's
 criterion and was deliberately left to it.
+
+---
+
+## BR-3: Make the Link State Tell the Truth
+
+**Branch**: `work/br-3-make-the-link-state-tell-the-truth` · **Shipped**: 2026-10-27 · **Platform**: Mac
+
+### In plain terms
+
+The Mac used to lie about the phone in four different ways, and every one of them lied in the
+reassuring direction. A phone sitting on the desk whose Bridge service Android had killed showed
+"Out of range" — blaming distance for a dead app. A link that dropped without a clean goodbye
+kept showing "Connected", with a live-looking battery percentage, for up to two minutes. Every
+message the Mac sent reported success whether or not it went anywhere, so the "Reply could not be
+delivered" warning could essentially never appear. And the Mac said "Connected" the moment a
+socket opened, before it had checked who was on the other end.
+
+Now it says what is actually true: "Not responding" with advice to reopen Bridge on the phone,
+"Out of range" only when distance is the likely cause, "Verifying…" while it checks the peer, and
+"Connected" only once the phone is both verified and talking. When it cannot vouch for the phone's
+battery reading, it hides it rather than showing a stale number.
+
+### Technically
+
+- `LinkHealth` and its `guidance(for:)` copy already existed with **zero callers**. They are now
+  what `StatusPanel` and `menuBarIcon` switch on; `LinkState`/`LinkStateMachine` stays as the
+  internal transport machine driving reconnect.
+- Two new cases, `.verifying` and `.disconnected`, plus a `DisconnectReason` input
+  (`local` / `supervisionTimeout` / `peerTerminated` / `unknown`) mapped from the `CBError` on
+  `didDisconnectPeripheral`. Silence while the peripheral is still connected, or a peer-terminated
+  disconnect, is `.dead`; a supervision timeout or an unrecognised reason is `.outOfRange`.
+- `.connected` is gated on `TrustStore.isTrusted` for the peer's identity, matching Android's
+  `LinkState.resolve`. The clipboard connect packet moved behind that gate.
+- `L2CAPChannel.send` returns `Bool`, looping over partial writes via a new `FramedWriter`, with a
+  64 KB cap on the queued tail and a hard stream error distinguished from backpressure.
+  `sendPacket` refuses anything but identity, pair and ping to an unverified peer.
+- Health is re-evaluated on a 10 s tick, so the window in which a dead link can read "Connected"
+  fell from ~120 s to ~70 s with no change to the 30/60/90 s thresholds and no extra packets.
+
+### Defects found and fixed along the way
+
+- **`PingWatchdog.stop()` cleared `onTimeout` immediately before invoking it**, so the silent-death
+  callback had never run in this project's history — the entire "phone service died" path was
+  unreachable code. `PingWatchdogTests.testTimeoutCallbackFiresAfterSilence` fails against the
+  pre-fix implementation.
+- Staleness outranked verification, so a socket that opened and went quiet flipped from a red
+  "Not responding" back to a neutral "Verifying…" exactly as the link died.
+- A reconnect inherited the previous session's last-packet time and briefly read `stale(66s)`;
+  `PingWatchdog.resetClock()` is now called on `didConnect`.
+- An **unknown** Core Bluetooth state was rendered as "Bluetooth off". The TCC round-trip measured
+  **34 seconds** on the test Mac, and the state also goes unknown across sleep — so every launch
+  showed a red dot with settings guidance for half a minute, and the app flapped
+  `bluetoothOff`/`outOfRange` every ~15 minutes overnight. An unreported state is now
+  `.disconnected`: no claim, no guidance.
+- Plus five smaller ones from the review: a hard stream error queued as backpressure, `bridge.ping`
+  blocked before verification (which would let the phone's own watchdog tear down an unanswered
+  pair prompt), "Last seen: just now" when nothing had ever been seen, and two ordering issues.
+
+### Known issues / degradations
+
+- **Range loss was never reproduced.** Three attempts failed to drop the BLE link — it held
+  through every walk, with pings continuing — and adb cannot produce a supervision timeout, since
+  disabling the phone's Bluetooth is a peer-terminated teardown that the spec maps to `.dead` by
+  design. `.outOfRange` itself is confirmed on the no-peripheral-found path. The residual risk: if
+  genuine range loss also reports `peerTerminated`, a departed phone will read "Not responding"
+  instead of "Out of range". That is still strictly better than the previous behaviour, which
+  blamed distance for every failure including a killed service.
+- **The delivery-failure notification was not exercised end to end.** It needs a mirrored
+  notification on screen and a human clicking Reply. Both halves are covered in isolation by
+  `FramedWriterTests` and `PingWatchdogTests`.
+- A queued-but-possibly-delivered write reports failure. This is deliberate — a false failure and
+  a retyped reply beat a false success — but it means a stalled stream can produce a
+  "could not be delivered" for a reply that does eventually go out.
+- Unpairing while connected parks the panel on "Verifying…" with a Pair button, since there is no
+  `.unpaired` state on the Mac. Left to **BR-5**/**BR-7**.
+
+### Found while testing, and left for their owners
+
+- **BR-13 (new)**: `BLEManager` cannot distinguish "I asked Core Bluetooth to scan and nothing
+  arrived" from "nothing is there". Observed live: a second app instance quitting sent `stop scan`
+  with `updateScanParams:YES` seven seconds after the live instance began its own scan, and the
+  live app kept believing it was scanning while `bluetoothd` was not scanning for it. It sat on
+  "Out of range" indefinitely with no retry and no recovery short of a restart. The app's *report*
+  was honest throughout — it genuinely could not see the phone — which is why this is a discovery
+  gap and not a BR-3 one.
+
+### What the next item builds on
+
+Every later fix is now observable: the link state is the single published `linkHealth`, logged at
+public visibility, so a device test reads a state name rather than inferring one from redacted
+transitions. BR-5's auto-accept gap is now *visible* rather than hidden — an unverified peer shows
+"Verifying…" instead of silently reading "Connected".
