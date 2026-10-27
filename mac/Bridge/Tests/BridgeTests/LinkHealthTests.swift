@@ -133,6 +133,24 @@ final class LinkHealthTests: XCTestCase {
         XCTAssertEqual(h, .bluetoothOff)
     }
 
+    /// An unknown Bluetooth state must not be rendered as "off" — see BLEManager.refreshHealth.
+    /// Guarded here so the evaluator's own contract stays explicit: it is only ever handed a
+    /// state Core Bluetooth has actually reported.
+    func testBluetoothOffIsOnlyForAReportedOffState() {
+        XCTAssertEqual(
+            LinkHealthEvaluator.evaluate(
+                lastSeen: now, now: now, bleConnected: false, bluetoothOn: false
+            ),
+            .bluetoothOff
+        )
+        XCTAssertNotEqual(
+            LinkHealthEvaluator.evaluate(
+                lastSeen: now, now: now, bleConnected: false, bluetoothOn: true
+            ),
+            .bluetoothOff
+        )
+    }
+
     // MARK: - Guidance (BR-3)
 
     func testGuidanceIsDefinedForEveryState() {

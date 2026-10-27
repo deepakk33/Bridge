@@ -146,13 +146,20 @@ final class BLEManager: NSObject, ObservableObject {
 
     private func refreshHealth() {
         let lastSeen = pingWatchdog.lastSeen
-        linkHealth = LinkHealthEvaluator.evaluate(
-            lastSeen: lastSeen,
-            bleConnected: peripheralConnected,
-            bluetoothOn: centralManager?.state == .poweredOn,
-            isVerified: isVerified,
-            lastDisconnect: lastDisconnect
-        )
+        switch centralManager?.state {
+        case .some(.unknown), .some(.resetting), .none:
+            // Core Bluetooth has not reported yet. "Bluetooth off" would be a guess, and a
+            // red dot with settings guidance is the worst possible guess to show.
+            linkHealth = .disconnected
+        case .some(let state):
+            linkHealth = LinkHealthEvaluator.evaluate(
+                lastSeen: lastSeen,
+                bleConnected: peripheralConnected,
+                bluetoothOn: state == .poweredOn,
+                isVerified: isVerified,
+                lastDisconnect: lastDisconnect
+            )
+        }
         lastSeenText = (linkHealth == .connected || lastSeen == nil)
             ? nil
             : LinkHealthEvaluator.lastSeenText(lastSeen: lastSeen)
