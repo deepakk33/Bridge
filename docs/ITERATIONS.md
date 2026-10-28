@@ -1081,6 +1081,33 @@ nothing found does it say "Out of range", which is now a conclusion rather than 
   from a dropped scan; it is not a substitute, since macOS can drop a scan for its own reasons —
   but the commonest cause is still unguarded.
 
+### Second testing pass, same day
+
+The first pass proved the *state machine* from the log and claimed criterion (d) on that basis.
+That was an overclaim: the panel itself had never been looked at. A second pass captured it.
+
+- **The panel really does distinguish the two.** Screenshotted in both states: *Searching…* with
+  `dot.radiowaves.left.and.right` and **no guidance line**, against *Out of range* with
+  `antenna.radiowaves.left.and.right` **and** "Phone is out of range. It will reconnect
+  automatically when back in range." The two menu bar glyphs are visibly different at menu bar
+  size — a dot with waves either side versus an antenna mast with waves either side.
+- **`showsLastSeen` correctly suppresses the last-seen line while searching**, so a fresh scan
+  shows no stale timestamp.
+
+**Still unexercised, all three Core Bluetooth states this test could not create:** the
+`retrieveConnectedPeripherals` non-empty branch; `abandon()`, which drops a peripheral whose
+Bridge service is missing; and the `peripheralConnected` guard in `restartStalledScan`, which
+needs a ping-watchdog timeout while the BLE connection survives — force-stopping the phone app
+tears the connection down instead, so it reports `peerTerminated` and never reaches that path.
+Two of those three are review fixes, so this change ships with two fixes that have only ever been
+reasoned about.
+
+### Also observed, for BR-11
+
+The menu bar item's accessibility title resolved to a **neighbouring** item's name in both runs
+that queried it — "Mobile Data" once and "Radio" the next — which is exactly the defect BR-11
+records. Reproduced here twice, unprompted, while scripting the panel open.
+
 ### What the next item builds on
 
 **BR-14** can now be judged on its own terms rather than as a bug fix: the surviving instance
