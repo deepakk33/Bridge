@@ -26,7 +26,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-7 | Add a Disconnect control to both apps | ready | |
 | BR-8 | File transfer: sanitise, cap, authenticate, confirm | ready | |
 | BR-9 | Clipboard: stop the dead poll, stop the silent send | done | `work/br-9-clipboard` |
-| BR-10 | Android: permission rows, resume modal, denied-path recovery | in-progress | `work/br-10-permission-rows-and-denied-path-recovery` |
+| BR-10 | Android: permission rows, resume modal, denied-path recovery | done | `work/br-10-permission-rows-and-denied-path-recovery` |
 | BR-11 | Mac: Local Network status, accessibility, label stability | ready | |
 | BR-12 | Protocol and process debt | ready | |
 | BR-13 | Mac: notice a scan that never returns anything | ready | |
