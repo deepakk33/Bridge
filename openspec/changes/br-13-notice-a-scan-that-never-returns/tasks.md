@@ -1,22 +1,31 @@
 Mac only. Verify commands used below, run from this worktree.
 
-Device-test status, 2026-10-28, MacBook Air M3 + Galaxy S25, single instance confirmed:
+Device-test status, 2026-10-28, MacBook Air M3 + Galaxy S25 (SM-S931B, Android 16), single
+Mac instance confirmed by `pgrep` each run. Three of four "Done when" criteria pass:
 
-- Confirmed on hardware: `.searching` is reported from launch and holds across discovery and
-  the connect attempt (17:03:55.260 → 17:03:58.353, no `outOfRange` in between). This also
-  caught a defect the unit tests could not — see commit ad433bb.
-- Not reproducible: the phone was in range and advertising for every run, discovered in
-  93ms-3.9s, so the watchdog never fired. 2.1's second half ("flips to Out of range after
-  20s"), 2.2 (restart logged) and 2.3 (system-held peripheral — macOS released it on each
-  quit) are **untested**, not passed. They need the phone out of BLE range, or its Bridge
-  service stopped.
+- **(a) a scan that returns nothing is restarted, and the restart is logged — PASS.** With the
+  phone's Bridge service force-stopped: `17:23:58.511 Link health: searching` →
+  `17:24:18.511 Scan found nothing in 20s — restarting` → repeated at 17:24:38.514 and
+  17:24:58.515. Exactly one line per 20s period, none while the link was up.
+- **(b) reconnects after its scan is dropped externally, no restart, no Bluetooth toggle —
+  PASS.** The 2026-10-27 failure reproduced: survivor 46468 scanning, second instance 46736
+  launched and killed at 17:25:31, survivor's watchdog fired at 17:25:38.521, reissued the
+  scan, discovered the phone at 17:25:42.492 (RSSI -33) and reached `connected` at
+  17:25:43.753. Unaided.
+- **(c) a peripheral already connected at the OS level is found without waiting for an
+  advertisement — UNTESTED.** macOS released the peripheral on every app exit tried, including
+  SIGKILL, so `retrieveConnectedPeripherals` returned empty on every launch and the non-empty
+  branch has never executed. The call is made on power-on and before each restart as specced;
+  what is unverified is the branch taken when it returns something.
+- **(d) the panel distinguishes "looking" from "looked and found nothing" — PASS.**
+  `searching` from launch, holding across discovery and connect (17:03:55.260 → 17:03:58.353,
+  no `outOfRange` in between), and flipping to `outOfRange` at exactly the first elapsed
+  watchdog period (17:24:18.513).
 
+The hardware run also caught a defect no unit test could: discovery cleared `searchingSince`,
+so the panel reported "Out of range" about a phone it had just found. Fixed in ad433bb.
 
-```bash
-xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge build
-xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge test
-openspec validate br-13-notice-a-scan-that-never-returns
-```
+2.3 stays unchecked for the reason in (c).
 
 ## 1. Link health gains a Searching state
 
@@ -40,11 +49,11 @@ openspec validate br-13-notice-a-scan-that-never-returns
 
 ## 2. Scan watchdog and system-held peripheral
 
-- [ ] 2.1 Add `isScanning` and `searchingSince` to `BLEManager`, set in `startScanning()` and
+- [x] 2.1 Add `isScanning` and `searchingSince` to `BLEManager`, set in `startScanning()` and
       cleared in `connectToPeripheral` and `disconnect()`, and pass `searchingSince` into
       `refreshHealth()`'s `evaluate` call. Verify on the Mac with no phone present that the panel
       reads "Searching…" on launch and flips to "Out of range" after 20 s.
-- [ ] 2.2 Add the scan watchdog `Timer` following `healthTimer`'s existing pattern (design
+- [x] 2.2 Add the scan watchdog `Timer` following `healthTimer`'s existing pattern (design
       decision 5): 20 s, rescheduled on each restart, invalidated on discovery, on connect, in
       `disconnect()` and on `.poweredOff`. On fire, log at `info` and call `stopScan()` then
       `startScanning()`. Verify with `log stream --predicate 'subsystem == "com.bridge.mac"'`
@@ -64,7 +73,7 @@ openspec validate br-13-notice-a-scan-that-never-returns
       reports.
 - [x] 3.2 Run `xcodebuild … build` and `xcodebuild … test` from a clean state; record each final
       status line for the review gate.
-- [ ] 3.3 **Device test** on the MacBook Air M3 with the Galaxy S25 in range. First confirm a
+- [x] 3.3 **Device test** on the MacBook Air M3 with the Galaxy S25 in range. First confirm a
       single instance with `pgrep -fl Bridge.app` and kill any stray — BR-14 is not done, so this
       is a precondition, not an assumption. Then walk BR-13's four "Done when" criteria:
       (a) a scan that returns nothing for a bounded period is restarted, and the restart is
