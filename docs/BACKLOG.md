@@ -29,7 +29,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-10 | Android: permission rows, resume modal, denied-path recovery | ready | |
 | BR-11 | Mac: Local Network status, accessibility, label stability | ready | |
 | BR-12 | Protocol and process debt | ready | |
-| BR-13 | Mac: notice a scan that never returns anything | ready | |
+| BR-13 | Mac: notice a scan that never returns anything | in-progress | `work/br-13-notice-a-scan-that-never-returns` |
 | BR-14 | Mac: refuse to run twice | ready | |
 | BR-15 | Clipboard: the ADB grant path is dead, decide what replaces it | done | `work/br-15-adb-grant` |
 | BR-16 | Clipboard: decide whether reconnect should push the phone's clip | ready | |
