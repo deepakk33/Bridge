@@ -279,7 +279,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateClipboardStatus() {
         val bridge = BridgeService.clipboardBridge
         val state = ClipboardCardState.of(
-            hasGrant = bridge?.hasBackgroundClipboardAccess == true,
+            isWatching = bridge?.isWatching == true,
             isLinkUp = currentLinkState() == LinkState.CONNECTED,
             lastSend = bridge?.lastSend
         )
@@ -307,7 +307,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sendClipboardToMac() {
-        BridgeService.clipboardBridge?.sendClipboardFromActivity(this)
+        BridgeService.clipboardBridge?.sendClipboardFrom(this)
         updateClipboardStatus()
     }
 

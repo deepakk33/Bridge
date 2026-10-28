@@ -10,17 +10,19 @@ object ClipboardCardState {
 
     data class CardState(val kind: Kind, val formatArg: String?, val isWarning: Boolean)
 
-    fun of(hasGrant: Boolean, isLinkUp: Boolean, lastSend: SendOutcome?): CardState = when {
+    fun of(isWatching: Boolean, isLinkUp: Boolean, lastSend: SendOutcome?): CardState = when {
         !isLinkUp -> CardState(Kind.LINK_DOWN, null, true)
-        !hasGrant -> CardState(Kind.MANUAL_NO_GRANT, null, true)
+        // Truncation outranks the manual-sync notice: it is transient, it is about a clip the
+        // user just sent, and the manual path is where most truncated sends come from.
         lastSend?.truncated == true ->
             CardState(Kind.TRUNCATED, formatBytes(lastSend.originalBytes), true)
+        !isWatching -> CardState(Kind.MANUAL_NO_GRANT, null, true)
         else -> CardState(Kind.SYNCING, null, false)
     }
 
     fun formatBytes(bytes: Int): String = when {
         bytes < 1024 -> "$bytes B"
         bytes < 1024 * 1024 -> "${bytes / 1024} KB"
-        else -> String.format("%.1f MB", bytes / (1024.0 * 1024.0))
+        else -> String.format(java.util.Locale.US, "%.1f MB", bytes / (1024.0 * 1024.0))
     }
 }

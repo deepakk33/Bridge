@@ -19,7 +19,6 @@ import com.bridge.battery.BatteryMonitor
 import com.bridge.ble.BlePeripheral
 import com.bridge.ble.BridgeConstants
 import com.bridge.clipboard.ClipboardBridge
-import com.bridge.clipboard.ClipboardTileService
 import com.bridge.filetransfer.FileReceiver
 import com.bridge.filetransfer.FileTransferCoordinator
 import com.bridge.filetransfer.TransferNotifier
@@ -229,10 +228,6 @@ class BridgeService : Service() {
         }
         clipboardBridge?.start()
 
-        ClipboardTileService.packetSender = { packet ->
-            blePeripheral?.sendPacket(packet)
-        }
-
         blePeripheral?.setClipboardHandler { packet ->
             clipboardBridge?.handleClipboardPacket(packet)
         }
@@ -392,7 +387,6 @@ class BridgeService : Service() {
         try { unregisterReceiver(clipboardTestReceiver) } catch (_: Exception) {}
         clipboardBridge?.stop()
         clipboardBridge = null
-        ClipboardTileService.packetSender = null
         batteryMonitor?.stop()
         batteryMonitor = null
         unregisterReceiver(bluetoothStateReceiver)

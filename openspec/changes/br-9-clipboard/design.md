@@ -59,7 +59,9 @@ A naive `text.take(10240)` would do neither correctly.
 
 ### 2. Truncation is reported through state, not a toast
 
-`ClipboardBridge` gains `var lastSend: SendOutcome?` — the capped byte count, the original
+`ClipboardBridge` gains `var lastSend: SendOutcome?` (set by every send path, including the
+reconnect clip and the Quick Settings tile — the tile sends through `sendClipboardFrom`
+rather than building its own packet, so it both sets and clears the outcome) — the capped byte count, the original
 byte count, and the timestamp. A send that fits clears it to `null`. `MainActivity` reads it
 in `updateClipboardStatus()`.
 
@@ -76,8 +78,12 @@ data class CardState(val messageRes: Int, val formatArg: String?, val isWarning:
 fun of(hasGrant: Boolean, isLinkUp: Boolean, lastSend: SendOutcome?): CardState
 ```
 
-Precedence, highest first: link down → grant absent → last send truncated → all well. The
-Activity does `findViewById` + `setText(getString(...))` + colour, and nothing else.
+Precedence, highest first: link down → last send truncated → no watcher running → all well.
+Truncation outranks the manual-sync notice because the manual send button is *where most
+truncated sends come from*, so ordering it below would make the truncation unreportable in
+the default (un-granted) configuration. The Activity maps the returned `Kind` to a string
+resource in a four-line `when`, then sets text and colour — the mapping stays out of
+`ClipboardCardState` so the pure helper's unit tests need no generated `R` class.
 
 *Why precedence rather than a combined message*: a card that says three things at once is the
 monospace permission dump BR-10 is removing. One sentence, the most actionable one.
@@ -159,8 +165,9 @@ onWindowFocusChanged(hasFocus = true)
   away and visible, and the Quick Settings tile does it without opening the app at all.
 - **`hasBackgroundClipboardAccess` (app-op) and `adbClipboardGrant()` (permission) can
   disagree**, so the card could claim a grant the poll does not act on, or vice versa. → The
-  card reads the *same* `hasBackgroundClipboardAccess` the gate reads, so card and behaviour
-  cannot diverge. The permission-checker row may still disagree with the card; that row is
+  card does not read the grant at all. It reads `ClipboardBridge.isWatching` — whether a
+  watcher is *actually running* — so a grant applied after the service started reads as
+  manual (which it is) until the restart the card's own copy asks for. The permission-checker row may still disagree with the card; that row is
   BR-10's and the device test will note it if it shows.
 
 ## Migration Plan

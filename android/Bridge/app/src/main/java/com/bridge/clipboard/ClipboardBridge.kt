@@ -47,6 +47,10 @@ class ClipboardBridge(
 
     var isConnected = false
         private set
+
+    /** Whether a background watcher is actually running — not merely whether the grant exists. */
+    val isWatching: Boolean
+        get() = polling
     var activityContext: Context? = null
 
     private var isRemoteWrite = false
@@ -151,6 +155,7 @@ class ClipboardBridge(
 
     fun makeConnectPacket(): BridgePacket {
         val capped = ClipboardCap.apply(getCurrentClipText() ?: "")
+        lastSend = if (capped.truncated) SendOutcome(capped.originalBytes, true) else null
         return BridgePacket.clipboardConnect(capped.text, lastClipboardTimestamp)
     }
 
@@ -194,12 +199,13 @@ class ClipboardBridge(
         Log.i(TAG, "Clipboard change detected, sent to remote")
     }
 
-    fun sendClipboardFromActivity(activityContext: Context) {
+    /** Send the clip read through [focusedContext] — an Activity or a tile, never the service. */
+    fun sendClipboardFrom(focusedContext: Context) {
         if (!isConnected) {
-            Log.i(TAG, "Not connected, skipping activity clipboard send")
+            Log.i(TAG, "Not connected, skipping clipboard send")
             return
         }
-        val cm = activityContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val cm = focusedContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val text = try {
             cm.primaryClip?.getItemAt(0)?.text?.toString()
         } catch (e: Exception) {
@@ -217,7 +223,7 @@ class ClipboardBridge(
         lastContent = text
         lastClipboardTimestamp = System.currentTimeMillis()
         sendPacket(cappedPacket(text))
-        Log.i(TAG, "Clipboard sent from activity context (${text.length} chars)")
+        Log.i(TAG, "Clipboard sent from focused context (${text.length} chars)")
     }
 
     private fun getCurrentClipText(): String? {
