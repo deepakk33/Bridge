@@ -31,7 +31,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-12 | Protocol and process debt | ready | |
 | BR-13 | Mac: notice a scan that never returns anything | ready | |
 | BR-14 | Mac: refuse to run twice | ready | |
-| BR-15 | Clipboard: the ADB grant path is dead, decide what replaces it | in-progress | `work/br-15-adb-grant` |
+| BR-15 | Clipboard: the ADB grant path is dead, decide what replaces it | done | `work/br-15-adb-grant` |
 | BR-16 | Clipboard: decide whether reconnect should push the phone's clip | ready | |
 
 All of BR-2…BR-12 come from [AUDIT-2026-10-26.md](AUDIT-2026-10-26.md), which holds the
@@ -363,10 +363,10 @@ cannot happen — and `PermissionItem.detail` for that row holds the failing com
 which BR-10 is about to surface in the UI.
 **Platforms**: android
 **Done when**:
-- [ ] no shipped script, spec or UI string tells the user to run a command the OS refuses
-- [ ] the "ADB Clipboard" permission row is either honest about being unobtainable or gone
-- [ ] README and `clipboard/adb-grant` match what Android 16 actually permits
-- [ ] BR-10 does not surface a `.detail` that throws
+- [x] no shipped script, spec or UI string tells the user to run a command the OS refuses
+- [x] the "ADB Clipboard" permission row is either honest about being unobtainable or gone
+- [x] README and `clipboard/adb-grant` match what Android 16 actually permits
+- [x] BR-10 does not surface a `.detail` that throws
 **Notes**: found while device-testing BR-9, which left the gate correct (no watcher runs, so no
 battery is burned) but could not fix the surrounding documentation without expanding its scope.
 This is also an instance of BR-12's last criterion — a spec requirement with no working code

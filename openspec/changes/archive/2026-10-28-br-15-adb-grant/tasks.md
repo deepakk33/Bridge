@@ -83,6 +83,6 @@ Walked at the review gate, one line of observed evidence per criterion.
 
 ## Archive-time
 
-- [ ] 17. **Remove the emptied capability directory.** After `openspec archive br-15-adb-grant`,
+- [x] 17. **Remove the emptied capability directory.** After `openspec archive br-15-adb-grant`,
   check `openspec/specs/clipboard/adb-grant/`; if the archive left an empty or requirement-less
   spec, delete the directory and commit it with the archive.
