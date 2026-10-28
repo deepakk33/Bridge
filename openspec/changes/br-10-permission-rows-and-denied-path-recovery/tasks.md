@@ -7,22 +7,22 @@ openspec validate br-10-permission-rows-and-denied-path-recovery
 
 ## 1. The permission model becomes rows with actions
 
-- [ ] 1.1 Write the failing `PermissionRowsTest` cases first: five rows in a fixed order
+- [x] 1.1 Write the failing `PermissionRowsTest` cases first: five rows in a fixed order
       (Notification Access, Battery Optimization, Bluetooth, Notifications) and nothing else;
       every row has a non-empty `detail`; a granted row resolves to `PermissionAction.None`; a
       non-granted row resolves to its own non-`None` action; no row's text contains `adb`,
       `pm grant` or `appops`. Verify `./gradlew test` fails on them.
-- [ ] 1.2 Add the `PermissionAction` sealed type and `RuntimeRecovery.resolve(hasAsked,
+- [x] 1.2 Add the `PermissionAction` sealed type and `RuntimeRecovery.resolve(hasAsked,
       showRationale)` (design decisions 2 and 3) in `com.bridge.permissions`, importing nothing
       Android beyond `Manifest`; make `PermissionItem.detail` non-null, add its `action`, and
       extend `PermissionRows.of` to build the five rows. Verify `./gradlew test` turns 1.1 green.
-- [ ] 1.3 Write and pass `RuntimeRecoveryTest` over all four `(hasAsked, showRationale)`
+- [x] 1.3 Write and pass `RuntimeRecoveryTest` over all four `(hasAsked, showRationale)`
       combinations — only `(true, false)` yields `OPEN_APP_SETTINGS`. Verify with
       `./gradlew test`.
-- [ ] 1.4 Add the two runtime-permission checks to `PermissionStatusChecker` so `all()` returns
-      five real statuses; verify `./gradlew test` keeps `PermissionSummaryTest` green — a denied
+- [x] 1.4 Add the two runtime-permission checks to `PermissionStatusChecker` so `all()` returns
+      the four real statuses; verify `./gradlew test` keeps `PermissionSummaryTest` green — a denied
       runtime permission must make `allGranted` false and be `firstProblem`.
-- [ ] 1.5 Commit (`feat(android): BR-10 permission rows carry a consequence and an action`) with
+- [x] 1.5 Commit (`feat(android): BR-10 permission rows carry a consequence and an action`) with
       the Gradle result line in the body.
 
 ## 2. The permission section is rendered as rows
