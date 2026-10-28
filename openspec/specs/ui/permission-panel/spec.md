@@ -95,9 +95,18 @@ itself offers — a row that is permanently limited, with no action that can cha
 the user to ignore the rows that still mean something. No row SHALL display an adb command or
 any other instruction the OS refuses.
 
+The list SHALL cover every grant whose absence degrades Bridge, including the runtime
+permissions requested at first launch. A runtime permission that the user denied SHALL appear
+as a row like any other, so that a denial is visible on the screen the user already opens rather
+than only in Android's app-info screen.
+
+Platform constraint: Android only. The Mac panel's rules are unchanged and are covered by the
+Mac requirements above.
+
 #### Scenario: All Android permissions granted
 - **WHEN** the user opens Bridge settings and all grants are in place
-- **THEN** each item shows green: Notification Access (enabled), Battery Optimization (unrestricted)
+- **THEN** each item shows green: Notification Access (enabled), Battery Optimization
+  (unrestricted), and the Bluetooth and notification runtime permissions (granted)
 
 #### Scenario: Notification access revoked
 - **WHEN** Notification Access has been disabled for Bridge
@@ -117,3 +126,72 @@ any other instruction the OS refuses.
 - **WHEN** any row in the permission list is shown as not granted
 - **THEN** the action it offers opens a system screen where the user can grant it, and no row
   is left displaying a command for the user to type
+
+#### Scenario: A denied runtime permission is listed
+- **WHEN** the user denied the Bluetooth or notification runtime permission at first launch
+- **THEN** that permission appears in the list as not granted, with its own action
+
+### Requirement: Each Android permission row states its consequence and carries its own action
+Each row in the Android permission list SHALL present, as distinct elements: a status indicator,
+the permission's name, one line naming what Bridge cannot do while the permission is missing,
+and an action control for that row alone. The rows SHALL NOT be rendered as a single block of
+concatenated text, and SHALL NOT be rendered in a monospace face.
+
+A row whose permission is granted SHALL show its granted indicator and SHALL NOT offer an
+action, since there is nothing left to do.
+
+Platform constraint: Android only. The Mac panel hides granted permissions entirely; the
+Android screen is opened deliberately and lists every row, so it states granted status instead
+of hiding it.
+
+#### Scenario: A missing permission names what it costs
+- **WHEN** Notification Access is disabled
+- **THEN** its row shows a not-granted indicator, the name "Notification Access", a line saying
+  that phone notifications will not reach the Mac, and a button that opens the system
+  Notification Access settings
+
+#### Scenario: Each row's action affects only that row
+- **WHEN** two permissions are missing and the user uses the first row's action
+- **THEN** only the first permission's grant screen opens, and the second row keeps its own
+  separate action
+
+#### Scenario: A granted row offers no action
+- **WHEN** Battery Optimization is already excluded
+- **THEN** its row shows the granted indicator and no action control
+
+#### Scenario: Rows are not a text dump
+- **WHEN** the permission section is shown in any state
+- **THEN** each permission occupies its own row with separate indicator, name, consequence and
+  action, and none of them is monospace-rendered concatenated text
+
+---
+
+### Requirement: A denied runtime permission is recoverable without leaving the app
+A runtime permission the user denied SHALL be re-requestable from its own row. When Android
+will no longer show the system prompt for that permission, the row's action SHALL open Bridge's
+app-settings screen instead, so there is always a way forward from inside the app.
+
+A denied permission SHALL NOT be reported by overwriting unrelated status text; the connection
+status card SHALL continue to describe the link, not the permission.
+
+Platform constraint: Android only. Android stops showing the runtime prompt after a permanent
+denial, and `shouldShowRequestPermissionRationale` returning false after a denial is the only
+signal that this has happened.
+
+#### Scenario: First denial can be retried in place
+- **WHEN** the user denied a runtime permission once and uses that row's action
+- **THEN** the system permission prompt is shown again
+
+#### Scenario: Permanent denial falls back to app settings
+- **WHEN** Android will no longer present the prompt for that permission and the user uses the
+  row's action
+- **THEN** Bridge's app-settings screen opens, where the permission can be granted
+
+#### Scenario: Granting it returns the app to a working state
+- **WHEN** the user grants a previously denied permission and returns to Bridge
+- **THEN** the row shows granted and the foreground service starts, with no app restart
+
+#### Scenario: The status card is not used as an error surface
+- **WHEN** a runtime permission is denied
+- **THEN** the connection status card still reports the link state and the paired Mac's name,
+  and the permission problem is reported only by its own row
