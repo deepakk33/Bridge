@@ -1,4 +1,8 @@
-Android only. Verify commands used below:
+Android only. Verify commands used below.
+
+2.2-2.4 and 3.2 stay unchecked until the device test in 4.3 confirms them on hardware —
+their stated verification is on-device, and code landing is not the same as the check passing.
+
 
 ```bash
 (cd android/Bridge && ./gradlew test assembleDebug)
@@ -27,7 +31,7 @@ openspec validate br-10-permission-rows-and-denied-path-recovery
 
 ## 2. The permission section is rendered as rows
 
-- [ ] 2.1 Add `res/layout/view_permission_row.xml` (status dot, name, consequence line, action
+- [x] 2.1 Add `res/layout/view_permission_row.xml` (status dot, name, consequence line, action
       button), replace the `permission_status` monospace `TextView` in `activity_main.xml` with
       an empty `LinearLayout` container, and move every new string to `strings.xml`. Verify
       `./gradlew assembleDebug` succeeds.
@@ -45,7 +49,7 @@ openspec validate br-10-permission-rows-and-denied-path-recovery
       call `updatePermissionStatus()` instead (design decision 5). Verify on device that denying
       a permission leaves the status card describing the link, with the problem shown only in its
       own row.
-- [ ] 2.5 Commit (`feat(android): BR-10 render permissions as rows with per-row actions`) after
+- [x] 2.5 Commit (`feat(android): BR-10 render permissions as rows with per-row actions`) after
       `./gradlew test assembleDebug` passes, with the result line in the body.
 
 ## 3. Inline guidance replaces the resume modal

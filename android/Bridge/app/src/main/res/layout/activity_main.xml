@@ -200,22 +200,11 @@
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
-                    <TextView
-                        android:id="@+id/permission_status"
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:id="@+id/permission_rows"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:textSize="13sp"
-                        android:fontFamily="monospace" />
-
-                    <Button
-                        android:id="@+id/battery_opt_button"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="@string/disable_battery_optimization"
-                        android:visibility="gone" />
+                        android:orientation="vertical" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>

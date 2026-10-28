@@ -2,4 +2,6 @@
 <resources>
     <color name="ic_launcher_background">#1565C0</color>
     <color name="status_warning">#FF9800</color>
+    <color name="status_granted">#4CAF50</color>
+    <color name="status_denied">#F44336</color>
 </resources>

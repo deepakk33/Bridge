@@ -17,6 +17,7 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.Button
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -25,8 +26,10 @@ import com.bridge.clipboard.ClipboardCardState
 import com.bridge.notifications.BridgeNotificationListener
 import com.bridge.notifications.NotificationFilterActivity
 import com.bridge.notifications.NotificationFilterStore
+import com.bridge.permissions.PermissionAction
 import com.bridge.permissions.PermissionStatus
 import com.bridge.permissions.PermissionStatusChecker
+import com.bridge.permissions.RuntimeRecovery
 import com.bridge.security.TrustStore
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.card.MaterialCardView
@@ -43,8 +46,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var clipboardStatus: TextView
     private var clipboardStatusDefaultColors: android.content.res.ColorStateList? = null
     private lateinit var sendClipboardButton: Button
-    private lateinit var permissionStatus: TextView
-    private lateinit var batteryOptButton: Button
+    private lateinit var permissionRows: LinearLayout
+
+    /** Which runtime permissions we have ever prompted for — see [RuntimeRecovery]. */
+    private val askedPrefs by lazy {
+        getSharedPreferences("bridge_permissions", MODE_PRIVATE)
+    }
 
     private var connectItem: MenuItem? = null
     private val linkListener: () -> Unit = {
@@ -65,9 +72,9 @@ class MainActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
             if (results.values.all { it }) {
                 startBridgeService()
-            } else {
-                macName.text = "Permissions required to run Bridge"
             }
+            // A denial is reported by its own permission row. macName describes the link.
+            updatePermissionStatus()
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -87,8 +94,7 @@ class MainActivity : AppCompatActivity() {
         clipboardStatus = findViewById(R.id.clipboard_status)
         clipboardStatusDefaultColors = clipboardStatus.textColors
         sendClipboardButton = findViewById(R.id.send_clipboard_button)
-        permissionStatus = findViewById(R.id.permission_status)
-        batteryOptButton = findViewById(R.id.battery_opt_button)
+        permissionRows = findViewById(R.id.permission_rows)
 
         notificationsSection.setOnClickListener {
             startActivity(Intent(this, NotificationFilterActivity::class.java))
@@ -97,12 +103,6 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
         sendClipboardButton.setOnClickListener { sendClipboardToMac() }
-        batteryOptButton.setOnClickListener {
-            startActivity(
-                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-                    .setData(Uri.parse("package:$packageName"))
-            )
-        }
 
         checkPermissionsAndStart()
     }
@@ -238,7 +238,7 @@ class MainActivity : AppCompatActivity() {
         if (missing.isEmpty()) {
             startBridgeService()
         } else {
-            permissionLauncher.launch(missing.toTypedArray())
+            requestRuntime(missing)
         }
     }
 
@@ -270,10 +270,68 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updatePermissionStatus() {
-        val checker = PermissionStatusChecker(this)
-        permissionStatus.text = checker.all().joinToString("\n") { "${it.name}: ${it.status.label}" }
-        batteryOptButton.visibility =
-            if (checker.batteryOptimization() == PermissionStatus.GRANTED) View.GONE else View.VISIBLE
+        permissionRows.removeAllViews()
+        for (item in PermissionStatusChecker(this).all()) {
+            val row = layoutInflater.inflate(R.layout.view_permission_row, permissionRows, false)
+            row.findViewById<View>(R.id.permission_dot).backgroundTintList =
+                android.content.res.ColorStateList.valueOf(
+                    ContextCompat.getColor(
+                        this,
+                        if (item.status == PermissionStatus.GRANTED) R.color.status_granted
+                        else R.color.status_denied
+                    )
+                )
+            row.findViewById<TextView>(R.id.permission_name).text = item.name
+            row.findViewById<TextView>(R.id.permission_detail).text = item.detail
+
+            val button = row.findViewById<Button>(R.id.permission_action)
+            val action = item.action
+            if (action == PermissionAction.None) {
+                button.visibility = View.GONE
+            } else {
+                button.text = action.label
+                button.setOnClickListener { runPermissionAction(action) }
+            }
+            permissionRows.addView(row)
+        }
+    }
+
+    private fun runPermissionAction(action: PermissionAction) {
+        when (action) {
+            PermissionAction.None -> Unit
+            PermissionAction.NotificationAccess ->
+                startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            PermissionAction.BatteryOptimization -> startActivity(
+                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                    .setData(Uri.parse("package:$packageName"))
+            )
+            is PermissionAction.Runtime -> recoverRuntime(action.permissions)
+        }
+    }
+
+    /**
+     * Android stops showing the prompt after a permanent denial, so a row whose button only
+     * ever re-requested would be a dead end. Fall through to app settings when that happens.
+     */
+    private fun recoverRuntime(permissions: List<String>) {
+        val recovery = RuntimeRecovery.resolve(
+            hasAsked = permissions.all { askedPrefs.getBoolean("has_asked_$it", false) },
+            showRationale = permissions.any { shouldShowRequestPermissionRationale(it) }
+        )
+        when (recovery) {
+            RuntimeRecovery.REQUEST -> requestRuntime(permissions)
+            RuntimeRecovery.OPEN_APP_SETTINGS -> startActivity(
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                    .setData(Uri.parse("package:$packageName"))
+            )
+        }
+    }
+
+    private fun requestRuntime(permissions: List<String>) {
+        askedPrefs.edit().apply {
+            permissions.forEach { putBoolean("has_asked_$it", true) }
+        }.apply()
+        permissionLauncher.launch(permissions.toTypedArray())
     }
 
     private fun updateClipboardStatus() {
