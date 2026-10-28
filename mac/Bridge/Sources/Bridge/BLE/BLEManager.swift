@@ -122,11 +122,14 @@ final class BLEManager: NSObject, ObservableObject {
         }
     }
 
+    /// Stops the timer, but deliberately leaves `searchingSince` alone: connecting to a
+    /// peripheral we just discovered is still part of the same search, and clearing it here
+    /// made the panel flash "Out of range" for the length of the connect — observed on
+    /// hardware 2026-10-28, 676ms between discovery and connection.
     private func stopScanWatchdog() {
         scanWatchdog?.invalidate()
         scanWatchdog = nil
         isScanning = false
-        searchingSince = nil
     }
 
     private func restartStalledScan() {
@@ -162,6 +165,7 @@ final class BLEManager: NSObject, ObservableObject {
         lastDisconnect = .local
         pingWatchdog.stop()
         stopScanWatchdog()
+        searchingSince = nil
         if let peripheral = discoveredPeripheral {
             centralManager.cancelPeripheralConnection(peripheral)
         }
@@ -452,16 +456,19 @@ extension BLEManager: CBCentralManagerDelegate {
             case .poweredOff:
                 Self.logger.warning("Bluetooth powered off")
                 stopScanWatchdog()
+                searchingSince = nil
                 transitionLink(to: .bluetoothOff)
                 connectedDeviceName = nil
                 mirroringState = nil
             case .unauthorized:
                 Self.logger.error("Bluetooth unauthorized")
                 stopScanWatchdog()
+                searchingSince = nil
                 transitionLink(to: .bluetoothOff)
             case .unsupported:
                 Self.logger.error("Bluetooth unsupported")
                 stopScanWatchdog()
+                searchingSince = nil
                 transitionLink(to: .bluetoothOff)
             default:
                 Self.logger.info("Bluetooth state: \(central.state.rawValue)")
@@ -489,6 +496,7 @@ extension BLEManager: CBCentralManagerDelegate {
             Self.logger.info("Connected to \(peripheral.name ?? "unnamed")")
             peripheralConnected = true
             lastDisconnect = nil
+            searchingSince = nil
             // Otherwise the previous session's gap is measured against this one and a
             // fresh reconnect reads as stale before the first packet lands.
             pingWatchdog.resetClock()
