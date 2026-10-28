@@ -1,7 +1,6 @@
 package com.bridge.app
 
 import android.Manifest
-import android.app.AlertDialog
 import android.bluetooth.BluetoothAdapter
 import android.content.ComponentName
 import android.content.Intent
@@ -16,7 +15,6 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.Button
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
@@ -39,7 +37,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statePill: TextView
     private lateinit var macName: TextView
     private lateinit var lastSeen: TextView
-    private lateinit var appGlyph: ImageView
     private lateinit var notificationsSection: MaterialCardView
     private lateinit var notifAccessButton: Button
     private lateinit var notifMirroringCount: TextView
@@ -53,12 +50,16 @@ class MainActivity : AppCompatActivity() {
         getSharedPreferences("bridge_permissions", MODE_PRIVATE)
     }
 
+    private lateinit var linkGuidance: LinearLayout
+    private lateinit var linkGuidanceText: TextView
+    private lateinit var linkGuidanceAction: Button
+    private lateinit var linkGuidanceDismiss: Button
+
     private var connectItem: MenuItem? = null
-    private val linkListener: () -> Unit = {
-        refreshLinkUi()
-        syncLinkPrompt()
-    }
-    private var linkPrompt: AlertDialog? = null
+    private val linkListener: () -> Unit = { refreshLinkUi() }
+
+    /** Dismissal is per state: a changed state is new information and says itself again. */
+    private var guidanceDismissedFor: LinkState? = null
 
     private val requiredPermissions = buildList {
         add(Manifest.permission.BLUETOOTH_ADVERTISE)
@@ -87,7 +88,6 @@ class MainActivity : AppCompatActivity() {
         statePill = findViewById(R.id.state_pill)
         macName = findViewById(R.id.mac_name)
         lastSeen = findViewById(R.id.last_seen)
-        appGlyph = findViewById(R.id.app_glyph)
         notificationsSection = findViewById(R.id.notifications_section)
         notifAccessButton = findViewById(R.id.notif_access_button)
         notifMirroringCount = findViewById(R.id.notif_mirroring_count)
@@ -95,6 +95,10 @@ class MainActivity : AppCompatActivity() {
         clipboardStatusDefaultColors = clipboardStatus.textColors
         sendClipboardButton = findViewById(R.id.send_clipboard_button)
         permissionRows = findViewById(R.id.permission_rows)
+        linkGuidance = findViewById(R.id.link_guidance)
+        linkGuidanceText = findViewById(R.id.link_guidance_text)
+        linkGuidanceAction = findViewById(R.id.link_guidance_action)
+        linkGuidanceDismiss = findViewById(R.id.link_guidance_dismiss)
 
         notificationsSection.setOnClickListener {
             startActivity(Intent(this, NotificationFilterActivity::class.java))
@@ -103,6 +107,11 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
         sendClipboardButton.setOnClickListener { sendClipboardToMac() }
+        linkGuidanceAction.setOnClickListener { onConnectAction() }
+        linkGuidanceDismiss.setOnClickListener {
+            guidanceDismissedFor = currentLinkState()
+            linkGuidance.visibility = View.GONE
+        }
 
         checkPermissionsAndStart()
     }
@@ -176,6 +185,8 @@ class MainActivity : AppCompatActivity() {
             LinkState.BLUETOOTH_OFF -> "Bluetooth off"
         }
 
+        renderGuidance(state)
+
         lastSeen.text = when {
             state == LinkState.CONNECTED -> "Connected now"
             BridgeService.LinkStatus.lastConnectedAt > 0L -> "Last seen " + DateUtils.getRelativeTimeSpanString(
@@ -187,48 +198,27 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** On open, if the link isn't actually working, say so plainly and offer the fix. */
-    private fun maybePromptLinkIssue() {
-        val state = currentLinkState()
+    /**
+     * The guidance the resume modal used to carry, inline on the status card. Shown whenever
+     * the link needs attention, cleared the moment it does not, and a dismissal only holds
+     * for the state it was made in.
+     */
+    private fun renderGuidance(state: LinkState) {
         if (!state.needsAttention) {
-            linkPrompt?.dismiss()
-            linkPrompt = null
+            guidanceDismissedFor = null
+            linkGuidance.visibility = View.GONE
             return
         }
-        if (linkPrompt?.isShowing == true) {
-            applyPromptText(state)
+        if (guidanceDismissedFor != null && guidanceDismissedFor != state) {
+            guidanceDismissedFor = null
+        }
+        if (guidanceDismissedFor == state) {
+            linkGuidance.visibility = View.GONE
             return
         }
-
-        linkPrompt = AlertDialog.Builder(this)
-            .setPositiveButton(LinkState.actionLabel(state)) { _, _ -> onConnectAction() }
-            .setNegativeButton("Not now", null)
-            .setOnDismissListener { linkPrompt = null }
-            .create()
-            .also { dialog ->
-                applyPromptText(state, dialog)
-                dialog.show()
-                applyPromptText(state, dialog) // button text needs the shown dialog
-            }
-    }
-
-    /** Keep an already-open prompt honest as the state changes under it. */
-    private fun syncLinkPrompt() {
-        val dialog = linkPrompt ?: return
-        val state = currentLinkState()
-        if (!state.needsAttention) {
-            dialog.dismiss()
-            linkPrompt = null
-        } else {
-            applyPromptText(state, dialog)
-        }
-    }
-
-    private fun applyPromptText(state: LinkState, dialog: AlertDialog? = linkPrompt) {
-        dialog ?: return
-        dialog.setTitle(LinkState.promptTitle(state))
-        dialog.setMessage(LinkState.promptBody(state))
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.text = LinkState.actionLabel(state)
+        linkGuidanceText.text = LinkState.promptBody(state)
+        linkGuidanceAction.text = LinkState.actionLabel(state)
+        linkGuidance.visibility = View.VISIBLE
     }
 
     private fun checkPermissionsAndStart() {
@@ -258,15 +248,12 @@ class MainActivity : AppCompatActivity() {
         updateClipboardStatus()
         updatePermissionStatus()
         refreshLinkUi()
-        maybePromptLinkIssue()
     }
 
     override fun onPause() {
         super.onPause()
         BridgeService.clipboardBridge?.activityContext = null
         BridgeService.LinkStatus.removeListener(linkListener)
-        linkPrompt?.dismiss()
-        linkPrompt = null
     }
 
     private fun updatePermissionStatus() {

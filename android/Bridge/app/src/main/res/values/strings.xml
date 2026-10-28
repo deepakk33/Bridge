@@ -13,6 +13,7 @@
     <string name="status_disconnected">Disconnected</string>
     <string name="status_connected">Connected</string>
     <string name="status_last_seen_never">Not connected yet</string>
+    <string name="link_guidance_dismiss">Dismiss</string>
 
     <!-- Sections -->
     <string name="section_notifications">Notifications</string>

@@ -74,16 +74,7 @@ enum class LinkState {
             CONNECTED -> "#4CAF50"     // green
         }
 
-        /** Dialog title shown on open when the link is not working. */
-        fun promptTitle(state: LinkState): String = when (state) {
-            BLUETOOTH_OFF -> "Bluetooth is off"
-            UNPAIRED -> "No Mac paired"
-            DISCONNECTED -> "Mac not connected"
-            CONNECTING -> "Connected, but not verified"
-            CONNECTED -> ""
-        }
-
-        /** Dialog body shown on open when the link is not working. */
+        /** One line of inline guidance shown on the status card when the link is not working. */
         fun promptBody(state: LinkState): String = when (state) {
             BLUETOOTH_OFF ->
                 "Bridge needs Bluetooth to reach your Mac. Turn it on?"

@@ -54,7 +54,7 @@ openspec validate br-10-permission-rows-and-denied-path-recovery
 
 ## 3. Inline guidance replaces the resume modal
 
-- [ ] 3.1 Add a guidance `TextView`, an action `Button` and a dismiss control to the status card
+- [x] 3.1 Add a guidance `TextView`, an action `Button` and a dismiss control to the status card
       in `activity_main.xml`, bound to `LinkState.promptBody` / `actionLabel` and `GONE` when
       `!state.needsAttention`; verify `./gradlew assembleDebug` succeeds.
 - [ ] 3.2 Delete `maybePromptLinkIssue`, `syncLinkPrompt`, `applyPromptText`, the `linkPrompt`
@@ -62,12 +62,12 @@ openspec validate br-10-permission-rows-and-denied-path-recovery
       and clearing the dismissal on any state change. Verify on device that opening the app with
       Bluetooth off, while unpaired, and with the Mac app killed each shows no dialog and an
       inline line with a working button.
-- [ ] 3.3 Delete `LinkState.promptTitle` and its `LinkStateTest` cases now that it has no caller;
+- [x] 3.3 Delete `LinkState.promptTitle` and its `LinkStateTest` cases now that it has no caller;
       verify `./gradlew test` passes and `grep -rn promptTitle android/` returns nothing.
-- [ ] 3.4 Delete the `app_glyph` `ImageView` from `activity_main.xml` and its `MainActivity`
+- [x] 3.4 Delete the `app_glyph` `ImageView` from `activity_main.xml` and its `MainActivity`
       field; verify `grep -rn app_glyph android/` returns nothing and `./gradlew assembleDebug`
       succeeds.
-- [ ] 3.5 Commit (`feat(android): BR-10 inline link guidance, no resume modal`) after
+- [x] 3.5 Commit (`feat(android): BR-10 inline link guidance, no resume modal`) after
       `./gradlew test assembleDebug` passes, with the result line in the body.
 
 ## 4. Verification and device test
