@@ -25,6 +25,7 @@ import com.bridge.notifications.BridgeNotificationListener
 import com.bridge.notifications.NotificationFilterActivity
 import com.bridge.notifications.NotificationFilterStore
 import com.bridge.permissions.PermissionAction
+import com.bridge.permissions.PermissionRows
 import com.bridge.permissions.PermissionStatus
 import com.bridge.permissions.PermissionStatusChecker
 import com.bridge.permissions.RuntimeRecovery
@@ -61,20 +62,25 @@ class MainActivity : AppCompatActivity() {
     /** Dismissal is per state: a changed state is new information and says itself again. */
     private var guidanceDismissedFor: LinkState? = null
 
+    /** The state the visible guidance was rendered for — what a dismiss actually dismisses. */
+    private var renderedGuidanceState: LinkState? = null
+
     private val requiredPermissions = buildList {
-        add(Manifest.permission.BLUETOOTH_ADVERTISE)
-        add(Manifest.permission.BLUETOOTH_CONNECT)
+        addAll(PermissionRows.BLUETOOTH_PERMISSIONS)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            add(Manifest.permission.POST_NOTIFICATIONS)
+            addAll(PermissionRows.POST_NOTIFICATION_PERMISSIONS)
         }
     }.toTypedArray()
 
+    /** Without these there is no link at all. A denied POST_NOTIFICATIONS costs alerts only. */
+    private val linkPermissions = PermissionRows.BLUETOOTH_PERMISSIONS
+
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
-            if (results.values.all { it }) {
-                startBridgeService()
-            }
-            // A denial is reported by its own permission row. macName describes the link.
+            // A denial is reported by its own permission row; macName describes the link.
+            // Only the Bluetooth pair gates the service — gating on every result would let a
+            // declined notification prompt leave Bridge dead with nothing on screen saying so.
+            startServiceIfPermitted()
             updatePermissionStatus()
         }
 
@@ -109,7 +115,9 @@ class MainActivity : AppCompatActivity() {
         sendClipboardButton.setOnClickListener { sendClipboardToMac() }
         linkGuidanceAction.setOnClickListener { onConnectAction() }
         linkGuidanceDismiss.setOnClickListener {
-            guidanceDismissedFor = currentLinkState()
+            // The state on screen, not the state now: a change racing the tap would
+            // otherwise silence a line the user never read.
+            guidanceDismissedFor = renderedGuidanceState
             linkGuidance.visibility = View.GONE
         }
 
@@ -206,6 +214,7 @@ class MainActivity : AppCompatActivity() {
     private fun renderGuidance(state: LinkState) {
         if (!state.needsAttention) {
             guidanceDismissedFor = null
+            renderedGuidanceState = null
             linkGuidance.visibility = View.GONE
             return
         }
@@ -218,6 +227,7 @@ class MainActivity : AppCompatActivity() {
         }
         linkGuidanceText.text = LinkState.promptBody(state)
         linkGuidanceAction.text = LinkState.actionLabel(state)
+        renderedGuidanceState = state
         linkGuidance.visibility = View.VISIBLE
     }
 
@@ -232,6 +242,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Idempotent: the only way back from Android's app-info screen is onResume, so a
+     * permission granted there has to be able to start the service without a relaunch.
+     */
+    private fun startServiceIfPermitted() {
+        val granted = linkPermissions.all {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
+        if (granted) startBridgeService()
+    }
+
     private fun startBridgeService() {
         startForegroundService(Intent(this, BridgeService::class.java))
         checkNotificationAccess()
@@ -243,6 +264,7 @@ class MainActivity : AppCompatActivity() {
         BridgeService.LinkStatus.addListener(linkListener)
         // Handshake on open: confirm the link is really alive, not stale "connected".
         if (BridgeService.LinkStatus.isSocketConnected) BridgeService.requestHandshake()
+        startServiceIfPermitted()
         checkNotificationAccess()
         updateMirroringCount()
         updateClipboardStatus()
@@ -260,7 +282,9 @@ class MainActivity : AppCompatActivity() {
         permissionRows.removeAllViews()
         for (item in PermissionStatusChecker(this).all()) {
             val row = layoutInflater.inflate(R.layout.view_permission_row, permissionRows, false)
-            row.findViewById<View>(R.id.permission_dot).backgroundTintList =
+            val dot = row.findViewById<View>(R.id.permission_dot)
+            dot.contentDescription = item.status.label
+            dot.backgroundTintList =
                 android.content.res.ColorStateList.valueOf(
                     ContextCompat.getColor(
                         this,
@@ -268,7 +292,9 @@ class MainActivity : AppCompatActivity() {
                         else R.color.status_denied
                     )
                 )
-            row.findViewById<TextView>(R.id.permission_name).text = item.name
+            row.findViewById<TextView>(R.id.permission_name).text =
+                if (item.status == PermissionStatus.GRANTED) item.name
+                else "${item.name} — ${item.status.label}"
             row.findViewById<TextView>(R.id.permission_detail).text = item.detail
 
             val button = row.findViewById<Button>(R.id.permission_action)
@@ -303,7 +329,7 @@ class MainActivity : AppCompatActivity() {
     private fun recoverRuntime(permissions: List<String>) {
         val recovery = RuntimeRecovery.resolve(
             hasAsked = permissions.all { askedPrefs.getBoolean("has_asked_$it", false) },
-            showRationale = permissions.any { shouldShowRequestPermissionRationale(it) }
+            showRationale = permissions.all { shouldShowRequestPermissionRationale(it) }
         )
         when (recovery) {
             RuntimeRecovery.REQUEST -> requestRuntime(permissions)
