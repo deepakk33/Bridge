@@ -18,6 +18,9 @@ docs/BACKLOG.md  →  /work BR-n  →  branch → spec → code → review → p
    `docs/ITERATIONS.md`, pushes on your word.
 3. **Answer three gates.** Nothing else interrupts you.
 
+To work on two tickets at once, open a second agent window on a second worktree — one ticket per
+window. See "Running two items at once" below for the three things the two windows share.
+
 `/work` with no argument prints the queue plus each item's real phase read off disk — use it when
 you come back after a few days and have forgotten where something stood.
 
@@ -82,10 +85,45 @@ xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge test
 openspec validate --change <change-name>
 ```
 
+## Running two items at once
+
+One ticket, one agent window, one worktree, one branch. Each window runs its own `/work` and
+answers its own three gates. You are not juggling two items in one conversation — you are
+switching between two windows that each behave exactly as a single item always has.
+
+Set the second one up from the main checkout:
+
+```bash
+git worktree add .claude/worktrees/br-13-scan-watchdog -b work/br-13-notice-a-scan-that-never-returns main
+```
+
+Open an agent window there, run `/work BR-13`, and leave the main checkout alone — never switch
+its branch while another window is using it.
+
+Pick the second item so it shares nothing with the first: no file in common, no shared capability
+under `openspec/specs/`, no order stated between them in the backlog. `/work` checks this and
+tells you before it starts.
+
+**Three things the windows still share, and only one of them hurts.**
+
+The devices are singular — one phone, one Mac — and the Mac app is hostile to itself: two
+`Bridge.app` instances running at once kill each other's Bluetooth scan, which is the whole of
+BR-14. So **only one window may device-test at a time**, and no second Bridge build may be
+running while it does. Code and unit tests go in parallel freely; the hardware does not. This is
+the one that will actually bite you.
+
+`docs/ITERATIONS.md` is appended at the end by every wrap, so two branches that both finish will
+conflict there. `/work` now merges `main` before writing the entry, which resolves it. The
+backlog does not conflict — each item owns its own row.
+
+`openspec/specs/` is rewritten at archive time, so two items retiring or editing the same
+capability collide. Choosing non-overlapping items prevents it.
+
 ## Working two platforms at once
 
-Only then add a worktree under `.claude/worktrees/`. A single-platform item stays on one branch
-in the main checkout — a worktree per item is overhead you will pay for in confusion.
+When an item has both a Mac and an Android half that will be built and tested in the same sitting,
+add a worktree under `.claude/worktrees/` so both trees build at once. A single-platform item stays
+on one branch in the main checkout — a worktree per item is overhead you will pay for in confusion.
 
 ## Where things live
 
