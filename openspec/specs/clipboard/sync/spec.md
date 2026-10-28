@@ -149,9 +149,16 @@ Quick Settings tile, and the clip offered on reconnect.
 
 ### Requirement: Phone-to-Mac clipboard sends are user-initiated or grant-backed
 The Android app SHALL NOT send the clipboard to the Mac as a side effect of being opened or
-brought to the foreground. A phone-to-Mac send SHALL occur only when the user asks for it —
-the in-app send control or the Quick Settings tile — or when the ADB grant is active and the
-background clipboard watcher observes a change the user made.
+brought to the foreground. Outside the reconnect exchange below, a phone-to-Mac send SHALL
+occur only when the user asks for it — the in-app send control or the Quick Settings tile —
+or when the ADB grant is active and the background clipboard watcher observes a change the
+user made.
+
+The one exception is the `bridge.clipboard.connect` packet required by "Reconnect exchanges
+bridge.clipboard.connect with timestamp", which carries the phone's current clip on every
+connection and is therefore neither user-initiated nor grant-backed. Whether that exchange
+should be gated the same way is an open question, tracked as BR-16; this requirement does
+not resolve it.
 
 #### Scenario: Opening the app sends nothing
 - **WHEN** the user opens or returns to the Bridge app while connected, having copied
@@ -161,6 +168,12 @@ background clipboard watcher observes a change the user made.
 #### Scenario: Explicit send works
 - **WHEN** the user taps the in-app send control or the Quick Settings tile
 - **THEN** the current clipboard text is sent to the Mac and the Mac can paste it
+
+#### Scenario: Reconnect still exchanges clips
+- **WHEN** the link is re-established
+- **THEN** the phone sends its current clip in a `bridge.clipboard.connect` packet as the
+  reconnect requirement specifies, capped per the 10 KB rule — this change does not alter
+  that behaviour
 
 #### Scenario: Incoming Mac clip still lands on focus
 - **WHEN** the app regains focus and a Mac clip is pending from while it was backgrounded

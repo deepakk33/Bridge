@@ -32,6 +32,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-13 | Mac: notice a scan that never returns anything | ready | |
 | BR-14 | Mac: refuse to run twice | ready | |
 | BR-15 | Clipboard: the ADB grant path is dead, decide what replaces it | ready | |
+| BR-16 | Clipboard: decide whether reconnect should push the phone's clip | ready | |
 
 All of BR-2…BR-12 come from [AUDIT-2026-10-26.md](AUDIT-2026-10-26.md), which holds the
 evidence, file:line references and reproduction for each. The audit's own ordering
@@ -370,6 +371,28 @@ which BR-10 is about to surface in the UI.
 battery is burned) but could not fix the surrounding documentation without expanding its scope.
 This is also an instance of BR-12's last criterion — a spec requirement with no working code
 behind it.
+
+### BR-16 — Clipboard: decide whether reconnect should push the phone's clip
+
+**Scope**: decide whether `makeConnectPacket()` should keep sending the phone's current clip
+on every connection, or be gated the way BR-9 gated the other phone-to-Mac paths — then make
+`clipboard/sync` say so without an exception clause.
+**Why**: BR-9 removed the send-on-focus because focus is not consent, but
+`BridgeService.kt:259` still sends the phone's clipboard in a `bridge.clipboard.connect`
+packet on *every* reconnect — a Mac app restart, a Bluetooth blip, leaving and re-entering
+range. Observed repeatedly during BR-9's device test. That is the same silent send BR-9 set
+out to stop, arriving through a different door, and it means BR-9's own
+"user-initiated or grant-backed" requirement needed an exception clause to stay true.
+The counter-argument is real: the reconnect exchange exists so the two clipboards converge
+after a gap, and its timestamp comparison is what prevents ping-pong overwrites — gating it
+may just move the staleness problem.
+**Platforms**: android, protocol
+**Done when**:
+- [ ] a reconnect either does not push the phone's clip, or does so under a rule the user controls
+- [ ] clipboard convergence after a gap still works, or the degradation is recorded
+- [ ] `clipboard/sync` states the rule without an exception clause pointing at this item
+**Notes**: found while device-testing BR-9. Pre-existing since iteration 4, not a BR-9
+regression. Related to BR-4: the exposure only matters while the channel is plaintext.
 
 <!-- Template — copy for each new item:
 

@@ -875,6 +875,12 @@ being permanently orange, and it is only orange when something is actually wrong
   on "Out of range" with the phone 30 cm away until the app was restarted. This is the exact
   precondition for BR-13's observed failure, now reproduced deliberately. BR-13 makes the app
   recover from a dropped scan; BR-14 removes the commonest cause by making the Mac single-instance.
+- **BR-16 (new)**: `makeConnectPacket()` still pushes the phone's clip to the Mac on every
+  reconnect (`BridgeService.kt:259`), which is neither user-initiated nor grant-backed — the
+  same silent send BR-9 removed from the focus path, arriving through a different door. It is
+  mandated by the pre-existing reconnect requirement and predates BR-9, so BR-9's own
+  "user-initiated or grant-backed" requirement carries an exception clause until BR-16 decides
+  the rule.
 - **BR-15 (new)**: the `clipboard/adb-grant` spec capability, `scripts/adb-grant-clipboard.sh`
   and the "ADB Clipboard" permission row all describe a grant Android 16 refuses. This is an
   instance of **BR-12**'s last criterion — a spec requirement with no working code behind it.
