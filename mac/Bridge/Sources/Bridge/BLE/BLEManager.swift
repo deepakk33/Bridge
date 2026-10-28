@@ -33,6 +33,12 @@ final class BLEManager: NSObject, ObservableObject {
     private var lastDisconnect: DisconnectReason?
     private var healthTimer: Timer?
     private var loggedHealth: LinkHealth?
+    /// Our own record that a scan was requested. `CBCentralManager.isScanning` reports this
+    /// app's request, not the daemon's behaviour — it stayed true throughout the 2026-10-27
+    /// failure, where another process's `stop scan` ended this app's scan silently.
+    private var isScanning = false
+    private var searchingSince: Date?
+    private var scanWatchdog: Timer?
     private var deviceId: String
     private var pairingStateCancellable: AnyCancellable?
 
@@ -92,17 +98,74 @@ final class BLEManager: NSObject, ObservableObject {
             Self.logger.warning("Cannot scan: BT not powered on")
             return
         }
+        isScanning = true
+        // When the *search* began, not this attempt: a watchdog restart must not reset the
+        // clock, or the state never ages out of .searching and "Out of range" is unreachable.
+        if searchingSince == nil { searchingSince = Date() }
         transitionLink(to: .connecting)
         Self.logger.info("Scanning for Bridge service...")
         centralManager.scanForPeripherals(
             withServices: [BridgeConstants.serviceUUID],
             options: [CBCentralManagerScanOptionAllowDuplicatesKey: false]
         )
+        scheduleScanWatchdog()
+    }
+
+    /// Core Bluetooth never tells a central that its scan stopped, so the only way to notice
+    /// is to time how long it has produced nothing.
+    private func scheduleScanWatchdog() {
+        scanWatchdog?.invalidate()
+        scanWatchdog = Timer.scheduledTimer(
+            withTimeInterval: LinkHealthEvaluator.scanWatchdogPeriod, repeats: false
+        ) { [weak self] _ in
+            Task { @MainActor in self?.restartStalledScan() }
+        }
+    }
+
+    /// Stops the timer, but deliberately leaves `searchingSince` alone: connecting to a
+    /// peripheral we just discovered is still part of the same search, and clearing it here
+    /// made the panel flash "Out of range" for the length of the connect — observed on
+    /// hardware 2026-10-28, 676ms between discovery and connection.
+    private func stopScanWatchdog() {
+        scanWatchdog?.invalidate()
+        scanWatchdog = nil
+        isScanning = false
+    }
+
+    private func restartStalledScan() {
+        guard isScanning, centralManager.state == .poweredOn else { return }
+        // Reconnecting a peripheral that is still connected resets the ping watchdog's
+        // silence clock, which would turn a dead phone service back into "Verifying…".
+        // Its silence is that watchdog's business; stay armed for when it does drop.
+        guard !peripheralConnected else {
+            scheduleScanWatchdog()
+            return
+        }
+        Self.logger.info("Scan found nothing in \(Int(LinkHealthEvaluator.scanWatchdogPeriod))s — restarting")
+        centralManager.stopScan()
+        isScanning = false
+        if connectToSystemHeldPeripheral() { return }
+        startScanning()
+    }
+
+    /// A peripheral macOS already holds does not advertise to us, so scanning alone can never
+    /// find it. This is Core Bluetooth's intended way to recover such a link.
+    @discardableResult
+    private func connectToSystemHeldPeripheral() -> Bool {
+        let held = centralManager.retrieveConnectedPeripherals(
+            withServices: [BridgeConstants.serviceUUID]
+        )
+        guard let peripheral = held.first else { return false }
+        Self.logger.info("System already holds \(peripheral.name ?? "unnamed") — connecting without a scan")
+        connectToPeripheral(peripheral)
+        return true
     }
 
     func disconnect() {
         lastDisconnect = .local
         pingWatchdog.stop()
+        stopScanWatchdog()
+        searchingSince = nil
         if let peripheral = discoveredPeripheral {
             centralManager.cancelPeripheralConnection(peripheral)
         }
@@ -157,7 +220,8 @@ final class BLEManager: NSObject, ObservableObject {
                 bleConnected: peripheralConnected,
                 bluetoothOn: state == .poweredOn,
                 isVerified: isVerified,
-                lastDisconnect: lastDisconnect
+                lastDisconnect: lastDisconnect,
+                searchingSince: searchingSince
             )
         }
         lastSeenText = (linkHealth == .connected || lastSeen == nil)
@@ -198,6 +262,7 @@ final class BLEManager: NSObject, ObservableObject {
 
     private func connectToPeripheral(_ peripheral: CBPeripheral) {
         centralManager.stopScan()
+        stopScanWatchdog()
         if let old = discoveredPeripheral, old !== peripheral {
             centralManager.cancelPeripheralConnection(old)
         }
@@ -387,17 +452,23 @@ extension BLEManager: CBCentralManagerDelegate {
             switch central.state {
             case .poweredOn:
                 Self.logger.info("Bluetooth powered on")
-                startScanning()
+                if !connectToSystemHeldPeripheral() { startScanning() }
             case .poweredOff:
                 Self.logger.warning("Bluetooth powered off")
+                stopScanWatchdog()
+                searchingSince = nil
                 transitionLink(to: .bluetoothOff)
                 connectedDeviceName = nil
                 mirroringState = nil
             case .unauthorized:
                 Self.logger.error("Bluetooth unauthorized")
+                stopScanWatchdog()
+                searchingSince = nil
                 transitionLink(to: .bluetoothOff)
             case .unsupported:
                 Self.logger.error("Bluetooth unsupported")
+                stopScanWatchdog()
+                searchingSince = nil
                 transitionLink(to: .bluetoothOff)
             default:
                 Self.logger.info("Bluetooth state: \(central.state.rawValue)")
@@ -425,6 +496,7 @@ extension BLEManager: CBCentralManagerDelegate {
             Self.logger.info("Connected to \(peripheral.name ?? "unnamed")")
             peripheralConnected = true
             lastDisconnect = nil
+            searchingSince = nil
             // Otherwise the previous session's gap is measured against this one and a
             // fresh reconnect reads as stale before the first packet lands.
             pingWatchdog.resetClock()
@@ -476,12 +548,17 @@ extension BLEManager: CBPeripheralDelegate {
         MainActor.assumeIsolated {
             if let error {
                 Self.logger.error("Service discovery failed: \(error.localizedDescription)")
+                abandon(peripheral)
                 return
             }
             guard let service = peripheral.services?.first(where: {
                 $0.uuid == BridgeConstants.serviceUUID
             }) else {
-                Self.logger.error("Bridge service not found")
+                // Reachable when macOS handed us a peripheral it still holds but whose Bridge
+                // service is gone. Without dropping it we would sit on "Verifying…" forever,
+                // because connecting cancelled the scan watchdog.
+                Self.logger.error("Bridge service not found — dropping the peripheral and scanning again")
+                abandon(peripheral)
                 return
             }
             peripheral.discoverCharacteristics(
@@ -541,6 +618,16 @@ extension BLEManager: CBPeripheralDelegate {
                 }
             }
         }
+    }
+
+    /// Give up on a peripheral we cannot use and go back to looking. Without this, a
+    /// connection that never yields the Bridge service is a dead end: it cancelled the scan
+    /// and the scan watchdog when it connected.
+    private func abandon(_ peripheral: CBPeripheral) {
+        centralManager.cancelPeripheralConnection(peripheral)
+        if discoveredPeripheral === peripheral { discoveredPeripheral = nil }
+        peripheralConnected = false
+        startScanning()
     }
 
     private func openL2CAPChannel(on peripheral: CBPeripheral) {
