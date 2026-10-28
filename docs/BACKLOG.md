@@ -31,7 +31,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-12 | Protocol and process debt | ready | |
 | BR-13 | Mac: notice a scan that never returns anything | ready | |
 | BR-14 | Mac: refuse to run twice | ready | |
-| BR-15 | Clipboard: the ADB grant path is dead, decide what replaces it | ready | |
+| BR-15 | Clipboard: the ADB grant path is dead, decide what replaces it | in-progress | `work/br-15-adb-grant` |
 | BR-16 | Clipboard: decide whether reconnect should push the phone's clip | ready | |
 
 All of BR-2…BR-12 come from [AUDIT-2026-10-26.md](AUDIT-2026-10-26.md), which holds the
@@ -371,6 +371,33 @@ which BR-10 is about to surface in the UI.
 battery is burned) but could not fix the surrounding documentation without expanding its scope.
 This is also an instance of BR-12's last criterion — a spec requirement with no working code
 behind it.
+
+Re-verified on SM-S931B / Android 16 (API 36) on 2026-10-28, and the item's premise was
+understated — the script does not fail, it reports a false success:
+- `pm grant com.bridge.app android.permission.READ_CLIPBOARD_IN_BACKGROUND` →
+  `SecurityException: Permission ... is managed by role`, as BR-9 found.
+- But the clipboard half of `scripts/adb-grant-clipboard.sh` does not use `pm grant` at all —
+  it runs `appops set com.bridge.app READ_CLIPBOARD allow`, which **succeeds**.
+- `READ_CLIPBOARD` has **default mode `allow` for every app** (confirmed against untouched
+  packages and after `appops reset com.bridge.app`). The script sets what is already set, then
+  prints *"Success! … Phone-to-Mac clipboard sync is now active."*; `--check` prints
+  *"Full sync active."* on any install. The appop is not the gate — Android's focused-window
+  check is, and no appop or `pm grant` moves it for a sideloaded app.
+- `READ_CLIPBOARD_IN_BACKGROUND` is absent from the manifest, so `checkSelfPermission` could
+  never return granted regardless.
+
+Decisions taken 2026-10-28:
+- **Delete all three surfaces.** `scripts/adb-grant-clipboard.sh` and the
+  `openspec/specs/clipboard/adb-grant/` capability are deleted, and the "ADB Clipboard"
+  permission row is dropped, leaving two rows that can both actually reach Granted. A row
+  permanently `LIMITED` with no action is the never-clearing warning BR-11 and BR-9 both
+  name as training the user to ignore the honest ones.
+- **The knowledge moves, it is not lost.** `clipboard/sync` absorbs one requirement stating
+  that background phone-to-Mac is unobtainable on Android 16 and that the quick-settings tile
+  and the in-app send are the two triggers — so no capability survives promising a script.
+- **`docs/PRD.md` and `.claude/CLAUDE.md` are corrected in this item**, beyond the Scope line
+  as written: the PRD is the document the others defer to, and "Done when" forbids a shipped
+  doc that tells the user to run a command the OS refuses.
 
 ### BR-16 — Clipboard: decide whether reconnect should push the phone's clip
 
