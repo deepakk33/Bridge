@@ -14,7 +14,12 @@ enum LinkHealth: Equatable, Sendable {
     /// No packet for >=90s while BLE is still connected, or the peer tore the
     /// connection down from its side: the phone's service is gone, not the phone.
     case dead
-    /// BLE disconnected cleanly (phone walked away).
+    /// Scanning, with nothing discovered yet and no watchdog period elapsed. Looking is
+    /// not a finding: until the scan has run long enough to mean something, the Mac says
+    /// it is still looking rather than where the phone is.
+    case searching
+    /// BLE disconnected cleanly (phone walked away), or the scan has run for a full
+    /// watchdog period without discovering anything.
     case outOfRange
     /// Bluetooth is turned off on the Mac.
     case bluetoothOff
@@ -43,22 +48,36 @@ enum LinkHealthEvaluator {
     static let staleThreshold: TimeInterval = 60
     /// Declared dead after this much silence (3x heartbeat).
     static let deadThreshold: TimeInterval = 90
+    /// How long a scan may discover nothing before it is restarted and the link is
+    /// called out of range. Android advertises within 1s of its service starting and
+    /// resumes within 2s of a drop, so anything beyond this is the scan, not the phone.
+    static let scanWatchdogPeriod: TimeInterval = 20
 
     /// Classify the link from the last packet time and transport state.
+    /// - Parameter searchingSince: when the current scan started, or nil when not scanning.
+    ///   A scan younger than `scanWatchdogPeriod` has established nothing, so it is reported
+    ///   as `.searching` rather than as a claim about where the phone is.
     static func evaluate(
         lastSeen: Date?,
         now: Date = Date(),
         bleConnected: Bool,
         bluetoothOn: Bool,
         isVerified: Bool = true,
-        lastDisconnect: DisconnectReason? = nil
+        lastDisconnect: DisconnectReason? = nil,
+        searchingSince: Date? = nil
     ) -> LinkHealth {
         if !bluetoothOn { return .bluetoothOff }
         if !bleConnected {
             switch lastDisconnect {
             case .local: return .disconnected
             case .peerTerminated: return .dead
-            case .supervisionTimeout, .unknown, nil: return .outOfRange
+            case .supervisionTimeout: return .outOfRange
+            case .unknown, nil:
+                // Never connected, or dropped with no reason attached: the only evidence is
+                // how long we have been looking.
+                if let searchingSince,
+                   now.timeIntervalSince(searchingSince) < scanWatchdogPeriod { return .searching }
+                return .outOfRange
             }
         }
         // Silence outranks verification: a peer that opened a socket and then went quiet
@@ -88,7 +107,7 @@ enum LinkHealthEvaluator {
             return "Bluetooth is off. Open Bluetooth settings to re-enable."
         case .outOfRange:
             return "Phone is out of range. It will reconnect automatically when back in range."
-        case .stale, .connected, .verifying, .disconnected:
+        case .stale, .connected, .verifying, .disconnected, .searching:
             return nil
         }
     }

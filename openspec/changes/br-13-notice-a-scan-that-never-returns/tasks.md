@@ -8,19 +8,19 @@ openspec validate br-13-notice-a-scan-that-never-returns
 
 ## 1. Link health gains a Searching state
 
-- [ ] 1.1 Add `case searching` to `LinkHealth` and a `scanWatchdogPeriod` constant (20 s) to
+- [x] 1.1 Add `case searching` to `LinkHealth` and a `scanWatchdogPeriod` constant (20 s) to
       `LinkHealthEvaluator`; verify `xcodebuild … build` fails only with exhaustive-switch errors
       at the known call sites (`StatusPanel`'s status row, its menu-bar icon, and
       `guidance(for:)`), confirming no consumer silently defaults.
-- [ ] 1.2 Write the failing `LinkHealthTests` cases first, per design decision 3: `searchingSince`
+- [x] 1.2 Write the failing `LinkHealthTests` cases first, per design decision 3: `searchingSince`
       within the period with `lastDisconnect` nil → `.searching`; beyond the period →
       `.outOfRange`; `.supervisionTimeout` → `.outOfRange` regardless of `searchingSince`;
       `.peerTerminated` → `.dead`; `.local` → `.disconnected`; `searchingSince` nil →
       `.outOfRange`. Verify with `xcodebuild … test` that they fail for the right reason.
-- [ ] 1.3 Add the `searchingSince: Date? = nil` parameter and the branch to
+- [x] 1.3 Add the `searchingSince: Date? = nil` parameter and the branch to
       `LinkHealthEvaluator.evaluate`; verify `xcodebuild … test` turns 1.2 green and every
       pre-existing `LinkHealthTests` case still passes on the defaulted parameter.
-- [ ] 1.4 Return `nil` from `guidance(for: .searching)` and render a "Searching…" status distinct
+- [x] 1.4 Return `nil` from `guidance(for: .searching)` and render a "Searching…" status distinct
       from "Out of range" in `StatusPanel`, including the menu-bar icon branch; verify
       `xcodebuild … build` succeeds with no exhaustiveness errors left.
 - [ ] 1.5 Commit (`feat(mac): BR-13 add a Searching link-health state`) with the `xcodebuild …

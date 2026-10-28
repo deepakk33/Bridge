@@ -75,6 +75,10 @@ struct StatusPanel: View {
             Label("Not responding", systemImage: "exclamationmark.triangle.fill")
                 .foregroundStyle(.red)
 
+        case .searching:
+            Label("Searching…", systemImage: "dot.radiowaves.left.and.right")
+                .foregroundStyle(.secondary)
+
         case .outOfRange:
             Label("Out of range", systemImage: "antenna.radiowaves.left.and.right")
                 .foregroundStyle(.secondary)
@@ -210,7 +214,7 @@ struct StatusPanel: View {
     private var showsLastSeen: Bool {
         switch bleManager.linkHealth {
         case .stale, .dead, .outOfRange: return true
-        case .connected, .verifying, .bluetoothOff, .disconnected: return false
+        case .connected, .verifying, .bluetoothOff, .disconnected, .searching: return false
         }
     }
 

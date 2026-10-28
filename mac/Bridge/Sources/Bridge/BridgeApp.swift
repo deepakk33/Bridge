@@ -58,6 +58,8 @@ struct BridgeApp: App {
             return "exclamationmark.circle"
         case .dead:
             return "exclamationmark.triangle.fill"
+        case .searching:
+            return "dot.radiowaves.left.and.right"
         case .outOfRange:
             return "antenna.radiowaves.left.and.right"
         case .bluetoothOff:

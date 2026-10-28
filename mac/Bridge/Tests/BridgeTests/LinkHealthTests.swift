@@ -162,4 +162,79 @@ final class LinkHealthTests: XCTestCase {
         XCTAssertNil(LinkHealthEvaluator.guidance(for: .disconnected))
         XCTAssertNil(LinkHealthEvaluator.guidance(for: .stale(seconds: 65)))
     }
+
+    // MARK: - Scan watchdog (BR-13)
+
+    func testSearchingWhileScanIsYoung() {
+        let h = LinkHealthEvaluator.evaluate(
+            lastSeen: nil, now: now,
+            bleConnected: false, bluetoothOn: true,
+            searchingSince: now.addingTimeInterval(-5)
+        )
+        XCTAssertEqual(h, .searching)
+    }
+
+    func testOutOfRangeOnceTheScanHasRunAWatchdogPeriod() {
+        let h = LinkHealthEvaluator.evaluate(
+            lastSeen: nil, now: now,
+            bleConnected: false, bluetoothOn: true,
+            searchingSince: now.addingTimeInterval(-LinkHealthEvaluator.scanWatchdogPeriod)
+        )
+        XCTAssertEqual(h, .outOfRange)
+    }
+
+    /// A supervision timeout is evidence the phone left. A fresh scan after it must not
+    /// soften that back into "still looking".
+    func testSupervisionTimeoutOutranksAFreshScan() {
+        let h = LinkHealthEvaluator.evaluate(
+            lastSeen: now.addingTimeInterval(-2), now: now,
+            bleConnected: false, bluetoothOn: true,
+            lastDisconnect: .supervisionTimeout,
+            searchingSince: now.addingTimeInterval(-1)
+        )
+        XCTAssertEqual(h, .outOfRange)
+    }
+
+    func testPeerTerminatedOutranksAFreshScan() {
+        let h = LinkHealthEvaluator.evaluate(
+            lastSeen: now.addingTimeInterval(-2), now: now,
+            bleConnected: false, bluetoothOn: true,
+            lastDisconnect: .peerTerminated,
+            searchingSince: now.addingTimeInterval(-1)
+        )
+        XCTAssertEqual(h, .dead)
+    }
+
+    func testLocalDisconnectOutranksAFreshScan() {
+        let h = LinkHealthEvaluator.evaluate(
+            lastSeen: now.addingTimeInterval(-2), now: now,
+            bleConnected: false, bluetoothOn: true,
+            lastDisconnect: .local,
+            searchingSince: now.addingTimeInterval(-1)
+        )
+        XCTAssertEqual(h, .disconnected)
+    }
+
+    /// Not scanning is not searching — the pre-BR-13 answer has to survive.
+    func testNotScanningStaysOutOfRange() {
+        let h = LinkHealthEvaluator.evaluate(
+            lastSeen: nil, now: now,
+            bleConnected: false, bluetoothOn: true,
+            searchingSince: nil
+        )
+        XCTAssertEqual(h, .outOfRange)
+    }
+
+    func testBluetoothOffOutranksAFreshScan() {
+        let h = LinkHealthEvaluator.evaluate(
+            lastSeen: nil, now: now,
+            bleConnected: false, bluetoothOn: false,
+            searchingSince: now.addingTimeInterval(-1)
+        )
+        XCTAssertEqual(h, .bluetoothOff)
+    }
+
+    func testSearchingIsTransientAndCarriesNoGuidance() {
+        XCTAssertNil(LinkHealthEvaluator.guidance(for: .searching))
+    }
 }
