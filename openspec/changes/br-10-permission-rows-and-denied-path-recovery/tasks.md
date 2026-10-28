@@ -1,7 +1,8 @@
 Android only. Verify commands used below.
 
-2.2-2.4 and 3.2 stay unchecked until the device test in 4.3 confirms them on hardware —
-their stated verification is on-device, and code landing is not the same as the check passing.
+2.2-2.4, 3.2 and 4.3 stay unchecked: the Galaxy S25 dropped off adb before the device test
+could run, so nothing on this branch has been checked on hardware. Code landing is not the
+same as the check passing.
 
 
 ```bash
@@ -72,9 +73,9 @@ openspec validate br-10-permission-rows-and-denied-path-recovery
 
 ## 4. Verification and device test
 
-- [ ] 4.1 Run `openspec validate br-10-permission-rows-and-denied-path-recovery` and fix whatever
+- [x] 4.1 Run `openspec validate br-10-permission-rows-and-denied-path-recovery` and fix whatever
       it reports.
-- [ ] 4.2 Run `(cd android/Bridge && ./gradlew test assembleDebug)` from a clean state; record
+- [x] 4.2 Run `(cd android/Bridge && ./gradlew test assembleDebug)` from a clean state; record
       the final status line for the review gate.
 - [ ] 4.3 **Device test** on the Galaxy S25 (Android 16), walking BR-10's "Done when" list:
       (a) each permission row states its consequence and offers its own action;
