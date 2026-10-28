@@ -13,6 +13,7 @@
     <string name="status_disconnected">Disconnected</string>
     <string name="status_connected">Connected</string>
     <string name="status_last_seen_never">Not connected yet</string>
+    <string name="link_guidance_dismiss">Dismiss</string>
 
     <!-- Sections -->
     <string name="section_notifications">Notifications</string>
@@ -34,5 +35,4 @@
     <string name="clipboard_manual_no_grant">Manual sync. Phone to Mac needs the button below or the Quick Settings tile; a Mac clip lands when you open Bridge.\n\nAndroid 16 reserves background clipboard access for system roles, so automatic sync is not available.</string>
     <string name="clipboard_truncated">Last clip was %1$s — only the first 10 KB reached the Mac</string>
     <string name="clipboard_syncing">Syncing both ways</string>
-    <string name="disable_battery_optimization">Disable Battery Optimization</string>
 </resources>

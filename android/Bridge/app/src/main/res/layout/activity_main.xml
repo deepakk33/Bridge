@@ -40,25 +40,8 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
+                    android:orientation="vertical"
                     android:padding="20dp">
-
-                    <ImageView
-                        android:id="@+id/app_glyph"
-                        android:layout_width="56dp"
-                        android:layout_height="56dp"
-                        android:src="@drawable/ic_launcher_foreground"
-                        android:background="@drawable/bg_state_pill"
-                        android:backgroundTint="?attr/colorPrimary"
-                        android:contentDescription="@string/app_name" />
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginStart="16dp"
-                        android:orientation="vertical">
 
                         <TextView
                             android:id="@+id/state_pill"
@@ -92,7 +75,47 @@
                             android:text="@string/status_last_seen_never"
                             android:textSize="13sp"
                             android:alpha="0.7" />
-                    </LinearLayout>
+
+                        <!-- BR-10: what the resume modal used to say, inline and dismissible.
+                             The pill, the device line and the toolbar action already name the
+                             state; a dialog made it a fourth statement and an obstacle. -->
+                        <LinearLayout
+                            android:id="@+id/link_guidance"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:id="@+id/link_guidance_text"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textSize="13sp" />
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:orientation="horizontal">
+
+                                <Button
+                                    android:id="@+id/link_guidance_action"
+                                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:minWidth="0dp" />
+
+                                <Button
+                                    android:id="@+id/link_guidance_dismiss"
+                                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="4dp"
+                                    android:minWidth="0dp"
+                                    android:text="@string/link_guidance_dismiss" />
+                            </LinearLayout>
+                        </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -200,22 +223,11 @@
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
-                    <TextView
-                        android:id="@+id/permission_status"
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:id="@+id/permission_rows"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:textSize="13sp"
-                        android:fontFamily="monospace" />
-
-                    <Button
-                        android:id="@+id/battery_opt_button"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="@string/disable_battery_optimization"
-                        android:visibility="gone" />
+                        android:orientation="vertical" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>

@@ -1,7 +1,6 @@
 package com.bridge.app
 
 import android.Manifest
-import android.app.AlertDialog
 import android.bluetooth.BluetoothAdapter
 import android.content.ComponentName
 import android.content.Intent
@@ -16,7 +15,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.Button
-import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -25,8 +24,11 @@ import com.bridge.clipboard.ClipboardCardState
 import com.bridge.notifications.BridgeNotificationListener
 import com.bridge.notifications.NotificationFilterActivity
 import com.bridge.notifications.NotificationFilterStore
+import com.bridge.permissions.PermissionAction
+import com.bridge.permissions.PermissionRows
 import com.bridge.permissions.PermissionStatus
 import com.bridge.permissions.PermissionStatusChecker
+import com.bridge.permissions.RuntimeRecovery
 import com.bridge.security.TrustStore
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.card.MaterialCardView
@@ -36,38 +38,50 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statePill: TextView
     private lateinit var macName: TextView
     private lateinit var lastSeen: TextView
-    private lateinit var appGlyph: ImageView
     private lateinit var notificationsSection: MaterialCardView
     private lateinit var notifAccessButton: Button
     private lateinit var notifMirroringCount: TextView
     private lateinit var clipboardStatus: TextView
     private var clipboardStatusDefaultColors: android.content.res.ColorStateList? = null
     private lateinit var sendClipboardButton: Button
-    private lateinit var permissionStatus: TextView
-    private lateinit var batteryOptButton: Button
+    private lateinit var permissionRows: LinearLayout
+
+    /** Which runtime permissions we have ever prompted for — see [RuntimeRecovery]. */
+    private val askedPrefs by lazy {
+        getSharedPreferences("bridge_permissions", MODE_PRIVATE)
+    }
+
+    private lateinit var linkGuidance: LinearLayout
+    private lateinit var linkGuidanceText: TextView
+    private lateinit var linkGuidanceAction: Button
+    private lateinit var linkGuidanceDismiss: Button
 
     private var connectItem: MenuItem? = null
-    private val linkListener: () -> Unit = {
-        refreshLinkUi()
-        syncLinkPrompt()
-    }
-    private var linkPrompt: AlertDialog? = null
+    private val linkListener: () -> Unit = { refreshLinkUi() }
+
+    /** Dismissal is per state: a changed state is new information and says itself again. */
+    private var guidanceDismissedFor: LinkState? = null
+
+    /** The state the visible guidance was rendered for — what a dismiss actually dismisses. */
+    private var renderedGuidanceState: LinkState? = null
 
     private val requiredPermissions = buildList {
-        add(Manifest.permission.BLUETOOTH_ADVERTISE)
-        add(Manifest.permission.BLUETOOTH_CONNECT)
+        addAll(PermissionRows.BLUETOOTH_PERMISSIONS)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            add(Manifest.permission.POST_NOTIFICATIONS)
+            addAll(PermissionRows.POST_NOTIFICATION_PERMISSIONS)
         }
     }.toTypedArray()
 
+    /** Without these there is no link at all. A denied POST_NOTIFICATIONS costs alerts only. */
+    private val linkPermissions = PermissionRows.BLUETOOTH_PERMISSIONS
+
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
-            if (results.values.all { it }) {
-                startBridgeService()
-            } else {
-                macName.text = "Permissions required to run Bridge"
-            }
+            // A denial is reported by its own permission row; macName describes the link.
+            // Only the Bluetooth pair gates the service — gating on every result would let a
+            // declined notification prompt leave Bridge dead with nothing on screen saying so.
+            startServiceIfPermitted()
+            updatePermissionStatus()
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -80,15 +94,17 @@ class MainActivity : AppCompatActivity() {
         statePill = findViewById(R.id.state_pill)
         macName = findViewById(R.id.mac_name)
         lastSeen = findViewById(R.id.last_seen)
-        appGlyph = findViewById(R.id.app_glyph)
         notificationsSection = findViewById(R.id.notifications_section)
         notifAccessButton = findViewById(R.id.notif_access_button)
         notifMirroringCount = findViewById(R.id.notif_mirroring_count)
         clipboardStatus = findViewById(R.id.clipboard_status)
         clipboardStatusDefaultColors = clipboardStatus.textColors
         sendClipboardButton = findViewById(R.id.send_clipboard_button)
-        permissionStatus = findViewById(R.id.permission_status)
-        batteryOptButton = findViewById(R.id.battery_opt_button)
+        permissionRows = findViewById(R.id.permission_rows)
+        linkGuidance = findViewById(R.id.link_guidance)
+        linkGuidanceText = findViewById(R.id.link_guidance_text)
+        linkGuidanceAction = findViewById(R.id.link_guidance_action)
+        linkGuidanceDismiss = findViewById(R.id.link_guidance_dismiss)
 
         notificationsSection.setOnClickListener {
             startActivity(Intent(this, NotificationFilterActivity::class.java))
@@ -97,11 +113,12 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
         sendClipboardButton.setOnClickListener { sendClipboardToMac() }
-        batteryOptButton.setOnClickListener {
-            startActivity(
-                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-                    .setData(Uri.parse("package:$packageName"))
-            )
+        linkGuidanceAction.setOnClickListener { onConnectAction() }
+        linkGuidanceDismiss.setOnClickListener {
+            // The state on screen, not the state now: a change racing the tap would
+            // otherwise silence a line the user never read.
+            guidanceDismissedFor = renderedGuidanceState
+            linkGuidance.visibility = View.GONE
         }
 
         checkPermissionsAndStart()
@@ -176,6 +193,8 @@ class MainActivity : AppCompatActivity() {
             LinkState.BLUETOOTH_OFF -> "Bluetooth off"
         }
 
+        renderGuidance(state)
+
         lastSeen.text = when {
             state == LinkState.CONNECTED -> "Connected now"
             BridgeService.LinkStatus.lastConnectedAt > 0L -> "Last seen " + DateUtils.getRelativeTimeSpanString(
@@ -187,48 +206,29 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** On open, if the link isn't actually working, say so plainly and offer the fix. */
-    private fun maybePromptLinkIssue() {
-        val state = currentLinkState()
+    /**
+     * The guidance the resume modal used to carry, inline on the status card. Shown whenever
+     * the link needs attention, cleared the moment it does not, and a dismissal only holds
+     * for the state it was made in.
+     */
+    private fun renderGuidance(state: LinkState) {
         if (!state.needsAttention) {
-            linkPrompt?.dismiss()
-            linkPrompt = null
+            guidanceDismissedFor = null
+            renderedGuidanceState = null
+            linkGuidance.visibility = View.GONE
             return
         }
-        if (linkPrompt?.isShowing == true) {
-            applyPromptText(state)
+        if (guidanceDismissedFor != null && guidanceDismissedFor != state) {
+            guidanceDismissedFor = null
+        }
+        if (guidanceDismissedFor == state) {
+            linkGuidance.visibility = View.GONE
             return
         }
-
-        linkPrompt = AlertDialog.Builder(this)
-            .setPositiveButton(LinkState.actionLabel(state)) { _, _ -> onConnectAction() }
-            .setNegativeButton("Not now", null)
-            .setOnDismissListener { linkPrompt = null }
-            .create()
-            .also { dialog ->
-                applyPromptText(state, dialog)
-                dialog.show()
-                applyPromptText(state, dialog) // button text needs the shown dialog
-            }
-    }
-
-    /** Keep an already-open prompt honest as the state changes under it. */
-    private fun syncLinkPrompt() {
-        val dialog = linkPrompt ?: return
-        val state = currentLinkState()
-        if (!state.needsAttention) {
-            dialog.dismiss()
-            linkPrompt = null
-        } else {
-            applyPromptText(state, dialog)
-        }
-    }
-
-    private fun applyPromptText(state: LinkState, dialog: AlertDialog? = linkPrompt) {
-        dialog ?: return
-        dialog.setTitle(LinkState.promptTitle(state))
-        dialog.setMessage(LinkState.promptBody(state))
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.text = LinkState.actionLabel(state)
+        linkGuidanceText.text = LinkState.promptBody(state)
+        linkGuidanceAction.text = LinkState.actionLabel(state)
+        renderedGuidanceState = state
+        linkGuidance.visibility = View.VISIBLE
     }
 
     private fun checkPermissionsAndStart() {
@@ -238,8 +238,19 @@ class MainActivity : AppCompatActivity() {
         if (missing.isEmpty()) {
             startBridgeService()
         } else {
-            permissionLauncher.launch(missing.toTypedArray())
+            requestRuntime(missing)
         }
+    }
+
+    /**
+     * Idempotent: the only way back from Android's app-info screen is onResume, so a
+     * permission granted there has to be able to start the service without a relaunch.
+     */
+    private fun startServiceIfPermitted() {
+        val granted = linkPermissions.all {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
+        if (granted) startBridgeService()
     }
 
     private fun startBridgeService() {
@@ -253,27 +264,87 @@ class MainActivity : AppCompatActivity() {
         BridgeService.LinkStatus.addListener(linkListener)
         // Handshake on open: confirm the link is really alive, not stale "connected".
         if (BridgeService.LinkStatus.isSocketConnected) BridgeService.requestHandshake()
+        startServiceIfPermitted()
         checkNotificationAccess()
         updateMirroringCount()
         updateClipboardStatus()
         updatePermissionStatus()
         refreshLinkUi()
-        maybePromptLinkIssue()
     }
 
     override fun onPause() {
         super.onPause()
         BridgeService.clipboardBridge?.activityContext = null
         BridgeService.LinkStatus.removeListener(linkListener)
-        linkPrompt?.dismiss()
-        linkPrompt = null
     }
 
     private fun updatePermissionStatus() {
-        val checker = PermissionStatusChecker(this)
-        permissionStatus.text = checker.all().joinToString("\n") { "${it.name}: ${it.status.label}" }
-        batteryOptButton.visibility =
-            if (checker.batteryOptimization() == PermissionStatus.GRANTED) View.GONE else View.VISIBLE
+        permissionRows.removeAllViews()
+        for (item in PermissionStatusChecker(this).all()) {
+            val row = layoutInflater.inflate(R.layout.view_permission_row, permissionRows, false)
+            val dot = row.findViewById<View>(R.id.permission_dot)
+            dot.contentDescription = item.status.label
+            dot.backgroundTintList =
+                android.content.res.ColorStateList.valueOf(
+                    ContextCompat.getColor(
+                        this,
+                        if (item.status == PermissionStatus.GRANTED) R.color.status_granted
+                        else R.color.status_denied
+                    )
+                )
+            row.findViewById<TextView>(R.id.permission_name).text =
+                if (item.status == PermissionStatus.GRANTED) item.name
+                else "${item.name} — ${item.status.label}"
+            row.findViewById<TextView>(R.id.permission_detail).text = item.detail
+
+            val button = row.findViewById<Button>(R.id.permission_action)
+            val action = item.action
+            if (action == PermissionAction.None) {
+                button.visibility = View.GONE
+            } else {
+                button.text = action.label
+                button.setOnClickListener { runPermissionAction(action) }
+            }
+            permissionRows.addView(row)
+        }
+    }
+
+    private fun runPermissionAction(action: PermissionAction) {
+        when (action) {
+            PermissionAction.None -> Unit
+            PermissionAction.NotificationAccess ->
+                startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            PermissionAction.BatteryOptimization -> startActivity(
+                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                    .setData(Uri.parse("package:$packageName"))
+            )
+            is PermissionAction.Runtime -> recoverRuntime(action.permissions)
+        }
+    }
+
+    /**
+     * Android stops showing the prompt after a permanent denial, so a row whose button only
+     * ever re-requested would be a dead end. Fall through to app settings when that happens.
+     */
+    private fun recoverRuntime(permissions: List<String>) {
+        val recovery = RuntimeRecovery.resolve(
+            hasAsked = permissions.all { askedPrefs.getBoolean("has_asked_$it", false) },
+            showRationale = permissions.all { shouldShowRequestPermissionRationale(it) }
+        )
+        when (recovery) {
+            RuntimeRecovery.REQUEST -> requestRuntime(permissions)
+            RuntimeRecovery.OPEN_APP_SETTINGS -> startActivity(
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                    .setData(Uri.parse("package:$packageName"))
+            )
+        }
+    }
+
+    private fun requestRuntime(permissions: List<String>) {
+        askedPrefs.edit().apply {
+            permissions.forEach { putBoolean("has_asked_$it", true) }
+        }.apply()
+        permissionLauncher.launch(permissions.toTypedArray())
     }
 
     private fun updateClipboardStatus() {

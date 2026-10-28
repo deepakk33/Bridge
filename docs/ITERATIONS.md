@@ -1008,6 +1008,133 @@ and BR-5.
 
 ---
 
+## BR-10: Android — Permission Rows, Resume Modal, Denied-Path Recovery
+
+Branch `work/br-10-permission-rows-and-denied-path-recovery`, shipped 2026-10-28.
+
+### In plain terms
+
+The Permissions section of the phone app used to be a block of computer output — two lines of
+monospace text reading `Notification Access: Granted`, with one button underneath that applied to
+only one of them. It never said what any permission was *for*, or what Bridge could not do
+without it.
+
+It is now four rows. Each has a coloured dot, a name, one sentence saying what breaks without it,
+and its own button. A permission you already have shows a green dot and no button, because there
+is nothing left to do.
+
+Two permissions that were never listed at all — Bluetooth, and the one that lets Bridge show you
+alerts — are now rows too. Before, if you said no to one of those when the app first asked, the
+app had no way to ask again: the only route back was Android's own app-info screen, which nothing
+in Bridge pointed at. Now the row's button asks again, and if Android has stopped showing the
+prompt it takes you straight to the screen where you can still switch it on.
+
+Opening the app also used to throw up a pop-up telling you the link was down. The coloured pill,
+the device name and the toolbar button already said that, so the pop-up was the fourth voice
+saying one thing — and it came back every single time you opened the app. It is gone. The same
+sentence now sits on the status card with its button beside it, and a Dismiss that lets you put
+it away.
+
+### Technically
+
+- `PermissionItem.detail` had zero readers; it is now the row's consequence line, and non-null.
+- A new `PermissionAction` sealed type says what a row's button does — `NotificationAccess`,
+  `BatteryOptimization`, `Runtime(permissions)`, `None` — holding no `Context`, so
+  `PermissionRows.of` stays a pure builder with off-device tests. Every `Intent` stays in
+  `MainActivity`.
+- `PermissionRows.of` now takes four statuses and returns four rows. `postNotifications` is
+  nullable: `minSdk` is 31 and `POST_NOTIFICATIONS` does not exist below 33, so that row is
+  dropped rather than invented.
+- `RuntimeRecovery.resolve(hasAsked, showRationale)` decides prompt-vs-settings.
+  `shouldShowRequestPermissionRationale` is false both before the first prompt and after a
+  permanent denial, so a `has_asked_<permission>` boolean in `SharedPreferences` supplies the
+  second input.
+- Rows are inflated from `view_permission_row.xml` into a `LinearLayout`, not a RecyclerView —
+  four static rows, nothing to recycle. The dot reuses `bg_state_pill`, whose 100dp corner radius
+  renders a 10dp square as a circle, so no new drawable.
+- `maybePromptLinkIssue`, `syncLinkPrompt`, `applyPromptText` and `LinkState.promptTitle` are
+  deleted. `promptBody`/`actionLabel` are unchanged and now feed an inline guidance line rendered
+  from the existing `refreshLinkUi()`. A dismissal is recorded against the state it was made in.
+- `app_glyph` is gone, and with it the status card's horizontal wrapper, which had one child left.
+- No protocol change, no packet change, no Mac change.
+
+### Known issues and degradations
+
+- **The adb criterion was dropped, not met.** "The adb command is reachable from the UI" cannot
+  be satisfied: BR-15 deleted the grant, the script and the `clipboard/adb-grant` capability
+  because Android 16 refuses the permission by role, and `ui/permission-panel` now forbids a row
+  that shows a command. Recorded `[~]` in the backlog.
+- **The runtime rows read "Granted" for nearly every user, nearly always.** That is the cost of
+  making a denial visible, and it is why a granted row shows no button — a permanent row with an
+  action that does nothing is the pattern BR-9 and BR-11 both name as training users to ignore
+  the honest rows.
+- **`has_asked_<permission>` is absent on installs that predate this build.** It self-heals:
+  `checkPermissionsAndStart` marks it at the next launch. Worst case is one prompt Android
+  declines to show.
+- **One duplicate action remains.** The Notifications card still has its own "Grant Notification
+  Access" button alongside the new permission row. It is contextual where the user is already
+  thinking about notifications, and removing it was outside this item's scope.
+
+### Found while testing, and left for their owners
+
+- **Five defects came out of code review, two of which the device test then confirmed rather than
+  the reasoning.** Granting via app settings used to leave the service stopped until the process
+  was killed; and service start was gated on *every* runtime result, so declining the notification
+  prompt left Bridge dead with nothing on screen saying so — the status card no longer carried
+  the error line that used to hint at it. Both are fixed; `.BridgeService` was observed running
+  with `POST_NOTIFICATIONS` denied.
+- **Grant status had briefly become colour-only** — no word, no `contentDescription`, and
+  `PermissionStatus.label` left with no production caller. A non-granted row now reads
+  "Name — Disabled" and the dot carries the label for TalkBack.
+- **`openspec/config.yaml` still describes the ADB clipboard grant as a workaround**, which BR-15
+  disproved. It is prompt context rather than a shipped document, so it fell outside this item's
+  "Done when" — flagged for **BR-12**.
+
+### Second testing pass, same day
+
+The first pass covered the "Done when" criteria and left several changed paths unexercised. A
+second pass on the same S25 closed most of them, and found no new defects:
+
+- **All three action types fire the right intent, and only their own row.** With Notification
+  Access and Battery Optimization both disabled at once, the rows read
+  `Notification Access — Disabled` / **ENABLE** and `Battery Optimization — Disabled` / **ALLOW**
+  side by side, while Bluetooth and Notifications stayed Granted with no button. ENABLE opened
+  `Settings$NotificationAccessSettingsActivity`; ALLOW opened
+  `fuelgauge.RequestIgnoreBatteryOptimizations`; the Bluetooth row's GRANT opened
+  `applications.InstalledAppDetails`. Granting any of them and returning flipped that row to
+  Granted and removed its button, with no relaunch.
+- **The Bluetooth row behaves correctly denied**, reading `Bluetooth — Disabled` with GRANT while
+  the status card went on describing the *link* rather than the permission. With Bluetooth denied
+  `.BridgeService` correctly did **not** run — the mirror of the notifications case, where it
+  does.
+- **Review finding 4's asymmetric case turns out to be unreachable.** `BLUETOOTH_ADVERTISE` and
+  `BLUETOOTH_CONNECT` are both in the `NEARBY_DEVICES` permission group, so Android grants and
+  denies them together: revoking only `CONNECT` and requesting it got it back **with no prompt at
+  all**. The `all { shouldShowRequestPermissionRationale }` form is still the safer one and is
+  kept, but the dead end it prevents cannot occur with today's two rows. It would matter again
+  for any future row combining permissions from different groups.
+- **Inline guidance verified in a second state and the dismissal reset verified across one.**
+  With the phone's Bluetooth off the card read "Bridge needs Bluetooth to reach your Mac. Turn it
+  on?" with a TURN ON BLUETOOTH action and no dialog anywhere in the hierarchy. Dismissing it and
+  then turning Bluetooth back on — with the Mac app still dead — brought the guidance back with
+  the *new* state's text, confirming a dismissal does not outlive the state it was made in.
+
+**Still unexercised:** the `UNPAIRED` and `CONNECTING` guidance strings (both need a trust-store
+state this test could not reach without destroying the pairing), and the branch that drops the
+Notifications row below API 33 — unit-tested only, since the S25 is API 36.
+
+### What the next item builds on
+
+**BR-11** is the Mac mirror of this item and can copy the shape: a row that cannot reach Granted
+should not be shown, and a status with no action behind it is the thing to remove. The Local
+Network row it has to deal with is exactly that case.
+
+**BR-7** gets a working home for Disconnect and Unpair: the status card now has a guidance line
+and an action slot that render from link state, and `LinkState` is still the single place that
+decides what the user is offered.
+
+---
+
 ## BR-13: Mac — Notice a Scan That Never Returns Anything
 
 Branch `work/br-13-notice-a-scan-that-never-returns`, shipped 2026-10-28.
