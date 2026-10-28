@@ -33,6 +33,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-14 | Mac: refuse to run twice | ready | |
 | BR-15 | Clipboard: the ADB grant path is dead, decide what replaces it | done | `work/br-15-adb-grant` |
 | BR-16 | Clipboard: decide whether reconnect should push the phone's clip | ready | |
+| BR-17 | Media control: drive the phone's player from the Mac | ready | |
 
 All of BR-2…BR-12 come from [AUDIT-2026-10-26.md](AUDIT-2026-10-26.md), which holds the
 evidence, file:line references and reproduction for each. The audit's own ordering
@@ -425,6 +426,106 @@ may just move the staleness problem.
 - [ ] `clipboard/sync` states the rule without an exception clause pointing at this item
 **Notes**: found while device-testing BR-9. Pre-existing since iteration 4, not a BR-9
 regression. Related to BR-4: the exposure only matters while the channel is plaintext.
+
+### BR-17 — Media control: drive the phone's player from the Mac
+
+**Scope**: add `bridge.media` and `bridge.media.request`, read the phone's active media session
+through the `NotificationListenerService` Bridge already runs, and put the current track plus
+previous / play-pause / next in the Mac panel.
+**Why**: the phone is the music player and it sits a metre away with its screen off. Every pair
+of earbuds on the desk can already pause it — that is AVRCP riding the audio link. Bridge holds
+a resident BLE link to the same phone and the one permission the equivalent Android API needs
+(`MediaSessionManager.getActiveSessions` requires an **enabled notification listener** or
+`MEDIA_CONTENT_CONTROL`), which BR-6 and BR-10 already ship and surface as a permission row. So
+the capability is a packet type and a panel row away, not a new grant, a new transport or a new
+service. Today pausing means picking the phone up.
+**Platforms**: both, protocol
+**Done when**:
+- [ ] with music playing on the phone (Spotify and YouTube both checked), the Mac panel shows
+      title and artist, and a track change on the phone updates it without the Mac asking
+- [ ] play/pause from the Mac panel actually pauses and resumes the phone's audio
+- [ ] next and previous skip tracks
+- [ ] pausing *on the phone* flips the Mac's button state — the panel is not write-only
+- [ ] a control the player reports it cannot do is disabled, not dead: with `canGoNext` false the
+      next button is greyed, and nothing is sent
+- [ ] with nothing playing, the panel shows no stale track — the media row is absent, not a frozen
+      last-known title
+- [ ] with the notification listener disabled, the row says what is missing and opens the same
+      settings screen BR-10's permission row opens; nothing crashes and no session is read
+- [ ] no media packet is sent while no session exists — idle costs nothing, verified by log over
+      five minutes with no player running
+- [ ] killing the player app mid-playback clears the row rather than leaving a controllable ghost
+
+**Notes**:
+
+*Research, 2026-10-28. Nothing below is implemented yet; this is the evidence that the item is
+buildable and where its edges are.*
+
+**The Android side is a solved problem and the permission is already ours.**
+`MediaSessionManager.getActiveSessions(ComponentName)` returns a `MediaController` per active
+session, in priority order with index 0 the one the system routes media keys to — the same
+session the earbuds drive. Access requires `MEDIA_CONTENT_CONTROL` (a privileged permission a
+sideloaded app will not get, cf. BR-15's `READ_CLIPBOARD_IN_BACKGROUND`) **or** an enabled
+notification listener whose `ComponentName` is passed to the call. Bridge has the second:
+`BridgeNotificationListener` (`android/Bridge/app/src/main/java/com/bridge/notifications/BridgeNotificationListener.kt`),
+already enabled by the user and already status-checked by `PermissionStatusChecker`. The call
+does not have to be made from inside the listener, only to name it — so this can live in its own
+`com.bridge.media` package and keep the listener file untouched.
+A `MediaController` gives: `metadata` (title, artist, album, duration, album-art bitmap),
+`playbackState` (state, position, and an `actions` bitmask saying which controls the player
+actually supports), `playbackInfo` (volume), and `transportControls`
+(`play`/`pause`/`stop`/`skipToNext`/`skipToPrevious`/`seekTo`). Push, not poll: registering a
+`MediaController.Callback` gives `onPlaybackStateChanged` / `onMetadataChanged`, and
+`addOnActiveSessionsChangedListener` covers players appearing and disappearing. That is what the
+"idle costs nothing" criterion is built on.
+Reference implementation, read in full: KDE Connect's `MprisReceiverPlugin.kt` and
+`MprisReceiverPlayer.kt` (`KDE/kdeconnect-android`, `src/main/java/org/kde/kdeconnect/plugins/mprisreceiver/`).
+It gates on exactly `NotificationReceiver.hasReadNotificationsPermission(context)` and its
+permission dialog opens `android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS` — the same
+screen BR-10's row already opens.
+
+**Wire format.** KDE Connect's `kdeconnect.mpris` / `kdeconnect.mpris.request` pair is the
+format to mirror, under Bridge's own `bridge.` prefix, field names kept identical so the two stay
+readable against each other: status carries `player`, `title`, `artist`, `album`, `isPlaying`,
+`pos`, `length`, `volume`, `canPlay`, `canPause`, `canGoNext`, `canGoPrevious`, `canSeek`,
+`albumArtUrl`, and the player list carries `playerList`. Requests carry `player`, `action`
+(`Play` | `Pause` | `PlayPause` | `Stop` | `Next` | `Previous`), `requestPlayerList`,
+`requestNowPlaying`, `setVolume`, `SetPosition`, `Seek`. Two traps in that spec: the capital `S`
+on `Seek`/`SetPosition` is load-bearing, and the spec states `Seek` in **microseconds** while
+`pos` and `SetPosition` are **milliseconds** — neither matters if seek stays out of v1.
+
+**Deliberately out of v1, each for a reason:**
+- *Album art.* It is a JPEG; the control channel is BLE L2CAP and the convention caps inline
+  payloads at 10 KB, so art means the out-of-band path and a cache keyed by art hash. A title and
+  an artist are what the feature is for.
+- *Seek and a position bar.* A moving progress bar means either a timer on the phone or a packet
+  per second. `pos` can ride along in the status packet for free and be ignored by the Mac.
+- *Volume.* `MediaController.setVolumeTo()` only does the obvious thing for sessions with a
+  *remote* playback type; for local playback it is routed at the OS's discretion and is reported
+  to silently do nothing on some devices. Needs its own hardware check on the S25, not a
+  criterion in this item.
+- *Mac media keys (F7/F8/F9).* Capturing them needs a `CGEventTap`, which needs an Accessibility
+  or Input Monitoring TCC grant — a fourth grant, outside the three the PRD lists. Panel buttons
+  first; the keys are their own item if the buttons prove useful.
+- *A player picker.* With two players alive, drive index 0 — the session the OS itself routes to.
+  That is the earbud behaviour the item is modelled on. Send `playerList` anyway so a picker is a
+  UI change later, not a protocol change.
+
+**The reverse direction (control the Mac's music from the phone) is a separate, harder item.**
+macOS 15.4 added entitlement checks in `mediaremoted`, so `MRMediaRemoteGetNowPlayingInfo` now
+fails for unentitled third-party apps — the symbols still resolve, the daemon refuses. The known
+workarounds route the call through an already-entitled system binary (the `mediaremote-adapter`
+approach) or fall back to AppleScript against Music/Spotify by name. All of it is private API on
+a no-Developer-Program build. Do not fold it into this item.
+
+**Relations.** Depends on nothing. Shares BR-10's permission row and its denied-path recovery, so
+the "listener disabled" criterion is that work reused, not rebuilt. Touches BR-4: media metadata
+is a log of what the user listens to, travelling in plaintext until BR-4 closes that — worth one
+line in the item's proposal, not a blocker. The new packet types must be added to the allow-lists
+at `android/Bridge/app/src/main/java/com/bridge/ble/L2capServer.kt:253` and
+`mac/Bridge/Sources/Bridge/BLE/BLEManager.swift:321`, and to the trust gate at
+`L2capServer.kt:172` — BR-12 territory, which is why they are named here rather than discovered
+during implementation.
 
 <!-- Template — copy for each new item:
 

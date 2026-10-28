@@ -1090,6 +1090,39 @@ it away.
   disproved. It is prompt context rather than a shipped document, so it fell outside this item's
   "Done when" — flagged for **BR-12**.
 
+### Second testing pass, same day
+
+The first pass covered the "Done when" criteria and left several changed paths unexercised. A
+second pass on the same S25 closed most of them, and found no new defects:
+
+- **All three action types fire the right intent, and only their own row.** With Notification
+  Access and Battery Optimization both disabled at once, the rows read
+  `Notification Access — Disabled` / **ENABLE** and `Battery Optimization — Disabled` / **ALLOW**
+  side by side, while Bluetooth and Notifications stayed Granted with no button. ENABLE opened
+  `Settings$NotificationAccessSettingsActivity`; ALLOW opened
+  `fuelgauge.RequestIgnoreBatteryOptimizations`; the Bluetooth row's GRANT opened
+  `applications.InstalledAppDetails`. Granting any of them and returning flipped that row to
+  Granted and removed its button, with no relaunch.
+- **The Bluetooth row behaves correctly denied**, reading `Bluetooth — Disabled` with GRANT while
+  the status card went on describing the *link* rather than the permission. With Bluetooth denied
+  `.BridgeService` correctly did **not** run — the mirror of the notifications case, where it
+  does.
+- **Review finding 4's asymmetric case turns out to be unreachable.** `BLUETOOTH_ADVERTISE` and
+  `BLUETOOTH_CONNECT` are both in the `NEARBY_DEVICES` permission group, so Android grants and
+  denies them together: revoking only `CONNECT` and requesting it got it back **with no prompt at
+  all**. The `all { shouldShowRequestPermissionRationale }` form is still the safer one and is
+  kept, but the dead end it prevents cannot occur with today's two rows. It would matter again
+  for any future row combining permissions from different groups.
+- **Inline guidance verified in a second state and the dismissal reset verified across one.**
+  With the phone's Bluetooth off the card read "Bridge needs Bluetooth to reach your Mac. Turn it
+  on?" with a TURN ON BLUETOOTH action and no dialog anywhere in the hierarchy. Dismissing it and
+  then turning Bluetooth back on — with the Mac app still dead — brought the guidance back with
+  the *new* state's text, confirming a dismissal does not outlive the state it was made in.
+
+**Still unexercised:** the `UNPAIRED` and `CONNECTING` guidance strings (both need a trust-store
+state this test could not reach without destroying the pairing), and the branch that drops the
+Notifications row below API 33 — unit-tested only, since the S25 is API 36.
+
 ### What the next item builds on
 
 **BR-11** is the Mac mirror of this item and can copy the shape: a row that cannot reach Granted
