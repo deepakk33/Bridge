@@ -99,7 +99,9 @@ final class BLEManager: NSObject, ObservableObject {
             return
         }
         isScanning = true
-        searchingSince = Date()
+        // When the *search* began, not this attempt: a watchdog restart must not reset the
+        // clock, or the state never ages out of .searching and "Out of range" is unreachable.
+        if searchingSince == nil { searchingSince = Date() }
         transitionLink(to: .connecting)
         Self.logger.info("Scanning for Bridge service...")
         centralManager.scanForPeripherals(
@@ -129,6 +131,13 @@ final class BLEManager: NSObject, ObservableObject {
 
     private func restartStalledScan() {
         guard isScanning, centralManager.state == .poweredOn else { return }
+        // Reconnecting a peripheral that is still connected resets the ping watchdog's
+        // silence clock, which would turn a dead phone service back into "Verifying…".
+        // Its silence is that watchdog's business; stay armed for when it does drop.
+        guard !peripheralConnected else {
+            scheduleScanWatchdog()
+            return
+        }
         Self.logger.info("Scan found nothing in \(Int(LinkHealthEvaluator.scanWatchdogPeriod))s — restarting")
         centralManager.stopScan()
         isScanning = false
@@ -531,12 +540,17 @@ extension BLEManager: CBPeripheralDelegate {
         MainActor.assumeIsolated {
             if let error {
                 Self.logger.error("Service discovery failed: \(error.localizedDescription)")
+                abandon(peripheral)
                 return
             }
             guard let service = peripheral.services?.first(where: {
                 $0.uuid == BridgeConstants.serviceUUID
             }) else {
-                Self.logger.error("Bridge service not found")
+                // Reachable when macOS handed us a peripheral it still holds but whose Bridge
+                // service is gone. Without dropping it we would sit on "Verifying…" forever,
+                // because connecting cancelled the scan watchdog.
+                Self.logger.error("Bridge service not found — dropping the peripheral and scanning again")
+                abandon(peripheral)
                 return
             }
             peripheral.discoverCharacteristics(
@@ -596,6 +610,16 @@ extension BLEManager: CBPeripheralDelegate {
                 }
             }
         }
+    }
+
+    /// Give up on a peripheral we cannot use and go back to looking. Without this, a
+    /// connection that never yields the Bridge service is a dead end: it cancelled the scan
+    /// and the scan watchdog when it connected.
+    private func abandon(_ peripheral: CBPeripheral) {
+        centralManager.cancelPeripheralConnection(peripheral)
+        if discoveredPeripheral === peripheral { discoveredPeripheral = nil }
+        peripheralConnected = false
+        startScanning()
     }
 
     private func openL2CAPChannel(on peripheral: CBPeripheral) {
