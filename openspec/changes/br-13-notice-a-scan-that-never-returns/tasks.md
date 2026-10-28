@@ -1,7 +1,15 @@
 Mac only. Verify commands used below, run from this worktree.
 
-2.1-2.3 stay unchecked until the device test in 3.3 confirms them on hardware — their
-stated verification is on-device, and the code landing is not the same as the check passing.
+Device-test status, 2026-10-28, MacBook Air M3 + Galaxy S25, single instance confirmed:
+
+- Confirmed on hardware: `.searching` is reported from launch and holds across discovery and
+  the connect attempt (17:03:55.260 → 17:03:58.353, no `outOfRange` in between). This also
+  caught a defect the unit tests could not — see commit ad433bb.
+- Not reproducible: the phone was in range and advertising for every run, discovered in
+  93ms-3.9s, so the watchdog never fired. 2.1's second half ("flips to Out of range after
+  20s"), 2.2 (restart logged) and 2.3 (system-held peripheral — macOS released it on each
+  quit) are **untested**, not passed. They need the phone out of BLE range, or its Bridge
+  service stopped.
 
 
 ```bash
@@ -52,9 +60,9 @@ openspec validate br-13-notice-a-scan-that-never-returns
 
 ## 3. Verification and device test
 
-- [ ] 3.1 Run `openspec validate br-13-notice-a-scan-that-never-returns` and fix whatever it
+- [x] 3.1 Run `openspec validate br-13-notice-a-scan-that-never-returns` and fix whatever it
       reports.
-- [ ] 3.2 Run `xcodebuild … build` and `xcodebuild … test` from a clean state; record each final
+- [x] 3.2 Run `xcodebuild … build` and `xcodebuild … test` from a clean state; record each final
       status line for the review gate.
 - [ ] 3.3 **Device test** on the MacBook Air M3 with the Galaxy S25 in range. First confirm a
       single instance with `pgrep -fl Bridge.app` and kill any stray — BR-14 is not done, so this
