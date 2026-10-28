@@ -461,8 +461,10 @@ swiping the task from recents no longer kills the link.
 - **No automatic background clipboard.** Inherent to Android 16 without root. Manual
   paths (QS tile, app-open flush) are the ceiling. Only root + a role grant of
   `READ_CLIPBOARD_IN_BACKGROUND` would restore full auto-sync.
-- **`scripts/adb-grant-clipboard.sh` is now ineffective** on Android 16 (left in place;
-  it reports success for READ_LOGS/appops but those no longer unblock background R/W).
+- **`scripts/adb-grant-clipboard.sh` is now ineffective** on Android 16 — it reports success
+  for READ_LOGS/appops but those no longer unblock background R/W. *Deleted by BR-15 on
+  2026-10-28, once it was established that the appop it sets already defaults to `allow`, so
+  the script's "Full sync active." was a false green rather than a partial one.*
 - **Handshake probe uses a fixed 3 s timeout** — a very slow link could false-drop once
   on open, then auto-reconnect.
 
@@ -896,3 +898,110 @@ One method worth reusing: the card states were verified by sampling pixel colour
 `adb screencap` rather than by eye — manual `#BCBCBC` with zero amber pixels, link-down and
 truncated both `#FF9800`. That turns "is it amber only when something is wrong" into a check
 that either passes or fails.
+
+---
+
+## BR-15: Clipboard — The ADB Grant Path Is Dead, Decide What Replaces It
+
+**Branch**: `work/br-15-adb-grant` · **Shipped**: 2026-10-28 · **Platform**: Android
+
+### In plain terms
+
+Bridge shipped a setup script that promised to turn on automatic clipboard sync from the phone.
+It could not. Worse, it said it had.
+
+The script's clipboard step did not actually run the command everyone assumed. Instead of
+`pm grant READ_CLIPBOARD_IN_BACKGROUND` — which Android 16 refuses outright, with
+`SecurityException: Permission ... is managed by role` — it ran `appops set READ_CLIPBOARD
+allow`. That command succeeds. It succeeds because every app on the phone already has that
+setting switched on by default, so setting it changes precisely nothing. The script then
+printed *"Success! Phone-to-Mac clipboard sync is now active."* Running it with `--check`
+reported *"Full sync active."* on any phone, including one where nothing had ever been granted.
+
+So the repo contained a green light wired to nothing. Alongside it: a spec capability describing
+how that grant works, and a permission row in the app pinned forever at "Limited", whose detail
+text held the failing command ready for BR-10 to put on screen.
+
+All three are gone. The script is deleted. The spec capability is deleted. The permission list
+is two rows now — Notification Access and Battery Optimization — and both of them can actually
+be turned on by tapping the button next to them. The knowledge that was worth keeping did not go
+with them: the clipboard spec now states plainly that background phone-to-Mac clipboard is
+unobtainable on Android 16 and that the tile and the in-app button are the answer, and the PRD
+records that the ADB route was tried and is closed rather than still recommending it.
+
+Nothing about using Bridge changed. The clipboard worked manually before this and works manually
+after. What changed is that the product stopped claiming otherwise.
+
+### Technically
+
+- **The real finding.** `READ_CLIPBOARD`'s appop default mode is `allow` for every package —
+  verified against untouched packages and after `appops reset com.bridge.app`. The appop was
+  never the gate; Android's focused-window rule is, and no appop or `pm grant` moves it for a
+  sideloaded build. `READ_CLIPBOARD_IN_BACKGROUND` was also absent from the manifest, so
+  `checkSelfPermission` could never have returned granted on any path.
+- **`PermissionStatusChecker`** loses `adbClipboardGrant()`, `ADB_GRANT_COMMAND`, the
+  `READ_CLIPBOARD_IN_BACKGROUND` constant and the third row. `PermissionStatus.LIMITED` goes with
+  them — it had exactly one producer.
+- **Row construction moved behind a pure `PermissionRows.of()`**, following the existing
+  `PermissionSummary` precedent, because this source set has no Robolectric and `all()` needs a
+  `Context`. `PermissionRowsTest` can then assert off-device that no row's name or detail
+  mentions `adb`, `pm grant`, `appops` or `clipboard`.
+- **`PermissionCheckerDelegatesTest` closes the hole that guard left.** Asserting over
+  `PermissionRows.of()` does not stop a row being appended inside `all()` — which is exactly the
+  regression. It reads the source and requires `all()` to delegate and to construct no
+  `PermissionItem` of its own. Both guards were mutation-checked: reinstating the row either way
+  fails the build.
+- **`ClipboardBridge` keeps its real `checkSelfPermission` query**, with the permission constant
+  moved in beside it, rather than hardcoding the gate to `false`. The platform should keep saying
+  no in its own voice; a constant would also lie on any Android where the answer differs.
+- **Specs**: `clipboard/adb-grant` deleted (5 requirements). `clipboard/sync` gains "Background
+  phone-to-Mac clipboard is unobtainable on Android 16", "Phone-to-Mac clipboard sends are
+  user-initiated" (the old name promised a "grant-backed" alternative that cannot exist) and
+  BR-9's clipboard-card requirement, which had been filed under `adb-grant` and would otherwise
+  have been deleted with it. `ui/permission-panel`'s Android requirement is replaced by one whose
+  rule is that every listed row must offer an action that can succeed.
+- **Docs**: script deleted; PRD's three-ways-out list marks option 1 tried-and-closed with the
+  exact `SecurityException` and records option 3 as shipped; `clipboard/sync`'s Purpose, the
+  README paragraph and `.claude/CLAUDE.md` corrected.
+
+### Known issues / degradations
+
+- **The 500 ms poll machinery is still in `ClipboardBridge` and is unreachable on Android 16.**
+  Kept deliberately: it is the mechanism that would work the moment `checkSelfPermission` returns
+  granted, so it is unreachable on *this hardware* rather than in principle, and `isWatching`
+  feeds `ClipboardCardState`, whose `SYNCING` arm would collapse with it — BR-9's card was device
+  verified two days ago. If `SYNCING` is still unreachable after BR-10, the poller and the card
+  state should be removed together.
+- **`openspec archive` cannot retire a capability on its own.** Deleting the last requirement
+  leaves a spec it refuses to write, and once the main spec is deleted by hand a REMOVED-only
+  delta reads as a request to *create* an empty capability, which it also refuses. The sequence
+  that works: delete `openspec/specs/<cap>/`, delete the delta folder from the change, then
+  archive. The five removal reasons were moved into the proposal's appendix first so the record
+  archives with the change rather than being lost with the delta.
+- **One scenario escaped the delta.** `clipboard/sync`'s "Latency under one second" still carried
+  an "Android to Mac latency (with ADB grant)" scenario, caught only by grepping the rebuilt main
+  specs after archiving and fixed directly. A capability-wide grep belongs in the delta-authoring
+  step, not after it.
+- **The Quick Settings tile was not exercised on device.** `cmd clipboard set-text` does not exist
+  on this build and a tile cannot be tapped over adb, so the in-app send control — which shares
+  the send path — was used instead.
+
+### Found while testing, and left for their owners
+
+- **README carried a second stale claim**, unrelated to the grant: it told the user that opening
+  the app sends the current phone clip, which BR-9 removed. Corrected here since the same
+  paragraph was already being rewritten.
+- **The OS corroborated the premise unprompted.** During the device test logcat showed
+  `ClipboardService: Denying clipboard access to <pkg>, application is not in focus nor is it a
+  system service` for several unrelated apps — the rule no grant moves, visible in the wild.
+
+### What the next item builds on
+
+**BR-10 is now safe to start.** It was going to render `PermissionItem.detail` in the UI, and the
+only `detail` that would have thrown is gone, along with the status value that had no action
+behind it. The screen BR-10 rebuilds is two honest rows, and `PermissionRows.of()` is the single
+place a new row can be added — with two tests watching it.
+
+The repo also has one fewer instance of **BR-12**'s last criterion: a spec requirement with no
+working code behind it. Two remain, both in `openspec/specs/security/` and both owned by BR-4
+and BR-5.

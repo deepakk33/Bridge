@@ -93,11 +93,11 @@ Four platform rules shape the phone-side design. None is fatal, each costs a des
 
 **Clipboard is read-blocked in the background.** Since Android 10 only the app holding input focus, or the current default IME, can read the clipboard. A background service calling `ClipboardManager.getPrimaryClip()` gets nothing. Three ways out, in descending order of ugliness:
 
-1. Grant `READ_LOGS` plus `android.permission.READ_CLIPBOARD_IN_BACKGROUND` over ADB once, via `pm grant`. Survives reboots, dies on factory reset.
-2. Ship a tiny no-op IME and make it the active keyboard. Works, but it hijacks typing.
-3. Push-only from the Mac, and on the phone sync the clipboard when the Bridge app is foregrounded or from a quick-settings tile tap.
+1. ~~Grant `READ_LOGS` plus `android.permission.READ_CLIPBOARD_IN_BACKGROUND` over ADB once, via `pm grant`.~~ **Tried and closed.** Verified on SM-S931B / Android 16 (API 36) on 2026-10-28: `pm grant` refuses the permission with `SecurityException: Permission android.permission.READ_CLIPBOARD_IN_BACKGROUND is managed by role`. It is not grantable to a sideloaded app at any API level Bridge targets. The `READ_CLIPBOARD` app op is not a substitute — its default mode is already `allow` for every app and it says nothing about background access, so setting it changes nothing. Only root, or a role the OS will not hand out, reopens this.
+2. Ship a tiny no-op IME and make it the active keyboard. Works, but it hijacks typing. Still available, still rejected for that reason.
+3. Push-only from the Mac, and on the phone send the clipboard from a quick-settings tile tap or an explicit in-app control.
 
-Option 1 is right for a personal build. Mac-to-phone direction has no restriction at all.
+**Option 3 is what ships** (BR-9, BR-15), and it is the permanent answer rather than a fallback. Opening the app is deliberately not a trigger — focus is not consent. Mac-to-phone direction has no restriction at all.
 
 **Notification access is a special permission.** `NotificationListenerService` needs the user to enable Bridge under Notification access in settings. It is granted by hand, once, and it survives updates. It delivers title, text, app name, actions and the `RemoteInput` key needed for reply-from-Mac, which is exactly the `requestReplyId` field in the KDE Connect notification packet.
 

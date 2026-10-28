@@ -1,7 +1,7 @@
 # clipboard/sync Specification
 
 ## Purpose
-Bidirectional clipboard sync between Mac and Android over the secure BLE link. Mac-to-phone requires no special permission. Phone-to-Mac requires an ADB grant (see `clipboard/adb-grant`). On reconnect, both sides exchange `bridge.clipboard.connect` packets with timestamps to prevent ping-pong overwrites.
+Bidirectional clipboard sync between Mac and Android over the secure BLE link. Mac-to-phone requires no special permission. Phone-to-Mac is manual and always will be on Android 16: the permission that would allow a background read is role-managed and cannot be held by a sideloaded build, so the Quick Settings tile and the in-app send control are the only triggers. On reconnect, both sides exchange `bridge.clipboard.connect` packets with timestamps to prevent ping-pong overwrites.
 
 ## Requirements
 
@@ -32,19 +32,6 @@ When Android receives a `bridge.clipboard` packet from the Mac, it writes the te
 #### Scenario: Duplicate content suppressed
 - **WHEN** Android receives a `bridge.clipboard` packet whose text matches the current local clipboard
 - **THEN** the local clipboard is not rewritten (avoids triggering a local change event that would echo back)
-
----
-
-### Requirement: Android clipboard change sends bridge.clipboard to Mac (with ADB grant)
-When the Android clipboard changes and the ADB grant is active, Android sends a `bridge.clipboard` packet to the Mac.
-
-#### Scenario: User copies text on phone with ADB grant active
-- **WHEN** the user copies text on the phone and ClipboardManager fires onPrimaryClipChanged
-- **THEN** Android sends a `bridge.clipboard` packet with the copied text to the Mac within 500ms
-
-#### Scenario: Change originated from Mac ignored
-- **WHEN** the clipboard change was caused by receiving a `bridge.clipboard` packet from the Mac (Bridge itself wrote the clip)
-- **THEN** no `bridge.clipboard` packet is sent back to the Mac (prevents echo loop)
 
 ---
 
@@ -93,9 +80,10 @@ Clipboard sync meets the PRD success criteria of under one second end-to-end.
 - **WHEN** the user copies text on the Mac
 - **THEN** the text is pasteable on Android within 1 second
 
-#### Scenario: Android to Mac latency (with ADB grant)
-- **WHEN** the user copies text on Android (ADB grant active)
-- **THEN** the text is pasteable on the Mac within 1 second
+#### Scenario: Android to Mac latency
+- **WHEN** the user copies text on Android and taps the Quick Settings tile or the in-app
+  send control
+- **THEN** the text is pasteable on the Mac within 1 second of that tap
 
 ### Requirement: Deferred Mac-to-phone clip is flushed on focus
 When a `bridge.clipboard` packet arrives from the Mac while the app is backgrounded, the
@@ -147,18 +135,51 @@ Quick Settings tile, and the clip offered on reconnect.
 
 ---
 
-### Requirement: Phone-to-Mac clipboard sends are user-initiated or grant-backed
-The Android app SHALL NOT send the clipboard to the Mac as a side effect of being opened or
-brought to the foreground. Outside the reconnect exchange below, a phone-to-Mac send SHALL
-occur only when the user asks for it — the in-app send control or the Quick Settings tile —
-or when the ADB grant is active and the background clipboard watcher observes a change the
-user made.
+### Requirement: Background phone-to-Mac clipboard is unobtainable on Android 16
+On Android 16 (One UI 8.5) only the focused window or the active IME may read the clipboard.
+The permission that lifts that rule, `READ_CLIPBOARD_IN_BACKGROUND`, is role-managed: `pm grant`
+refuses it with `SecurityException: Permission ... is managed by role`, and no `appops` mode
+substitutes for it. A sideloaded Bridge build therefore SHALL NOT claim, offer, or depend on
+background clipboard reads. Phone-to-Mac sync is manual, permanently and by platform design, and
+the app SHALL NOT schedule a recurring clipboard read, since such a read can only return nothing
+while still costing battery. Mac-to-phone sync is unaffected: writing to the phone's own
+clipboard from a received packet needs no permission.
+
+#### Scenario: No recurring read is ever scheduled
+- **WHEN** the Bridge foreground service starts on Android 16
+- **THEN** no recurring clipboard read is scheduled for the lifetime of the service, and the
+  reason is logged once
+
+#### Scenario: Mac-to-phone is unaffected
+- **WHEN** the Mac clipboard changes while the Bridge app is backgrounded
+- **THEN** the phone's clipboard is updated from the received packet as normal
+
+#### Scenario: Backgrounded phone sends nothing
+- **WHEN** the user copies text on the phone while Bridge is in the background
+- **THEN** the OS denies the read, and no `bridge.clipboard` packet is sent
+
+#### Scenario: A new phone needs no setup step
+- **WHEN** the user installs Bridge on a new phone
+- **THEN** both phone-to-Mac triggers work immediately, with no grant, script, adb command or
+  setup step anywhere in the product
+
+#### Scenario: Nothing instructs the user to obtain the grant
+- **WHEN** the user looks anywhere Bridge can speak to them — the permission list, the clipboard
+  card, the repository scripts, the README or the specs
+- **THEN** no text names an adb command, a grant or a script for background clipboard, because
+  none can succeed
+
+---
+
+### Requirement: Phone-to-Mac clipboard sends are user-initiated
+A phone-to-Mac send SHALL occur only when the user asks for it: the in-app send control or the
+Quick Settings tile. The app SHALL NOT send the clipboard as a side effect of being opened or
+brought to the foreground, and SHALL NOT send a clip that Bridge itself wrote from a Mac packet.
 
 The one exception is the `bridge.clipboard.connect` packet required by "Reconnect exchanges
 bridge.clipboard.connect with timestamp", which carries the phone's current clip on every
-connection and is therefore neither user-initiated nor grant-backed. Whether that exchange
-should be gated the same way is an open question, tracked as BR-16; this requirement does
-not resolve it.
+connection and is therefore not user-initiated. Whether that exchange should be gated the same
+way is an open question, tracked as BR-16; this requirement does not resolve it.
 
 #### Scenario: Opening the app sends nothing
 - **WHEN** the user opens or returns to the Bridge app while connected, having copied
@@ -168,6 +189,11 @@ not resolve it.
 #### Scenario: Explicit send works
 - **WHEN** the user taps the in-app send control or the Quick Settings tile
 - **THEN** the current clipboard text is sent to the Mac and the Mac can paste it
+
+#### Scenario: Change originated from Mac is not echoed
+- **WHEN** the clipboard change was caused by receiving a `bridge.clipboard` packet from the Mac
+  — Bridge itself wrote the clip — and a send is then triggered
+- **THEN** no `bridge.clipboard` packet carrying that same clip is sent back to the Mac
 
 #### Scenario: Reconnect still exchanges clips
 - **WHEN** the link is re-established
@@ -180,27 +206,32 @@ not resolve it.
 - **THEN** the pending clip is still written to the phone clipboard — removing the outbound
   send does not disable the inbound flush
 
-### Requirement: Android 16 background clipboard access is gated on the ADB grant
-On Android 16 (One UI 8.5) the clipboard service denies reads and writes to the Bridge
-service while it is not the focused window, unless the `READ_CLIPBOARD_IN_BACKGROUND` ADB
-grant is active. Without that grant automatic background sync is unavailable, so phone-to-Mac
-sync is manual. The app SHALL NOT run a background clipboard watcher when the grant is
-absent, since such a watcher can only read nothing while still costing battery.
+---
 
-#### Scenario: No watcher without the grant
-- **WHEN** the Bridge foreground service starts and the `READ_CLIPBOARD_IN_BACKGROUND` grant
-  is absent
-- **THEN** no recurring clipboard read is scheduled, and the reason is logged once
+### Requirement: Clipboard card reflects the current sync state
+The Android app clearly communicates the clipboard sync state. The clipboard card SHALL
+reflect the current state rather than a fixed message, and SHALL use its warning colour only
+for a condition the user can act on — a down link, or a clip that had to be truncated. Manual
+sync is the permanent, correct state on Android 16, so it SHALL NOT be shown as a warning: a
+colour that never clears trains the user to ignore the honest ones. All of the card's text
+SHALL come from string resources, and it SHALL NOT instruct the user to run a command the OS
+refuses.
 
-#### Scenario: Watcher runs with the grant
-- **WHEN** the Bridge foreground service starts and the grant is active
-- **THEN** the background clipboard watcher runs and a clip copied with the app backgrounded
-  reaches the Mac
+#### Scenario: No background watcher, UI explains manual sync
+- **WHEN** the Bridge app starts and no background clipboard watcher is running
+- **THEN** the clipboard card states that sync is manual, names the two phone-to-Mac triggers,
+  gives the OS reason it is manual, and renders in the normal text colour with no warning
 
-#### Scenario: Background clipboard read denied
-- **WHEN** the backgrounded Bridge service reads the clipboard on Android 16 without the grant
-- **THEN** the read is denied by the OS and no `bridge.clipboard` packet is sent
+#### Scenario: Link down is distinguished from manual sync
+- **WHEN** the link to the Mac is down
+- **THEN** the card says the link is down rather than describing the sync mode, in the warning colour
 
-#### Scenario: Quick Settings tile pushes phone to Mac
-- **WHEN** the user taps the Bridge Quick Settings tile
-- **THEN** the tile (a focused context) reads the clipboard and sends `bridge.clipboard` to the Mac
+#### Scenario: Truncated clip is reported on the card
+- **WHEN** the most recent phone-to-Mac send was truncated at the 10 KB cap
+- **THEN** the card states that the clip was truncated and gives the original size, in the
+  warning colour, until a later send succeeds whole
+
+#### Scenario: A new phone needs no setup to reach the manual state
+- **WHEN** the user sets up Bridge on a new phone
+- **THEN** the app shows the manual-sync card, and the two phone-to-Mac triggers work with no
+  grant, script or setup step

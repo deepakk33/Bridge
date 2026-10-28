@@ -7,7 +7,6 @@ import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import com.bridge.permissions.PermissionStatusChecker
 import com.bridge.protocol.BridgePacket
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
@@ -22,6 +21,8 @@ class ClipboardBridge(
     companion object {
         private const val TAG = "ClipboardBridge"
         private const val POLL_INTERVAL_MS = 500L
+        private const val READ_CLIPBOARD_IN_BACKGROUND =
+            "android.permission.READ_CLIPBOARD_IN_BACKGROUND"
     }
 
     /**
@@ -29,10 +30,12 @@ class ClipboardBridge(
      * background access, so it cannot gate the poll. The grant that matters is
      * READ_CLIPBOARD_IN_BACKGROUND, which is role-managed on Android 16 and cannot be held
      * by a sideloaded build — so on this hardware this is always false and no poll runs.
+     * The query stays real rather than a hardcoded false: it is the platform that says no,
+     * and it should keep saying so in its own voice on whatever Android this runs on.
      */
     val hasBackgroundClipboardAccess: Boolean
         get() = context.checkSelfPermission(
-            PermissionStatusChecker.READ_CLIPBOARD_IN_BACKGROUND
+            READ_CLIPBOARD_IN_BACKGROUND
         ) == PackageManager.PERMISSION_GRANTED
 
     var lastClipboardTimestamp: Long = 0L

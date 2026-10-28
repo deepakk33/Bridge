@@ -77,27 +77,6 @@ appear.
   state is re-evaluated
 - **THEN** that permission appears in the panel with its new status and its own action
 
-### Requirement: Android permission status in settings
-The Android Bridge settings screen shows the state of all required permissions and grants.
-
-#### Scenario: All Android permissions granted
-- **WHEN** the user opens Bridge settings and all grants are in place
-- **THEN** each item shows green: Notification Access (enabled), Battery Optimization (unrestricted), ADB Clipboard (granted)
-
-#### Scenario: Notification access revoked
-- **WHEN** Notification Access has been disabled for Bridge
-- **THEN** the settings screen shows it as "Disabled" with a red indicator and a button that opens the system Notification Access settings
-
-#### Scenario: Battery optimization enabled
-- **WHEN** Bridge is not excluded from battery optimization
-- **THEN** the settings screen shows Battery Optimization as "Not Excluded" with a warning and a button to open Battery settings
-
-#### Scenario: ADB clipboard grant missing
-- **WHEN** the READ_CLIPBOARD_IN_BACKGROUND ADB grant is not present
-- **THEN** the settings screen shows Clipboard Access as "Limited (phone-to-Mac clipboard disabled)" and displays the ADB command needed to restore it
-
----
-
 ### Requirement: Android permission check at launch
 The Android app checks all permission and grant states when the foreground service starts.
 
@@ -108,3 +87,33 @@ The Android app checks all permission and grant states when the foreground servi
 #### Scenario: Service starts with missing grant
 - **WHEN** the foreground service starts and Notification Access is disabled
 - **THEN** a separate notification is posted: "Bridge cannot mirror notifications. Tap to fix." Opening it goes to the Notification Access settings
+
+### Requirement: Android permission rows show only grants the user can obtain
+The Android Bridge settings screen shows the state of the permissions and grants Bridge needs.
+Every row it shows SHALL be one the user can actually reach Granted, through an action the row
+itself offers — a row that is permanently limited, with no action that can change it, trains
+the user to ignore the rows that still mean something. No row SHALL display an adb command or
+any other instruction the OS refuses.
+
+#### Scenario: All Android permissions granted
+- **WHEN** the user opens Bridge settings and all grants are in place
+- **THEN** each item shows green: Notification Access (enabled), Battery Optimization (unrestricted)
+
+#### Scenario: Notification access revoked
+- **WHEN** Notification Access has been disabled for Bridge
+- **THEN** the settings screen shows it as "Disabled" with a red indicator and a button that opens the system Notification Access settings
+
+#### Scenario: Battery optimization enabled
+- **WHEN** Bridge is not excluded from battery optimization
+- **THEN** the settings screen shows Battery Optimization as "Not Excluded" with a warning and a button to open Battery settings
+
+#### Scenario: No clipboard grant row is offered
+- **WHEN** the user opens Bridge settings on Android 16
+- **THEN** the permission list contains no clipboard row, because background clipboard access
+  is role-managed and unobtainable, and the clipboard card — not the permission list — is where
+  the manual sync state is reported
+
+#### Scenario: Every listed row carries an action that can succeed
+- **WHEN** any row in the permission list is shown as not granted
+- **THEN** the action it offers opens a system screen where the user can grant it, and no row
+  is left displaying a command for the user to type

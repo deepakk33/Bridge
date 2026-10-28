@@ -29,16 +29,15 @@ class PermissionSummaryTest {
     }
 
     @Test
-    fun `limited clipboard counts as a problem`() {
-        val items = listOf(PermissionItem("ADB Clipboard", PermissionStatus.LIMITED))
+    fun `a denied row counts as a problem`() {
+        val items = listOf(PermissionItem("Notification Access", PermissionStatus.DENIED))
         assertFalse(PermissionSummary.allGranted(items))
-        assertEquals(PermissionStatus.LIMITED, PermissionSummary.firstProblem(items)?.status)
+        assertEquals(PermissionStatus.DENIED, PermissionSummary.firstProblem(items)?.status)
     }
 
     @Test
     fun `status labels`() {
         assertEquals("Granted", PermissionStatus.GRANTED.label)
         assertEquals("Disabled", PermissionStatus.DENIED.label)
-        assertEquals("Limited", PermissionStatus.LIMITED.label)
     }
 }
