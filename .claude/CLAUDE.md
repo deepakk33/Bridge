@@ -26,7 +26,9 @@ Bridge/
 Work is driven by `docs/BACKLOG.md` (the queue — one row + one detail block per item) and the
 `/work <BR-n>` command (`.claude/commands/work.md`), which runs the whole item: clarify → branch
 → propose → implement → review → wrap. Phase is derived from disk, never from memory. `/work`
-with no argument prints the queue and each item's real phase.
+with no argument prints the queue and each item's real phase. Items run in parallel as one
+`/work` per agent window per worktree — never two items in one window or on one branch. Only one
+window may device-test at a time: two running `Bridge.app` instances break each other's BLE scan.
 
 Three human gates, and only these: **plan** (the OpenSpec artifacts), **review** (the diff plus
 the device test), **hand-off** (push). Everything between gates is automatic.
