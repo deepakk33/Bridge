@@ -59,25 +59,25 @@ Each task is well under 4 hours. Groups are ordered so the tree builds after eve
 
 Walked at the review gate, one line of observed evidence per criterion.
 
-- [ ] 12. **Permission list is two honest rows.** Install the debug APK, open Bridge, read the
+- [x] 12. **Permission list is two honest rows.** Install the debug APK, open Bridge, read the
   permission block on screen. Expect Notification Access and Battery Optimization only, no
   clipboard row, no adb command anywhere on the screen. Covers Done-when 2 and 4.
 
-- [ ] 13. **Both remaining rows still report correctly after the appops reset.** The fact-finding
+- [x] 13. **Both remaining rows still report correctly after the appops reset.** The fact-finding
   ran `appops reset com.bridge.app` on this device. Confirm Notification Access and Battery
   Optimization each still read Granted, and that toggling Notification Access off in system
   settings flips its row and back. Guards the design's stated risk.
 
-- [ ] 14. **Clipboard behaviour is unchanged.** Copy text on the phone, tap the Quick Settings
+- [x] 14. **Clipboard behaviour is unchanged.** Copy text on the phone, tap the Quick Settings
   tile, paste on the Mac. Then copy on the Mac and paste on the phone. Then confirm the clipboard
   card still reads as manual sync in the normal colour, and that the link-down state still turns
   it amber. Confirms the change removed claims, not function.
 
-- [ ] 15. **No background read is scheduled.** With the app backgrounded, confirm logcat shows the
+- [x] 15. **No background read is scheduled.** With the app backgrounded, confirm logcat shows the
   single "no background clipboard grant" line and no repeating clipboard poll entries over at
   least a minute.
 
-- [ ] 16. **Nothing shipped tells the user to run a refused command.** Grep the built APK's
+- [x] 16. **Nothing shipped tells the user to run a refused command.** Grep the built APK's
   strings and the repo for `pm grant`, `adb shell`, `READ_CLIPBOARD_IN_BACKGROUND` outside
   `openspec/changes/` and `docs/` history. Covers Done-when 1.
 
