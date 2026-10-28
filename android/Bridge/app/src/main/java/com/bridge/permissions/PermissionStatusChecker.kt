@@ -1,15 +1,13 @@
 package com.bridge.permissions
 
 import android.content.Context
-import android.content.pm.PackageManager
 import android.os.PowerManager
 import androidx.core.app.NotificationManagerCompat
 
 /** Grant status for a single Android permission / grant. */
 enum class PermissionStatus(val label: String) {
     GRANTED("Granted"),
-    DENIED("Disabled"),
-    LIMITED("Limited")
+    DENIED("Disabled")
 }
 
 /** One row in the Bridge settings permission screen. */
@@ -20,17 +18,17 @@ data class PermissionItem(
 )
 
 /**
- * Checks every permission / grant Bridge needs: Notification Access, Battery
- * Optimization exclusion, and the ADB clipboard grant. Surfaced in the settings
- * screen and checked on foreground-service start.
+ * Checks every permission / grant Bridge needs: Notification Access and the battery
+ * optimisation exclusion. Surfaced in the settings screen and checked on foreground-service
+ * start.
+ *
+ * There is deliberately no clipboard row. Background clipboard read needs
+ * READ_CLIPBOARD_IN_BACKGROUND, which Android 16 manages by role and refuses to `pm grant`
+ * to a sideloaded build, so the row could only ever sit at a status the user cannot change —
+ * and the command it used to offer fails with a SecurityException. Manual phone-to-Mac sync
+ * is reported by the clipboard card instead. See BR-15.
  */
 class PermissionStatusChecker(private val context: Context) {
-
-    companion object {
-        const val READ_CLIPBOARD_IN_BACKGROUND = "android.permission.READ_CLIPBOARD_IN_BACKGROUND"
-        val ADB_GRANT_COMMAND =
-            "adb shell pm grant com.bridge.app $READ_CLIPBOARD_IN_BACKGROUND"
-    }
 
     fun notificationAccess(): PermissionStatus {
         val enabled = NotificationManagerCompat.getEnabledListenerPackages(context)
@@ -44,19 +42,15 @@ class PermissionStatusChecker(private val context: Context) {
         else PermissionStatus.DENIED
     }
 
-    fun adbClipboardGrant(): PermissionStatus {
-        val granted = context.checkSelfPermission(READ_CLIPBOARD_IN_BACKGROUND) ==
-            PackageManager.PERMISSION_GRANTED
-        return if (granted) PermissionStatus.GRANTED else PermissionStatus.LIMITED
-    }
+    fun all(): List<PermissionItem> = PermissionRows.of(notificationAccess(), batteryOptimization())
+}
 
-    fun all(): List<PermissionItem> = listOf(
-        PermissionItem("Notification Access", notificationAccess()),
-        PermissionItem("Battery Optimization", batteryOptimization(),
-            detail = "Set Bridge to Unrestricted so One UI does not kill the service."),
-        PermissionItem("ADB Clipboard", adbClipboardGrant(),
-            detail = if (adbClipboardGrant() == PermissionStatus.LIMITED)
-                "phone-to-Mac clipboard disabled. Run: $ADB_GRANT_COMMAND" else null)
+/** Pure row builder — the shape of the permission list, testable without a Context. */
+object PermissionRows {
+    fun of(notificationAccess: PermissionStatus, batteryOptimization: PermissionStatus) = listOf(
+        PermissionItem("Notification Access", notificationAccess),
+        PermissionItem("Battery Optimization", batteryOptimization,
+            detail = "Set Bridge to Unrestricted so One UI does not kill the service.")
     )
 }
 

@@ -4,30 +4,30 @@ Each task is well under 4 hours. Groups are ordered so the tree builds after eve
 
 ## Android
 
-- [ ] 1. **Move the permission constant to its last consumer.** Declare
+- [x] 1. **Move the permission constant to its last consumer.** Declare
   `READ_CLIPBOARD_IN_BACKGROUND` as a private constant inside `ClipboardBridge` and point
   `hasBackgroundClipboardAccess` at it, so the gate no longer imports `PermissionStatusChecker`.
   Keep the `checkSelfPermission` query and the existing KDoc explaining why it is always false on
   Android 16. Build must stay green with the old constant still present.
 
-- [ ] 2. **Strip the clipboard row from `PermissionStatusChecker`.** Remove `adbClipboardGrant()`,
+- [x] 2. **Strip the clipboard row from `PermissionStatusChecker`.** Remove `adbClipboardGrant()`,
   `ADB_GRANT_COMMAND`, the `READ_CLIPBOARD_IN_BACKGROUND` constant, the now-empty `companion
   object` if nothing else is in it, the `PackageManager` import if unused, and the third
   `PermissionItem` from `all()`. `all()` returns Notification Access and Battery Optimization.
 
-- [ ] 3. **Remove `PermissionStatus.LIMITED`.** Its only producer went with task 2.
+- [x] 3. **Remove `PermissionStatus.LIMITED`.** Its only producer went with task 2.
 
-- [ ] 4. **Update `PermissionSummaryTest`.** Retarget the `LIMITED` cases onto `DENIED` so the
+- [x] 4. **Update `PermissionSummaryTest`.** Retarget the `LIMITED` cases onto `DENIED` so the
   test still covers "a non-granted row is the first problem" and the status label assertion.
 
-- [ ] 5. **Add the regression test that keeps the row gone.** Assert over
+- [x] 5. **Add the regression test that keeps the row gone.** Assert over
   `PermissionStatusChecker.all()` that no row's `name` or `detail` matches `adb`, `pm grant`,
   `clipboard` or `READ_CLIPBOARD`, and that the list holds exactly the two obtainable rows. Use
   whatever the Android test source set already supports for obtaining a `Context`; if it supports
   none, assert the same over a `PermissionItem` list built from the real strings and add a source
   grep assertion instead. This is what makes Done-when 1 and 4 checkable off-device.
 
-- [ ] 6. **Verify Android.** Run `(cd android/Bridge && ./gradlew test assembleDebug)` and read
+- [x] 6. **Verify Android.** Run `(cd android/Bridge && ./gradlew test assembleDebug)` and read
   the output. Do not mark this task until it is green.
 
 ## Repo and scripts
