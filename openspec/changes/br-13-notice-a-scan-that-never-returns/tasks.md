@@ -1,4 +1,8 @@
-Mac only. Verify commands used below, run from this worktree:
+Mac only. Verify commands used below, run from this worktree.
+
+2.1-2.3 stay unchecked until the device test in 3.3 confirms them on hardware — their
+stated verification is on-device, and the code landing is not the same as the check passing.
+
 
 ```bash
 xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge build
@@ -23,7 +27,7 @@ openspec validate br-13-notice-a-scan-that-never-returns
 - [x] 1.4 Return `nil` from `guidance(for: .searching)` and render a "Searching…" status distinct
       from "Out of range" in `StatusPanel`, including the menu-bar icon branch; verify
       `xcodebuild … build` succeeds with no exhaustiveness errors left.
-- [ ] 1.5 Commit (`feat(mac): BR-13 add a Searching link-health state`) with the `xcodebuild …
+- [x] 1.5 Commit (`feat(mac): BR-13 add a Searching link-health state`) with the `xcodebuild …
       test` summary line in the body.
 
 ## 2. Scan watchdog and system-held peripheral
@@ -42,7 +46,7 @@ openspec validate br-13-notice-a-scan-that-never-returns
       `.poweredOn` and at the top of each watchdog restart, connecting to the first result through
       the existing `connectToPeripheral`. Verify by launching the Mac app while macOS already
       holds the phone's peripheral: the link comes up with no advertisement wait.
-- [ ] 2.4 Re-run `xcodebuild … build` and `xcodebuild … test`, read both outputs, and commit
+- [x] 2.4 Re-run `xcodebuild … build` and `xcodebuild … test`, read both outputs, and commit
       (`feat(mac): BR-13 scan watchdog and system-held peripheral recovery`) with the test summary
       line in the body.
 
