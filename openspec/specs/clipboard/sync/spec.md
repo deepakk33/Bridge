@@ -1,7 +1,7 @@
 # clipboard/sync Specification
 
 ## Purpose
-Bidirectional clipboard sync between Mac and Android over the secure BLE link. Mac-to-phone requires no special permission. Phone-to-Mac requires an ADB grant (see `clipboard/adb-grant`). On reconnect, both sides exchange `bridge.clipboard.connect` packets with timestamps to prevent ping-pong overwrites.
+Bidirectional clipboard sync between Mac and Android over the secure BLE link. Mac-to-phone requires no special permission. Phone-to-Mac is manual and always will be on Android 16: the permission that would allow a background read is role-managed and cannot be held by a sideloaded build, so the Quick Settings tile and the in-app send control are the only triggers. On reconnect, both sides exchange `bridge.clipboard.connect` packets with timestamps to prevent ping-pong overwrites.
 
 ## Requirements
 

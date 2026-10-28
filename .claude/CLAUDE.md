@@ -70,7 +70,9 @@ Iterations 1–8 are archived under `openspec/changes/archive/` and summarized i
 - Foreground service (connectedDevice type)
 - Notification access (NotificationListenerService, manual enable)
 - Bluetooth LE advertise
-- Clipboard: ADB grant for background read (`pm grant` READ_LOGS + READ_CLIPBOARD_IN_BACKGROUND)
+- Clipboard: none. Background read needs READ_CLIPBOARD_IN_BACKGROUND, which Android 16 manages
+  by role and will not `pm grant` to a sideloaded build. Phone-to-Mac is manual by design —
+  quick-settings tile or the in-app send control. Do not add a grant, script or adb command.
 
 ## Key Decisions (from PRD)
 - No Apple Developer Program — self-signed Keychain certificate

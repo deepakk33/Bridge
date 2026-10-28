@@ -138,11 +138,13 @@ Pairing is **Mac-initiated and auto-accepted** — there are no device IDs to co
 
 Automatic **background** clipboard sync is **not possible on Android 16 / One UI 8.5
 without rooting the phone**. The OS made `READ_CLIPBOARD_IN_BACKGROUND` role-managed, so it
-cannot be granted to a sideloaded app (`scripts/adb-grant-clipboard.sh` no longer helps;
-Shizuku can't either — only root). Clipboard therefore works **manually**:
+cannot be granted to a sideloaded app — `pm grant` refuses it with a `SecurityException`, and
+the `READ_CLIPBOARD` app op is no substitute because every app already has it. Shizuku can't
+either; only root. There is no setup step, no script and no adb command: this is the state a
+fresh install is in and stays in. Clipboard therefore works **manually**:
 
-- **Phone → Mac**: tap the **Bridge Clipboard** Quick Settings tile, or open the app
-  (opening sends the current phone clip).
+- **Phone → Mac**: tap the **Bridge Clipboard** Quick Settings tile, or use the send control
+  in the app. Opening the app does **not** send your clipboard — focus is not consent.
 - **Mac → Phone**: **open the app** — it applies whatever the Mac last copied (clips
   received while the app was backgrounded are cached and flushed on focus).
 

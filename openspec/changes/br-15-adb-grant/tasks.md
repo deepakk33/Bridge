@@ -32,28 +32,28 @@ Each task is well under 4 hours. Groups are ordered so the tree builds after eve
 
 ## Repo and scripts
 
-- [ ] 7. **Delete `scripts/adb-grant-clipboard.sh`** and grep the tree for anything that invokes
+- [x] 7. **Delete `scripts/adb-grant-clipboard.sh`** and grep the tree for anything that invokes
   or references it (`README.md`, `docs/`, other scripts, CI). BR-9 already corrected the README
   prose; confirm no live reference to the path survives.
 
 ## Specs and docs
 
-- [ ] 8. **Fix the `clipboard/sync` Purpose line** in `openspec/specs/clipboard/sync/spec.md`
+- [x] 8. **Fix the `clipboard/sync` Purpose line** in `openspec/specs/clipboard/sync/spec.md`
   directly — it currently says phone-to-Mac "requires an ADB grant (see `clipboard/adb-grant`)",
   pointing at a capability that is about to not exist. Purpose lines are edited in the main spec,
   not through a delta.
 
-- [ ] 9. **Correct `docs/PRD.md` "Android constraints".** In the three-ways-out list, record that
+- [x] 9. **Correct `docs/PRD.md` "Android constraints".** In the three-ways-out list, record that
   option 1 was attempted and is closed — `READ_CLIPBOARD_IN_BACKGROUND` is role-managed on
   Android 16, `pm grant` fails with `SecurityException`, and the `READ_CLIPBOARD` app op is not a
   substitute because its default is already `allow` — and that option 3 is what ships. Keep
   option 2 and its rejection; it is still live reasoning.
 
-- [ ] 10. **Correct `.claude/CLAUDE.md`.** The Permissions reference lists "Clipboard: ADB grant
+- [x] 10. **Correct `.claude/CLAUDE.md`.** The Permissions reference lists "Clipboard: ADB grant
   for background read (`pm grant` READ_LOGS + READ_CLIPBOARD_IN_BACKGROUND)". Replace with the
   manual-trigger reality.
 
-- [ ] 11. **Validate.** Run `openspec validate br-15-adb-grant` and read the output.
+- [x] 11. **Validate.** Run `openspec validate br-15-adb-grant` and read the output.
 
 ## Device test (SM-S931B / Android 16, MacBook Air M3)
 
