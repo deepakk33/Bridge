@@ -25,7 +25,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-6 | Notification mirroring: dismissal, replies, app names | done | `work/br-6-notification-mirroring` |
 | BR-7 | Add a Disconnect control to both apps | ready | |
 | BR-8 | File transfer: sanitise, cap, authenticate, confirm | ready | |
-| BR-9 | Clipboard: stop the dead poll, stop the silent send | in-progress | `work/br-9-clipboard` |
+| BR-9 | Clipboard: stop the dead poll, stop the silent send | done | `work/br-9-clipboard` |
 | BR-10 | Android: permission rows, resume modal, denied-path recovery | ready | |
 | BR-11 | Mac: Local Network status, accessibility, label stability | ready | |
 | BR-12 | Protocol and process debt | ready | |
@@ -230,11 +230,14 @@ was sent). Clipboard ignores the PRD's 10 KB out-of-band rule, so a large clip b
 control channel for minutes. The status card is hard-coded permanently orange.
 **Platforms**: android
 **Done when**:
-- [ ] no clipboard polling occurs when background access is denied
-- [ ] opening the app does not send the clipboard without the user asking
-- [ ] a clip over the cap does not block the control channel
-- [ ] the clipboard card changes with state and is amber only when something is wrong
-**Notes**: `AUD-G`. The battery cost lands squarely on the PRD's "tool gets uninstalled" risk.
+- [x] no clipboard polling occurs when background access is denied
+- [x] opening the app does not send the clipboard without the user asking
+- [x] a clip over the cap does not block the control channel
+- [x] the clipboard card changes with state and is amber only when something is wrong
+**Notes**: `AUD-G`. All four criteria verified on SM-S931B / Android 16 on 2026-10-28; see
+`docs/ITERATIONS.md`. The automatic phone-to-Mac path is permanently unavailable (the grant is
+role-managed) — filed as BR-15. Two Mac instances found running during the test — filed as BR-14.
+The battery cost lands squarely on the PRD's "tool gets uninstalled" risk.
 
 ### BR-10 — Android: permission rows, resume modal, denied-path recovery
 

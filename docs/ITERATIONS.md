@@ -800,3 +800,93 @@ Every later fix is now observable: the link state is the single published `linkH
 public visibility, so a device test reads a state name rather than inferring one from redacted
 transitions. BR-5's auto-accept gap is now *visible* rather than hidden — an unverified peer shows
 "Verifying…" instead of silently reading "Connected".
+
+---
+
+## BR-9: Clipboard — Stop the Dead Poll, Stop the Silent Send
+
+**Branch**: `work/br-9-clipboard` · **Shipped**: 2026-10-28 · **Platform**: Android
+
+### In plain terms
+
+Three things were wrong with the phone's clipboard, and they pulled in different directions.
+
+The app checked the clipboard twice a second, forever, on the main thread — and Android 16 denies
+that read, so it got nothing every single time. Pure battery cost for zero function, on a tool
+whose main risk is being uninstalled for eating battery.
+
+Opening the app sent your clipboard to the Mac. Not a button — merely bringing Bridge to the
+front. Whatever was on the clipboard, a password, a one-time code, a card number, went over a
+link that is still unencrypted until BR-4, with nothing on screen asking first.
+
+And nothing limited how big a clip could be. A large copy went down the same narrow Bluetooth
+channel that carries notifications and battery readings, holding everything else up behind it.
+
+Now: no polling at all, because the permission that would make polling work cannot be obtained on
+this phone (see below). Sending is deliberate — the button or the Quick Settings tile, nothing
+else. Anything over 10 KB is cut to 10 KB, and the app tells you it cut it and how big the
+original was. The clipboard card on the home screen now changes with the situation instead of
+being permanently orange, and it is only orange when something is actually wrong.
+
+### Technically
+
+- `ClipboardCap` (new, pure) bounds outgoing text at 10 240 **bytes** of UTF-8 but cuts on a
+  **code-point** boundary, so a clip of CJK or emoji is neither mis-measured nor split into a
+  replacement character. Every phone→Mac path routes through it: the poll, the in-app button, the
+  Quick Settings tile, the reconnect clip, and the exported `com.bridge.SEND_CLIPBOARD` test
+  receiver, which had been sending raw text straight to the peer.
+- `ClipboardTileService` previously built its own `BridgePacket.clipboard` and bypassed
+  `ClipboardBridge` entirely. It now sends through `ClipboardBridge.sendClipboardFrom(context)`,
+  so it both sets and clears the truncation outcome. Its `packetSender` hook is deleted.
+- `ClipboardBridge.start()` returns early when the background grant is absent, scheduling nothing.
+  `isWatching` exposes whether a watcher is *actually running*, which is what the card reads — not
+  the grant, so the card cannot promise sync that no running watcher provides.
+- `MainActivity.onWindowFocusChanged` keeps `flushPendingRemote()` (inbound, leaks nothing) and no
+  longer calls the outbound send.
+- `ClipboardCardState` (new, pure) maps `(isWatching, isLinkUp, lastSend)` to one of four states,
+  precedence: link down → truncated → manual → syncing. The Activity maps the returned `Kind` to a
+  string resource; the mapping stays out of the helper so its unit tests need no generated `R`.
+  Card strings moved to `strings.xml`, the `#FF9800` literal to `colors.xml`.
+- 129 unit tests green, including UTF-8 boundary cases and the full card precedence table.
+
+### Known issues and degradations
+
+- **The ADB clipboard grant does not exist on this hardware, and never did.** Verified on
+  SM-S931B / Android 16 on 2026-10-28: `pm grant com.bridge.app
+  android.permission.READ_CLIPBOARD_IN_BACKGROUND` fails with
+  `SecurityException: Permission ... is managed by role`. The permission was also absent from the
+  manifest, so `checkSelfPermission` could never have returned granted either. Automatic
+  phone→Mac sync is therefore **permanently unavailable**, and the `SYNCING` card state is
+  unreachable on real hardware — it is covered by unit test only. Filed as **BR-15**.
+- **A truncated clip looks like a whole one on the Mac.** The phone reports the cut; the Mac
+  receives no flag saying the text is partial. Adding one is a protocol change and belongs with
+  **BR-12**, which is already about packet fields nobody reads.
+- **The 10 KB cap is the PRD's number, not a measured one.** Measured on hardware: a packet queued
+  immediately behind a capped clip arrived in 0.44 s, so the cap does its job at this size. It was
+  not bisected to find where blocking actually starts.
+- `PermissionStatusChecker`'s "ADB Clipboard" row still reports `LIMITED` and still holds the
+  failing command in `.detail`. Out of scope here, but **BR-10 is about to surface `.detail` in
+  the UI** and must not ship a command that throws.
+
+### Found while testing, and left for their owners
+
+- **BR-14 (new)**: two Mac instances were running — the installed `/Applications/Bridge.app` and
+  an Xcode `DerivedData` debug build. Killing one dropped the *survivor's* BLE scan: it then sat
+  on "Out of range" with the phone 30 cm away until the app was restarted. This is the exact
+  precondition for BR-13's observed failure, now reproduced deliberately. BR-13 makes the app
+  recover from a dropped scan; BR-14 removes the commonest cause by making the Mac single-instance.
+- **BR-15 (new)**: the `clipboard/adb-grant` spec capability, `scripts/adb-grant-clipboard.sh`
+  and the "ADB Clipboard" permission row all describe a grant Android 16 refuses. This is an
+  instance of **BR-12**'s last criterion — a spec requirement with no working code behind it.
+
+### What the next item builds on
+
+The phone no longer sends anything the user did not ask for, which is the precondition for BR-4
+being worth doing: until now, hardening the channel would have protected a leak that fired on
+every app open. The clipboard is also off the main thread's timer entirely, so battery
+measurements for later items are not polluted by a 2 Hz wake.
+
+One method worth reusing: the card states were verified by sampling pixel colours out of
+`adb screencap` rather than by eye — manual `#BCBCBC` with zero amber pixels, link-down and
+truncated both `#FF9800`. That turns "is it amber only when something is wrong" into a check
+that either passes or fails.
