@@ -461,8 +461,10 @@ swiping the task from recents no longer kills the link.
 - **No automatic background clipboard.** Inherent to Android 16 without root. Manual
   paths (QS tile, app-open flush) are the ceiling. Only root + a role grant of
   `READ_CLIPBOARD_IN_BACKGROUND` would restore full auto-sync.
-- **`scripts/adb-grant-clipboard.sh` is now ineffective** on Android 16 (left in place;
-  it reports success for READ_LOGS/appops but those no longer unblock background R/W).
+- **`scripts/adb-grant-clipboard.sh` is now ineffective** on Android 16 — it reports success
+  for READ_LOGS/appops but those no longer unblock background R/W. *Deleted by BR-15 on
+  2026-10-28, once it was established that the appop it sets already defaults to `allow`, so
+  the script's "Full sync active." was a false green rather than a partial one.*
 - **Handshake probe uses a fixed 3 s timeout** — a very slow link could false-drop once
   on open, then auto-reconnect.
 

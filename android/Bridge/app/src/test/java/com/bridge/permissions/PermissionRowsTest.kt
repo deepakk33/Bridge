@@ -1,8 +1,11 @@
 package com.bridge.permissions
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 /**
  * BR-15: the permission list may only offer rows the user can actually reach Granted.
@@ -49,5 +52,44 @@ class PermissionRowsTest {
     fun `granting both clears the list`() {
         val granted = PermissionRows.of(PermissionStatus.GRANTED, PermissionStatus.GRANTED)
         assertTrue(PermissionSummary.allGranted(granted))
+    }
+}
+
+/**
+ * `PermissionRowsTest` asserts over the pure builder, but `PermissionStatusChecker.all()` is
+ * what the UI calls and it needs a Context this source set cannot provide (no Robolectric).
+ * A row appended directly inside `all()` would therefore escape every assertion above — which
+ * is precisely the regression BR-15 exists to prevent. So assert on the source instead: `all()`
+ * must do nothing but delegate.
+ */
+class PermissionCheckerDelegatesTest {
+
+    private val source = sequenceOf(
+        "src/main/java/com/bridge/permissions/PermissionStatusChecker.kt",
+        "app/src/main/java/com/bridge/permissions/PermissionStatusChecker.kt",
+        "android/Bridge/app/src/main/java/com/bridge/permissions/PermissionStatusChecker.kt"
+    ).map { File(it) }.firstOrNull { it.exists() }
+
+    @Test
+    fun `the source file is found, or this guard is worthless`() {
+        assertNotNull(
+            "PermissionStatusChecker.kt not found from working dir ${File("").absolutePath}",
+            source
+        )
+    }
+
+    @Test
+    fun `all() only delegates to the pure row builder`() {
+        val text = source!!.readText()
+        val body = text.substringAfter("fun all()").substringBefore("\n}")
+        assertTrue(
+            "all() must delegate to PermissionRows.of(), but reads: $body",
+            body.contains("PermissionRows.of(")
+        )
+        assertFalse(
+            "all() must not build rows itself - add them to PermissionRows.of() so " +
+                "PermissionRowsTest can check them. Body: $body",
+            body.contains("PermissionItem(")
+        )
     }
 }
