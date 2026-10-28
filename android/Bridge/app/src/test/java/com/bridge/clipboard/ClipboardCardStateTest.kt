@@ -20,9 +20,11 @@ class ClipboardCardStateTest {
 
     @Test
     fun `manual sync when no watcher is running`() {
+        // Not a warning: on Android 16 background clipboard access is role-managed, so manual
+        // is the permanent correct state and a permanent amber would train the user to ignore it.
         val state = ClipboardCardState.of(isWatching = false, isLinkUp = true, lastSend = null)
         assertEquals(ClipboardCardState.Kind.MANUAL_NO_GRANT, state.kind)
-        assertTrue(state.isWarning)
+        assertFalse(state.isWarning)
     }
 
     @Test

@@ -1,13 +1,13 @@
 package com.bridge.clipboard
 
-import android.app.AppOpsManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
-import android.os.Process
 import android.util.Log
+import com.bridge.permissions.PermissionStatusChecker
 import com.bridge.protocol.BridgePacket
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
@@ -24,16 +24,16 @@ class ClipboardBridge(
         private const val POLL_INTERVAL_MS = 500L
     }
 
+    /**
+     * The app op `android:read_clipboard` is ALLOWED for every app and says nothing about
+     * background access, so it cannot gate the poll. The grant that matters is
+     * READ_CLIPBOARD_IN_BACKGROUND, which is role-managed on Android 16 and cannot be held
+     * by a sideloaded build — so on this hardware this is always false and no poll runs.
+     */
     val hasBackgroundClipboardAccess: Boolean
-        get() {
-            val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-            val mode = appOps.unsafeCheckOpNoThrow(
-                "android:read_clipboard",
-                Process.myUid(),
-                context.packageName
-            )
-            return mode == AppOpsManager.MODE_ALLOWED
-        }
+        get() = context.checkSelfPermission(
+            PermissionStatusChecker.READ_CLIPBOARD_IN_BACKGROUND
+        ) == PackageManager.PERMISSION_GRANTED
 
     var lastClipboardTimestamp: Long = 0L
         private set

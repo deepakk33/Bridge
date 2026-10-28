@@ -30,6 +30,8 @@ place a work item is born. One row per item, one detail block per row.
 | BR-11 | Mac: Local Network status, accessibility, label stability | ready | |
 | BR-12 | Protocol and process debt | ready | |
 | BR-13 | Mac: notice a scan that never returns anything | ready | |
+| BR-14 | Mac: refuse to run twice | ready | |
+| BR-15 | Clipboard: the ADB grant path is dead, decide what replaces it | ready | |
 
 All of BR-2…BR-12 come from [AUDIT-2026-10-26.md](AUDIT-2026-10-26.md), which holds the
 evidence, file:line references and reproduction for each. The audit's own ordering
@@ -321,6 +323,50 @@ nothing by design.
 log evidence. Not a BR-3 regression — nothing in that change touches scanning. Two app instances
 is not a state the product reaches in normal use, but the missing scan watchdog is reachable any
 time macOS drops a scan.
+
+### BR-14 — Mac: refuse to run twice
+
+**Scope**: make the Mac app single-instance — a second launch activates the running instance
+and exits instead of starting a second Core Bluetooth central.
+**Why**: two copies were running on 2026-10-28 (a `/Applications/Bridge.app` build and an
+Xcode `DerivedData/.../Debug/Bridge.app` build). This is the precondition for BR-13's observed
+failure: the second instance quitting sends `stop scan` with `updateScanParams:YES` to
+`bluetoothd`, which stops scanning for the *surviving* instance, and it then sits on
+"Out of range" forever. Reproduced during BR-9's device test — killing the stray instance left
+the survivor unable to see a phone 30 cm away until the app was restarted. Two instances is
+easy to reach: build from Xcode once while the installed copy is running.
+**Platforms**: mac
+**Done when**:
+- [ ] launching a second copy brings the running one to the front and exits, leaving one process
+- [ ] this holds when the two copies are different builds from different paths
+- [ ] the surviving instance never loses its scan to another instance quitting
+- [ ] the guard does not prevent a relaunch after a genuine quit or crash
+**Notes**: found while device-testing BR-9. BR-13 makes the app *recover* from a dropped scan;
+this stops the commonest cause. Land BR-13 first — a single-instance guard is not a substitute
+for a scan watchdog, since macOS can drop a scan for its own reasons.
+
+### BR-15 — Clipboard: the ADB grant path is dead, decide what replaces it
+
+**Scope**: decide what to do with `openspec/specs/clipboard/adb-grant/`,
+`scripts/adb-grant-clipboard.sh`, and `PermissionStatusChecker`'s "ADB Clipboard" row, all of
+which promise a grant Android 16 refuses — then make code, script, spec and README agree.
+**Why**: verified on SM-S931B / Android 16 on 2026-10-28:
+`pm grant com.bridge.app android.permission.READ_CLIPBOARD_IN_BACKGROUND` fails with
+`SecurityException: Permission ... is managed by role`. The permission is also absent from the
+manifest, so `checkSelfPermission` could never have returned granted either. That makes an
+entire spec capability, a committed shell script, and a permission row describe something that
+cannot happen — and `PermissionItem.detail` for that row holds the failing command verbatim,
+which BR-10 is about to surface in the UI.
+**Platforms**: android
+**Done when**:
+- [ ] no shipped script, spec or UI string tells the user to run a command the OS refuses
+- [ ] the "ADB Clipboard" permission row is either honest about being unobtainable or gone
+- [ ] README and `clipboard/adb-grant` match what Android 16 actually permits
+- [ ] BR-10 does not surface a `.detail` that throws
+**Notes**: found while device-testing BR-9, which left the gate correct (no watcher runs, so no
+battery is burned) but could not fix the surrounding documentation without expanding its scope.
+This is also an instance of BR-12's last criterion — a spec requirement with no working code
+behind it.
 
 <!-- Template — copy for each new item:
 

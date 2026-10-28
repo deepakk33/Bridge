@@ -27,34 +27,53 @@ running that the OS is guaranteed to deny.
 - **WHEN** the ADB grant is absent and the user taps the Bridge quick-settings tile
 - **THEN** Bridge momentarily reads the clipboard (the tile tap brings it into a context where reading is allowed) and sends a `bridge.clipboard` packet to the Mac
 
----
+## ADDED Requirements
 
-### Requirement: UI indicates degraded state
-The Android app clearly communicates the clipboard sync state and provides instructions for
-the ADB grant. The clipboard card SHALL reflect the current state rather than a fixed
-message, and SHALL use its warning colour only when something is wrong — an absent grant, a
-down link, or a clip that had to be truncated. All of its text SHALL come from string
-resources.
+### Requirement: Clipboard card reflects the current sync state
+The Android app clearly communicates the clipboard sync state. The clipboard card SHALL
+reflect the current state rather than a fixed message, and SHALL use its warning colour only
+for a condition the user can act on — a down link, or a clip that had to be truncated. Manual
+sync is the permanent, correct state on Android 16, so it SHALL NOT be shown as a warning: a
+colour that never clears trains the user to ignore the honest ones. All of the card's text
+SHALL come from string resources, and it SHALL NOT instruct the user to run a command the OS
+refuses.
 
-#### Scenario: No ADB grant, UI shows degraded
-- **WHEN** the Bridge app starts and detects the ADB grant is absent
-- **THEN** the clipboard card shows sync as manual / "Mac to phone automatic", in the warning
-  colour, with the reason and the ADB grant command reachable from the app
+#### Scenario: No background watcher, UI explains manual sync
+- **WHEN** the Bridge app starts and no background clipboard watcher is running
+- **THEN** the clipboard card states that sync is manual, names the two phone-to-Mac triggers,
+  gives the OS reason it is manual, and renders in the normal text colour with no warning
 
-#### Scenario: ADB grant active, UI shows full sync
-- **WHEN** the Bridge app starts and detects the clipboard grant is active and the link is up
+#### Scenario: Background watcher running, UI shows full sync
+- **WHEN** a background clipboard watcher is running and the link is up
 - **THEN** the clipboard card shows sync as working in both directions, in the normal text
   colour, with no warning
 
-#### Scenario: Link down is distinguished from grant missing
-- **WHEN** the grant is active but the link to the Mac is down
-- **THEN** the card says the link is down rather than blaming the grant, in the warning colour
+#### Scenario: Link down is distinguished from manual sync
+- **WHEN** the link to the Mac is down
+- **THEN** the card says the link is down rather than describing the sync mode, in the warning colour
 
 #### Scenario: Truncated clip is reported on the card
 - **WHEN** the most recent phone-to-Mac send was truncated at the 10 KB cap
 - **THEN** the card states that the clip was truncated and gives the original size, in the
   warning colour, until a later send succeeds whole
 
-#### Scenario: Grant lost after phone replacement
-- **WHEN** the user sets up Bridge on a new phone without running the ADB grant
-- **THEN** the app shows the degraded-mode card and the user can follow the instructions to re-run the grant script
+#### Scenario: A new phone needs no setup to reach the manual state
+- **WHEN** the user sets up Bridge on a new phone
+- **THEN** the app shows the manual-sync card, and the two phone-to-Mac triggers work with no
+  grant, script or setup step
+
+## REMOVED Requirements
+
+### Requirement: UI indicates degraded state
+**Reason**: It required the card to show an absent grant as a warning and to make the ADB
+grant command reachable from the app. Verified on an SM-S931B running Android 16 on
+2026-10-28: `pm grant android.permission.READ_CLIPBOARD_IN_BACKGROUND` fails with
+`SecurityException: Permission ... is managed by role`, so the grant cannot be held by a
+sideloaded build and the command the requirement wanted surfaced cannot succeed. Manual sync
+is therefore permanent, and a permanent warning colour is the "trains the user to ignore it"
+defect BR-11 is removing elsewhere. Replaced by "Clipboard card reflects the current sync
+state" above.
+**Migration**: None for the user — the card still explains manual sync and still names both
+phone-to-Mac triggers. It no longer prints a command that throws. The wider question of what
+to do with the now-unreachable `clipboard/adb-grant` capability and
+`scripts/adb-grant-clipboard.sh` is filed as its own backlog item.

@@ -16,7 +16,7 @@ object ClipboardCardState {
         // user just sent, and the manual path is where most truncated sends come from.
         lastSend?.truncated == true ->
             CardState(Kind.TRUNCATED, formatBytes(lastSend.originalBytes), true)
-        !isWatching -> CardState(Kind.MANUAL_NO_GRANT, null, true)
+        !isWatching -> CardState(Kind.MANUAL_NO_GRANT, null, false)
         else -> CardState(Kind.SYNCING, null, false)
     }
 

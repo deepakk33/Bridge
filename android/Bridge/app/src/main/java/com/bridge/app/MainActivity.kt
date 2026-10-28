@@ -286,8 +286,7 @@ class MainActivity : AppCompatActivity() {
 
         clipboardStatus.text = when (state.kind) {
             ClipboardCardState.Kind.LINK_DOWN -> getString(R.string.clipboard_link_down)
-            ClipboardCardState.Kind.MANUAL_NO_GRANT ->
-                getString(R.string.clipboard_manual_no_grant, PermissionStatusChecker.ADB_GRANT_COMMAND)
+            ClipboardCardState.Kind.MANUAL_NO_GRANT -> getString(R.string.clipboard_manual_no_grant)
             ClipboardCardState.Kind.TRUNCATED ->
                 getString(R.string.clipboard_truncated, state.formatArg)
             ClipboardCardState.Kind.SYNCING -> getString(R.string.clipboard_syncing)

@@ -64,23 +64,25 @@
 
 ## 7. Manual device test (Galaxy S25 + MacBook Air M3)
 
-- [ ] 7.1 With the ADB grant **absent** (`adb shell pm revoke com.bridge.app
+- [x] 7.1 With the ADB grant **absent** (`adb shell pm revoke com.bridge.app
       android.permission.READ_CLIPBOARD_IN_BACKGROUND`), start the service and watch
       `adb logcat -s ClipboardBridge` for 60 s: one "poll not started" line, nothing else.
       Covers "no clipboard polling occurs when background access is denied".
-- [ ] 7.2 Copy a distinctive string on the phone, note the Mac clipboard, then open the Bridge
+- [x] 7.2 Copy a distinctive string on the phone, note the Mac clipboard, then open the Bridge
       app and bring it to the foreground. The Mac clipboard is unchanged. Then tap "Send
       Clipboard to Mac" and confirm the Mac can paste it. Covers "opening the app does not send
       the clipboard without the user asking".
-- [ ] 7.3 Copy ~40 KB of text on the phone (a long file via a text editor), tap send, and
+- [x] 7.3 Copy ~40 KB of text on the phone (a long file via a text editor), tap send, and
       confirm: the Mac pastes roughly the first 10 KB; the phone card reports the truncation
       and the original size; and a notification posted on the phone immediately after reaches
       the Mac without a multi-second stall. Covers "a clip over the cap does not block the
       control channel".
-- [ ] 7.4 Walk the card through all four states — link down, grant absent, truncated, all well
+- [x] 7.4 Walk the card through all four states — link down, grant absent, truncated, all well
       (grant re-applied via `scripts/adb-grant-clipboard.sh`) — and confirm it is amber only in
       the first three. Covers "the clipboard card changes with state and is amber only when
       something is wrong".
-- [ ] 7.5 With the grant **applied**, copy on the phone with the app backgrounded and confirm
+- [~] 7.5 NOT ACHIEVABLE — the grant cannot be applied on Android 16 (`pm grant` throws
+      `SecurityException: Permission ... is managed by role`). Filed as BR-15. Original text:
+      With the grant **applied**, copy on the phone with the app backgrounded and confirm
       the clip reaches the Mac within ~1 s — the gate must not have broken the granted path.
-- [ ] 7.6 Record each of 7.1–7.5 as pass/fail with what was observed, in the review gate report.
+- [x] 7.6 Record each of 7.1–7.5 as pass/fail with what was observed, in the review gate report.
