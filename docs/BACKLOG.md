@@ -254,11 +254,16 @@ permission overwrites the device-name line with a sentence and offers no retry a
 app. `app_glyph` is a 56 dp launcher icon shown to someone already inside the app.
 **Platforms**: android
 **Done when**:
-- [ ] each permission row states its consequence and offers its own action
-- [ ] the adb command is reachable from the UI
-- [ ] opening the app with a broken link shows no modal
-- [ ] a user who denies a permission can grant it later without leaving the app
-**Notes**: `AUD-I`.
+- [x] each permission row states its consequence and offers its own action
+- [~] the adb command is reachable from the UI — **dropped, not implemented**. BR-15 deleted the
+      ADB-grant row, `scripts/adb-grant-clipboard.sh` and the `clipboard/adb-grant` capability
+      because Android 16 refuses the grant by role. There is no command left to surface, and
+      `ui/permission-panel` now forbids a row that shows one.
+- [x] opening the app with a broken link shows no modal
+- [x] a user who denies a permission can grant it later without leaving the app
+**Notes**: `AUD-I`. All three live criteria verified on SM-S931B / Android 16 on 2026-10-28; see
+`docs/ITERATIONS.md`. The runtime permissions were added to the list beyond the Scope line, since
+the fourth criterion is unreachable without them.
 
 ### BR-11 — Mac: Local Network status, accessibility, label stability
 

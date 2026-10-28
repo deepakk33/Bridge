@@ -1,9 +1,30 @@
 Android only. Verify commands used below.
 
-2.2-2.4, 3.2 and 4.3 stay unchecked: the Galaxy S25 dropped off adb before the device test
-could run, so nothing on this branch has been checked on hardware. Code landing is not the
-same as the check passing.
+Device-test status, 2026-10-28, Galaxy S25 (SM-S931B, Android 16), release APK installed over
+the existing build (same signature, so no uninstall and no loss of pairing). All four
+"Done when" criteria pass, read from `uiautomator dump` and `dumpsys`:
 
+- **(a) each row states its consequence and offers its own action — PASS.** Four rows render,
+  each with its own dot, name, consequence line and (when not granted) its own button. Granted
+  rows carry no button. With POST_NOTIFICATIONS revoked the row read
+  `Notifications — Disabled`, dot `content-desc="Disabled"`, button `GRANT`; the other three
+  stayed `Granted` with no button.
+- **(b) opening the app with a broken link shows no modal — PASS.** With the Mac app killed,
+  the dump contained **no dialog nodes at all**; instead `link_guidance_text` read "Bridge
+  can't reach your Mac right now. Try reconnecting." with RECONNECT and DISMISS, while
+  `state_pill` said `Disconnected` and `mac_name` said `Mac paired` — the status card still
+  describing the link. DISMISS removed the line.
+- **(c) a user who denies a permission can grant it later without leaving the app — PASS**, both
+  routes. After denying, `dumpsys` showed `POST_NOTIFICATIONS: granted=false, flags=[USER_SET|
+  USER_FIXED...]` — Android will no longer prompt — and tapping GRANT opened
+  `com.android.settings/.applications.InstalledAppDetails`. Granting there and pressing Back
+  returned to MainActivity with the row Granted and `.BridgeService` running, no relaunch.
+- **(d) no monospace dump, no launcher glyph — PASS.** Neither `permission_status` nor
+  `app_glyph` appears in any dump.
+
+Two of the review fixes were confirmed by this run rather than by reasoning: the service stayed
+up with POST_NOTIFICATIONS denied (it would have been left stopped before), and the
+app-settings fallback is what a USER_FIXED permission actually reaches.
 
 ```bash
 (cd android/Bridge && ./gradlew test assembleDebug)
@@ -36,17 +57,17 @@ openspec validate br-10-permission-rows-and-denied-path-recovery
       button), replace the `permission_status` monospace `TextView` in `activity_main.xml` with
       an empty `LinearLayout` container, and move every new string to `strings.xml`. Verify
       `./gradlew assembleDebug` succeeds.
-- [ ] 2.2 Rewrite `MainActivity.updatePermissionStatus()` to inflate one row per `PermissionItem`
+- [x] 2.2 Rewrite `MainActivity.updatePermissionStatus()` to inflate one row per `PermissionItem`
       — binding dot colour, name, `detail` and the per-row button, hiding the button on
       `PermissionAction.None` — and delete the `batteryOptButton` field and its layout entry.
       Verify on the Galaxy S25 that each row shows its own consequence and its own button and
       that no monospace text remains.
-- [ ] 2.3 Wire each `PermissionAction` to its intent in `MainActivity`, the `Runtime` case
+- [x] 2.3 Wire each `PermissionAction` to its intent in `MainActivity`, the `Runtime` case
       consulting `RuntimeRecovery.resolve` and writing `has_asked_<permission>` to
       `SharedPreferences` whenever it launches a request. Verify on device: deny a runtime
       permission once → the row's button re-prompts; deny permanently → the same button opens
       Bridge's app settings.
-- [ ] 2.4 Remove the `macName.text` assignment from `permissionLauncher`'s failure branch and
+- [x] 2.4 Remove the `macName.text` assignment from `permissionLauncher`'s failure branch and
       call `updatePermissionStatus()` instead (design decision 5). Verify on device that denying
       a permission leaves the status card describing the link, with the problem shown only in its
       own row.
@@ -58,7 +79,7 @@ openspec validate br-10-permission-rows-and-denied-path-recovery
 - [x] 3.1 Add a guidance `TextView`, an action `Button` and a dismiss control to the status card
       in `activity_main.xml`, bound to `LinkState.promptBody` / `actionLabel` and `GONE` when
       `!state.needsAttention`; verify `./gradlew assembleDebug` succeeds.
-- [ ] 3.2 Delete `maybePromptLinkIssue`, `syncLinkPrompt`, `applyPromptText`, the `linkPrompt`
+- [x] 3.2 Delete `maybePromptLinkIssue`, `syncLinkPrompt`, `applyPromptText`, the `linkPrompt`
       field and their `onResume`/`onPause` calls, rendering the guidance from `refreshLinkUi()`
       and clearing the dismissal on any state change. Verify on device that opening the app with
       Bluetooth off, while unpaired, and with the Mac app killed each shows no dialog and an
@@ -77,7 +98,7 @@ openspec validate br-10-permission-rows-and-denied-path-recovery
       it reports.
 - [x] 4.2 Run `(cd android/Bridge && ./gradlew test assembleDebug)` from a clean state; record
       the final status line for the review gate.
-- [ ] 4.3 **Device test** on the Galaxy S25 (Android 16), walking BR-10's "Done when" list:
+- [x] 4.3 **Device test** on the Galaxy S25 (Android 16), walking BR-10's "Done when" list:
       (a) each permission row states its consequence and offers its own action;
       (b) opening the app with a broken link shows no modal — check Bluetooth off, unpaired, and
       Mac app killed;
@@ -85,7 +106,7 @@ openspec validate br-10-permission-rows-and-denied-path-recovery
       routes, the re-prompt and the app-settings fallback.
       Also confirm no monospace dump and no launcher glyph remain. Record pass/fail per criterion
       with what was observed; anything not reproducible is reported untested, never passed.
-- [ ] 4.4 Record BR-10's criterion *"the adb command is reachable from the UI"* as **dropped, not
+- [x] 4.4 Record BR-10's criterion *"the adb command is reachable from the UI"* as **dropped, not
       implemented** — BR-15 deleted the grant, the script and the `clipboard/adb-grant`
       capability, and `ui/permission-panel` now forbids a row that shows a command. Mark it `[~]`
       in `docs/BACKLOG.md` with that reason at wrap-up, as BR-2 and BR-6 did for theirs.
