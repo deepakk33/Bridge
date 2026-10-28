@@ -1,16 +1,19 @@
 package com.bridge.clipboard
 
-import android.app.AppOpsManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
-import android.os.Process
 import android.util.Log
+import com.bridge.permissions.PermissionStatusChecker
 import com.bridge.protocol.BridgePacket
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
+
+/** What the most recent phone-to-Mac send did with the clip. */
+data class SendOutcome(val originalBytes: Int, val truncated: Boolean)
 
 class ClipboardBridge(
     private val context: Context,
@@ -21,18 +24,22 @@ class ClipboardBridge(
         private const val POLL_INTERVAL_MS = 500L
     }
 
+    /**
+     * The app op `android:read_clipboard` is ALLOWED for every app and says nothing about
+     * background access, so it cannot gate the poll. The grant that matters is
+     * READ_CLIPBOARD_IN_BACKGROUND, which is role-managed on Android 16 and cannot be held
+     * by a sideloaded build — so on this hardware this is always false and no poll runs.
+     */
     val hasBackgroundClipboardAccess: Boolean
-        get() {
-            val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-            val mode = appOps.unsafeCheckOpNoThrow(
-                "android:read_clipboard",
-                Process.myUid(),
-                context.packageName
-            )
-            return mode == AppOpsManager.MODE_ALLOWED
-        }
+        get() = context.checkSelfPermission(
+            PermissionStatusChecker.READ_CLIPBOARD_IN_BACKGROUND
+        ) == PackageManager.PERMISSION_GRANTED
 
     var lastClipboardTimestamp: Long = 0L
+        private set
+
+    /** Null once a clip has been sent whole; set while the last send had to be cut. */
+    var lastSend: SendOutcome? = null
         private set
 
     private val clipboardManager =
@@ -40,6 +47,10 @@ class ClipboardBridge(
 
     var isConnected = false
         private set
+
+    /** Whether a background watcher is actually running — not merely whether the grant exists. */
+    val isWatching: Boolean
+        get() = polling
     var activityContext: Context? = null
 
     private var isRemoteWrite = false
@@ -57,17 +68,27 @@ class ClipboardBridge(
     }
 
     fun start() {
+        if (!hasBackgroundClipboardAccess) {
+            Log.i(TAG, "No background clipboard grant; poll not started (tile and in-app send still work)")
+            return
+        }
         if (!polling) {
             polling = true
             lastContent = getCurrentClipText()
             handler.postDelayed(pollRunnable, POLL_INTERVAL_MS)
-            Log.i(TAG, "Clipboard polling started (bgAccess=$hasBackgroundClipboardAccess)")
+            Log.i(TAG, "Clipboard polling started")
         }
     }
 
     fun stop() {
         polling = false
         handler.removeCallbacks(pollRunnable)
+    }
+
+    private fun cappedPacket(text: String): BridgePacket {
+        val capped = ClipboardCap.apply(text)
+        lastSend = if (capped.truncated) SendOutcome(capped.originalBytes, true) else null
+        return BridgePacket.clipboard(capped.text)
     }
 
     fun handleClipboardPacket(packet: BridgePacket) {
@@ -133,8 +154,9 @@ class ClipboardBridge(
     }
 
     fun makeConnectPacket(): BridgePacket {
-        val content = getCurrentClipText() ?: ""
-        return BridgePacket.clipboardConnect(content, lastClipboardTimestamp)
+        val capped = ClipboardCap.apply(getCurrentClipText() ?: "")
+        lastSend = if (capped.truncated) SendOutcome(capped.originalBytes, true) else null
+        return BridgePacket.clipboardConnect(capped.text, lastClipboardTimestamp)
     }
 
     fun onConnectionReady() {
@@ -155,7 +177,7 @@ class ClipboardBridge(
             return
         }
         lastClipboardTimestamp = System.currentTimeMillis()
-        sendPacket(BridgePacket.clipboard(text))
+        sendPacket(cappedPacket(text))
         Log.i(TAG, "Sent current clipboard via manual trigger")
     }
 
@@ -173,16 +195,17 @@ class ClipboardBridge(
         lastContent = text
         lastClipboardTimestamp = System.currentTimeMillis()
 
-        sendPacket(BridgePacket.clipboard(text))
+        sendPacket(cappedPacket(text))
         Log.i(TAG, "Clipboard change detected, sent to remote")
     }
 
-    fun sendClipboardFromActivity(activityContext: Context) {
+    /** Send the clip read through [focusedContext] — an Activity or a tile, never the service. */
+    fun sendClipboardFrom(focusedContext: Context) {
         if (!isConnected) {
-            Log.i(TAG, "Not connected, skipping activity clipboard send")
+            Log.i(TAG, "Not connected, skipping clipboard send")
             return
         }
-        val cm = activityContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val cm = focusedContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val text = try {
             cm.primaryClip?.getItemAt(0)?.text?.toString()
         } catch (e: Exception) {
@@ -199,8 +222,8 @@ class ClipboardBridge(
         }
         lastContent = text
         lastClipboardTimestamp = System.currentTimeMillis()
-        sendPacket(BridgePacket.clipboard(text))
-        Log.i(TAG, "Clipboard sent from activity context (${text.length} chars)")
+        sendPacket(cappedPacket(text))
+        Log.i(TAG, "Clipboard sent from focused context (${text.length} chars)")
     }
 
     private fun getCurrentClipText(): String? {

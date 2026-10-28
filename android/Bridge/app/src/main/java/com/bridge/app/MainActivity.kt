@@ -21,6 +21,7 @@ import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.bridge.clipboard.ClipboardCardState
 import com.bridge.notifications.BridgeNotificationListener
 import com.bridge.notifications.NotificationFilterActivity
 import com.bridge.notifications.NotificationFilterStore
@@ -40,6 +41,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var notifAccessButton: Button
     private lateinit var notifMirroringCount: TextView
     private lateinit var clipboardStatus: TextView
+    private var clipboardStatusDefaultColors: android.content.res.ColorStateList? = null
     private lateinit var sendClipboardButton: Button
     private lateinit var permissionStatus: TextView
     private lateinit var batteryOptButton: Button
@@ -83,6 +85,7 @@ class MainActivity : AppCompatActivity() {
         notifAccessButton = findViewById(R.id.notif_access_button)
         notifMirroringCount = findViewById(R.id.notif_mirroring_count)
         clipboardStatus = findViewById(R.id.clipboard_status)
+        clipboardStatusDefaultColors = clipboardStatus.textColors
         sendClipboardButton = findViewById(R.id.send_clipboard_button)
         permissionStatus = findViewById(R.id.permission_status)
         batteryOptButton = findViewById(R.id.battery_opt_button)
@@ -157,6 +160,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshLinkUi() {
+        updateClipboardStatus()
         val state = currentLinkState()
         connectItem?.title = LinkState.actionLabel(state)
 
@@ -273,23 +277,37 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateClipboardStatus() {
-        // Android 16 blocks background clipboard for non-root apps, so sync is manual:
-        // the Quick Settings tile pushes phone→Mac; opening the app sends the current
-        // clip and applies any waiting Mac→phone clip (onWindowFocusChanged / onResume).
-        clipboardStatus.text = "Manual sync\nQuick Settings tile → phone to Mac; open app for Mac to phone"
-        clipboardStatus.setTextColor(Color.parseColor("#FF9800"))
+        val bridge = BridgeService.clipboardBridge
+        val state = ClipboardCardState.of(
+            isWatching = bridge?.isWatching == true,
+            isLinkUp = currentLinkState() == LinkState.CONNECTED,
+            lastSend = bridge?.lastSend
+        )
+
+        clipboardStatus.text = when (state.kind) {
+            ClipboardCardState.Kind.LINK_DOWN -> getString(R.string.clipboard_link_down)
+            ClipboardCardState.Kind.MANUAL_NO_GRANT -> getString(R.string.clipboard_manual_no_grant)
+            ClipboardCardState.Kind.TRUNCATED ->
+                getString(R.string.clipboard_truncated, state.formatArg)
+            ClipboardCardState.Kind.SYNCING -> getString(R.string.clipboard_syncing)
+        }
+
+        if (state.isWarning) {
+            clipboardStatus.setTextColor(ContextCompat.getColor(this, R.color.status_warning))
+        } else {
+            clipboardStatusDefaultColors?.let { clipboardStatus.setTextColor(it) }
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) {
-            BridgeService.clipboardBridge?.flushPendingRemote()
-            BridgeService.clipboardBridge?.sendClipboardFromActivity(this)
-        }
+        // Flush only. Focus is not consent: opening the app must not ship the clipboard.
+        if (hasFocus) BridgeService.clipboardBridge?.flushPendingRemote()
     }
 
     private fun sendClipboardToMac() {
-        BridgeService.clipboardBridge?.sendClipboardFromActivity(this)
+        BridgeService.clipboardBridge?.sendClipboardFrom(this)
+        updateClipboardStatus()
     }
 
     private fun checkNotificationAccess() {

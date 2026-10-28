@@ -25,11 +25,14 @@ place a work item is born. One row per item, one detail block per row.
 | BR-6 | Notification mirroring: dismissal, replies, app names | done | `work/br-6-notification-mirroring` |
 | BR-7 | Add a Disconnect control to both apps | ready | |
 | BR-8 | File transfer: sanitise, cap, authenticate, confirm | ready | |
-| BR-9 | Clipboard: stop the dead poll, stop the silent send | ready | |
+| BR-9 | Clipboard: stop the dead poll, stop the silent send | done | `work/br-9-clipboard` |
 | BR-10 | Android: permission rows, resume modal, denied-path recovery | ready | |
 | BR-11 | Mac: Local Network status, accessibility, label stability | ready | |
 | BR-12 | Protocol and process debt | ready | |
 | BR-13 | Mac: notice a scan that never returns anything | ready | |
+| BR-14 | Mac: refuse to run twice | ready | |
+| BR-15 | Clipboard: the ADB grant path is dead, decide what replaces it | ready | |
+| BR-16 | Clipboard: decide whether reconnect should push the phone's clip | ready | |
 
 All of BR-2…BR-12 come from [AUDIT-2026-10-26.md](AUDIT-2026-10-26.md), which holds the
 evidence, file:line references and reproduction for each. The audit's own ordering
@@ -228,11 +231,14 @@ was sent). Clipboard ignores the PRD's 10 KB out-of-band rule, so a large clip b
 control channel for minutes. The status card is hard-coded permanently orange.
 **Platforms**: android
 **Done when**:
-- [ ] no clipboard polling occurs when background access is denied
-- [ ] opening the app does not send the clipboard without the user asking
-- [ ] a clip over the cap does not block the control channel
-- [ ] the clipboard card changes with state and is amber only when something is wrong
-**Notes**: `AUD-G`. The battery cost lands squarely on the PRD's "tool gets uninstalled" risk.
+- [x] no clipboard polling occurs when background access is denied
+- [x] opening the app does not send the clipboard without the user asking
+- [x] a clip over the cap does not block the control channel
+- [x] the clipboard card changes with state and is amber only when something is wrong
+**Notes**: `AUD-G`. All four criteria verified on SM-S931B / Android 16 on 2026-10-28; see
+`docs/ITERATIONS.md`. The automatic phone-to-Mac path is permanently unavailable (the grant is
+role-managed) — filed as BR-15. Two Mac instances found running during the test — filed as BR-14.
+The battery cost lands squarely on the PRD's "tool gets uninstalled" risk.
 
 ### BR-10 — Android: permission rows, resume modal, denied-path recovery
 
@@ -321,6 +327,72 @@ nothing by design.
 log evidence. Not a BR-3 regression — nothing in that change touches scanning. Two app instances
 is not a state the product reaches in normal use, but the missing scan watchdog is reachable any
 time macOS drops a scan.
+
+### BR-14 — Mac: refuse to run twice
+
+**Scope**: make the Mac app single-instance — a second launch activates the running instance
+and exits instead of starting a second Core Bluetooth central.
+**Why**: two copies were running on 2026-10-28 (a `/Applications/Bridge.app` build and an
+Xcode `DerivedData/.../Debug/Bridge.app` build). This is the precondition for BR-13's observed
+failure: the second instance quitting sends `stop scan` with `updateScanParams:YES` to
+`bluetoothd`, which stops scanning for the *surviving* instance, and it then sits on
+"Out of range" forever. Reproduced during BR-9's device test — killing the stray instance left
+the survivor unable to see a phone 30 cm away until the app was restarted. Two instances is
+easy to reach: build from Xcode once while the installed copy is running.
+**Platforms**: mac
+**Done when**:
+- [ ] launching a second copy brings the running one to the front and exits, leaving one process
+- [ ] this holds when the two copies are different builds from different paths
+- [ ] the surviving instance never loses its scan to another instance quitting
+- [ ] the guard does not prevent a relaunch after a genuine quit or crash
+**Notes**: found while device-testing BR-9. BR-13 makes the app *recover* from a dropped scan;
+this stops the commonest cause. Land BR-13 first — a single-instance guard is not a substitute
+for a scan watchdog, since macOS can drop a scan for its own reasons.
+
+### BR-15 — Clipboard: the ADB grant path is dead, decide what replaces it
+
+**Scope**: decide what to do with `openspec/specs/clipboard/adb-grant/`,
+`scripts/adb-grant-clipboard.sh`, and `PermissionStatusChecker`'s "ADB Clipboard" row, all of
+which promise a grant Android 16 refuses — then make code, script, spec and README agree.
+**Why**: verified on SM-S931B / Android 16 on 2026-10-28:
+`pm grant com.bridge.app android.permission.READ_CLIPBOARD_IN_BACKGROUND` fails with
+`SecurityException: Permission ... is managed by role`. The permission is also absent from the
+manifest, so `checkSelfPermission` could never have returned granted either. That makes an
+entire spec capability, a committed shell script, and a permission row describe something that
+cannot happen — and `PermissionItem.detail` for that row holds the failing command verbatim,
+which BR-10 is about to surface in the UI.
+**Platforms**: android
+**Done when**:
+- [ ] no shipped script, spec or UI string tells the user to run a command the OS refuses
+- [ ] the "ADB Clipboard" permission row is either honest about being unobtainable or gone
+- [ ] README and `clipboard/adb-grant` match what Android 16 actually permits
+- [ ] BR-10 does not surface a `.detail` that throws
+**Notes**: found while device-testing BR-9, which left the gate correct (no watcher runs, so no
+battery is burned) but could not fix the surrounding documentation without expanding its scope.
+This is also an instance of BR-12's last criterion — a spec requirement with no working code
+behind it.
+
+### BR-16 — Clipboard: decide whether reconnect should push the phone's clip
+
+**Scope**: decide whether `makeConnectPacket()` should keep sending the phone's current clip
+on every connection, or be gated the way BR-9 gated the other phone-to-Mac paths — then make
+`clipboard/sync` say so without an exception clause.
+**Why**: BR-9 removed the send-on-focus because focus is not consent, but
+`BridgeService.kt:259` still sends the phone's clipboard in a `bridge.clipboard.connect`
+packet on *every* reconnect — a Mac app restart, a Bluetooth blip, leaving and re-entering
+range. Observed repeatedly during BR-9's device test. That is the same silent send BR-9 set
+out to stop, arriving through a different door, and it means BR-9's own
+"user-initiated or grant-backed" requirement needed an exception clause to stay true.
+The counter-argument is real: the reconnect exchange exists so the two clipboards converge
+after a gap, and its timestamp comparison is what prevents ping-pong overwrites — gating it
+may just move the staleness problem.
+**Platforms**: android, protocol
+**Done when**:
+- [ ] a reconnect either does not push the phone's clip, or does so under a rule the user controls
+- [ ] clipboard convergence after a gap still works, or the degradation is recorded
+- [ ] `clipboard/sync` states the rule without an exception clause pointing at this item
+**Notes**: found while device-testing BR-9. Pre-existing since iteration 4, not a BR-9
+regression. Related to BR-4: the exposure only matters while the channel is plaintext.
 
 <!-- Template — copy for each new item:
 

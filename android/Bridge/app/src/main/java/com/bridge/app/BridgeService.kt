@@ -19,7 +19,7 @@ import com.bridge.battery.BatteryMonitor
 import com.bridge.ble.BlePeripheral
 import com.bridge.ble.BridgeConstants
 import com.bridge.clipboard.ClipboardBridge
-import com.bridge.clipboard.ClipboardTileService
+import com.bridge.clipboard.ClipboardCap
 import com.bridge.filetransfer.FileReceiver
 import com.bridge.filetransfer.FileTransferCoordinator
 import com.bridge.filetransfer.TransferNotifier
@@ -144,7 +144,7 @@ class BridgeService : Service() {
                 Log.i(TAG, "Clipboard test: setting and sending '$testText'")
                 val cm = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 cm.setPrimaryClip(android.content.ClipData.newPlainText("Bridge", testText))
-                blePeripheral?.sendPacket(BridgePacket.clipboard(testText))
+                blePeripheral?.sendPacket(BridgePacket.clipboard(ClipboardCap.apply(testText).text))
             } else {
                 Log.i(TAG, "Clipboard test broadcast received")
                 clipboardBridge?.sendCurrentClipboard()
@@ -228,10 +228,6 @@ class BridgeService : Service() {
             blePeripheral?.sendPacket(packet)
         }
         clipboardBridge?.start()
-
-        ClipboardTileService.packetSender = { packet ->
-            blePeripheral?.sendPacket(packet)
-        }
 
         blePeripheral?.setClipboardHandler { packet ->
             clipboardBridge?.handleClipboardPacket(packet)
@@ -392,7 +388,6 @@ class BridgeService : Service() {
         try { unregisterReceiver(clipboardTestReceiver) } catch (_: Exception) {}
         clipboardBridge?.stop()
         clipboardBridge = null
-        ClipboardTileService.packetSender = null
         batteryMonitor?.stop()
         batteryMonitor = null
         unregisterReceiver(bluetoothStateReceiver)
