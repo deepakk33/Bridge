@@ -30,5 +30,9 @@
 
     <string name="grant_notification_access">Grant Notification Access</string>
     <string name="send_clipboard">Send Clipboard to Mac</string>
+    <string name="clipboard_link_down">Not connected to the Mac — nothing is syncing</string>
+    <string name="clipboard_manual_no_grant">Manual sync. Mac to phone is automatic; phone to Mac needs the button below or the Quick Settings tile.\n\nFor automatic phone to Mac, run:\n%1$s</string>
+    <string name="clipboard_truncated">Last clip was %1$s — only the first 10 KB reached the Mac</string>
+    <string name="clipboard_syncing">Syncing both ways</string>
     <string name="disable_battery_optimization">Disable Battery Optimization</string>
 </resources>

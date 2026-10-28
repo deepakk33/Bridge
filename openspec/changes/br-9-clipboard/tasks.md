@@ -1,65 +1,65 @@
 ## 1. Android — the 10 KB cap (pure)
 
-- [ ] 1.1 Write `ClipboardCapTest` in `app/src/test/java/com/bridge/clipboard/` covering: text
+- [x] 1.1 Write `ClipboardCapTest` in `app/src/test/java/com/bridge/clipboard/` covering: text
       under the cap passes through unchanged with `truncated = false`; text over the cap comes
       back at or under 10 240 UTF-8 bytes with `truncated = true` and the true `originalBytes`;
       a cut landing inside a multi-byte character (CJK) and inside a surrogate pair (emoji)
       falls back to the preceding character boundary and the result re-encodes without a
       replacement character; empty string is handled. Verify: `./gradlew test` fails on the
       missing class.
-- [ ] 1.2 Add `ClipboardCap` (`apply(text: String): Capped`, `Capped(text, originalBytes,
+- [x] 1.2 Add `ClipboardCap` (`apply(text: String): Capped`, `Capped(text, originalBytes,
       truncated)`, `MAX_BYTES = 10_240`) in `com.bridge.clipboard`. Verify: `./gradlew test`
       passes 1.1.
 
 ## 2. Android — route every send through the cap
 
-- [ ] 2.1 Add `SendOutcome(originalBytes: Int, truncated: Boolean)` and
+- [x] 2.1 Add `SendOutcome(originalBytes: Int, truncated: Boolean)` and
       `var lastSend: SendOutcome?` to `ClipboardBridge`; have `pollClipboard`,
       `sendCurrentClipboard` and `sendClipboardFromActivity` call `ClipboardCap.apply` before
       `BridgePacket.clipboard(...)` and set `lastSend` (null-out on an untruncated send).
       Verify: `./gradlew assembleDebug` compiles and no `BridgePacket.clipboard(` call in
       `ClipboardBridge.kt` takes unmeasured text (`grep -n 'BridgePacket.clipboard(' ` shows
       every call site taking a `Capped`).
-- [ ] 2.2 Cap `makeConnectPacket()` the same way, so the clip offered on reconnect cannot
+- [x] 2.2 Cap `makeConnectPacket()` the same way, so the clip offered on reconnect cannot
       exceed the cap either. Verify: compiles; `grep` as in 2.1 covers this call site too.
-- [ ] 2.3 Route `ClipboardTileService.onClick` through `ClipboardCap.apply` as well — it builds
+- [x] 2.3 Route `ClipboardTileService.onClick` through `ClipboardCap.apply` as well — it builds
       its own packet and bypasses `ClipboardBridge`. Verify: `grep -n 'BridgePacket.clipboard('
       android/Bridge/app/src/main/java/com/bridge/clipboard/ClipboardTileService.kt` shows the
       capped text, and `./gradlew assembleDebug` passes.
 
 ## 3. Android — gate the poll on the grant
 
-- [ ] 3.1 Make `ClipboardBridge.start()` return early with a single log line when
+- [x] 3.1 Make `ClipboardBridge.start()` return early with a single log line when
       `hasBackgroundClipboardAccess` is false, scheduling nothing. Verify: `./gradlew
       assembleDebug`, then on the device with the grant absent, `adb logcat -s ClipboardBridge`
       over 60 s shows the one "poll not started" line and no polling activity.
 
 ## 4. Android — stop the silent send
 
-- [ ] 4.1 Remove `sendClipboardFromActivity(this)` from `MainActivity.onWindowFocusChanged`,
+- [x] 4.1 Remove `sendClipboardFromActivity(this)` from `MainActivity.onWindowFocusChanged`,
       keeping `flushPendingRemote()`. Verify: `grep -n 'sendClipboardFromActivity'
       android/Bridge/app/src/main/java/com/bridge/app/MainActivity.kt` returns only the
       `sendClipboardToMac()` button path.
 
 ## 5. Android — the clipboard card
 
-- [ ] 5.1 Write `ClipboardCardStateTest` covering the precedence from design §3: link down
+- [x] 5.1 Write `ClipboardCardStateTest` covering the precedence from design §3: link down
       beats grant absent beats truncated beats all-well, and each case's `isWarning`. Verify:
       `./gradlew test` fails on the missing class.
-- [ ] 5.2 Add pure `ClipboardCardState.of(hasGrant, isLinkUp, lastSend): CardState` in
+- [x] 5.2 Add pure `ClipboardCardState.of(hasGrant, isLinkUp, lastSend): CardState` in
       `com.bridge.clipboard`. Verify: `./gradlew test` passes 5.1.
-- [ ] 5.3 Move the clipboard card strings into `res/values/strings.xml` (one per card state,
+- [x] 5.3 Move the clipboard card strings into `res/values/strings.xml` (one per card state,
       the truncation one taking a size format arg) and the `#FF9800` literal into
       `res/values/colors.xml`. Verify: `grep -n 'FF9800\|Manual sync'
       android/Bridge/app/src/main/java/com/bridge/app/MainActivity.kt` returns nothing.
-- [ ] 5.4 Rewrite `MainActivity.updateClipboardStatus()` to call `ClipboardCardState.of(...)`
+- [x] 5.4 Rewrite `MainActivity.updateClipboardStatus()` to call `ClipboardCardState.of(...)`
       and apply `messageRes`/`formatArg`/`isWarning`, and call it from the existing link-state
       refresh as well as `onResume`. Verify: `./gradlew test assembleDebug` passes.
 
 ## 6. Spec and build verification
 
-- [ ] 6.1 Run `openspec validate --change br-9-clipboard` and fix anything it reports.
-- [ ] 6.2 Run `(cd android/Bridge && ./gradlew test assembleDebug)` and read the output — all
+- [x] 6.1 Run `openspec validate --change br-9-clipboard` and fix anything it reports.
+- [x] 6.2 Run `(cd android/Bridge && ./gradlew test assembleDebug)` and read the output — all
       green, no new warnings in the touched files.
 
 ## 7. Manual device test (Galaxy S25 + MacBook Air M3)

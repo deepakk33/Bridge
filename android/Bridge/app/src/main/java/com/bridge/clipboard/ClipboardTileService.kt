@@ -27,7 +27,7 @@ class ClipboardTileService : TileService() {
             return
         }
 
-        val packet = BridgePacket.clipboard(text)
+        val packet = BridgePacket.clipboard(ClipboardCap.apply(text).text)
         val sender = packetSender
         if (sender != null) {
             sender(packet)

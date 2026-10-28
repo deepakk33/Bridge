@@ -1,0 +1,70 @@
+package com.bridge.clipboard
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class ClipboardCardStateTest {
+
+    private val truncated = SendOutcome(originalBytes = 43_008, truncated = true)
+
+    @Test
+    fun `all well when granted, linked and nothing was cut`() {
+        val state = ClipboardCardState.of(hasGrant = true, isLinkUp = true, lastSend = null)
+        assertEquals(ClipboardCardState.Kind.SYNCING, state.kind)
+        assertFalse(state.isWarning)
+        assertNull(state.formatArg)
+    }
+
+    @Test
+    fun `manual sync when the grant is absent`() {
+        val state = ClipboardCardState.of(hasGrant = false, isLinkUp = true, lastSend = null)
+        assertEquals(ClipboardCardState.Kind.MANUAL_NO_GRANT, state.kind)
+        assertTrue(state.isWarning)
+    }
+
+    @Test
+    fun `truncation is reported when granted and linked`() {
+        val state = ClipboardCardState.of(hasGrant = true, isLinkUp = true, lastSend = truncated)
+        assertEquals(ClipboardCardState.Kind.TRUNCATED, state.kind)
+        assertTrue(state.isWarning)
+        assertEquals("42 KB", state.formatArg)
+    }
+
+    @Test
+    fun `link down beats a missing grant`() {
+        val state = ClipboardCardState.of(hasGrant = false, isLinkUp = false, lastSend = null)
+        assertEquals(ClipboardCardState.Kind.LINK_DOWN, state.kind)
+        assertTrue(state.isWarning)
+    }
+
+    @Test
+    fun `link down beats a truncated send`() {
+        val state = ClipboardCardState.of(hasGrant = true, isLinkUp = false, lastSend = truncated)
+        assertEquals(ClipboardCardState.Kind.LINK_DOWN, state.kind)
+    }
+
+    @Test
+    fun `a missing grant beats a truncated send`() {
+        val state = ClipboardCardState.of(hasGrant = false, isLinkUp = true, lastSend = truncated)
+        assertEquals(ClipboardCardState.Kind.MANUAL_NO_GRANT, state.kind)
+    }
+
+    @Test
+    fun `an untruncated last send is not a warning`() {
+        val whole = SendOutcome(originalBytes = 12, truncated = false)
+        val state = ClipboardCardState.of(hasGrant = true, isLinkUp = true, lastSend = whole)
+        assertEquals(ClipboardCardState.Kind.SYNCING, state.kind)
+        assertFalse(state.isWarning)
+    }
+
+    @Test
+    fun `sizes are formatted for a human`() {
+        assertEquals("999 B", ClipboardCardState.formatBytes(999))
+        assertEquals("10 KB", ClipboardCardState.formatBytes(10_240))
+        assertEquals("42 KB", ClipboardCardState.formatBytes(43_008))
+        assertEquals("1.5 MB", ClipboardCardState.formatBytes(1_572_864))
+    }
+}

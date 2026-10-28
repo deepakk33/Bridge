@@ -12,6 +12,9 @@ import com.bridge.protocol.BridgePacket
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
 
+/** What the most recent phone-to-Mac send did with the clip. */
+data class SendOutcome(val originalBytes: Int, val truncated: Boolean)
+
 class ClipboardBridge(
     private val context: Context,
     private val sendPacket: (BridgePacket) -> Unit
@@ -33,6 +36,10 @@ class ClipboardBridge(
         }
 
     var lastClipboardTimestamp: Long = 0L
+        private set
+
+    /** Null once a clip has been sent whole; set while the last send had to be cut. */
+    var lastSend: SendOutcome? = null
         private set
 
     private val clipboardManager =
@@ -57,17 +64,27 @@ class ClipboardBridge(
     }
 
     fun start() {
+        if (!hasBackgroundClipboardAccess) {
+            Log.i(TAG, "No background clipboard grant; poll not started (tile and in-app send still work)")
+            return
+        }
         if (!polling) {
             polling = true
             lastContent = getCurrentClipText()
             handler.postDelayed(pollRunnable, POLL_INTERVAL_MS)
-            Log.i(TAG, "Clipboard polling started (bgAccess=$hasBackgroundClipboardAccess)")
+            Log.i(TAG, "Clipboard polling started")
         }
     }
 
     fun stop() {
         polling = false
         handler.removeCallbacks(pollRunnable)
+    }
+
+    private fun cappedPacket(text: String): BridgePacket {
+        val capped = ClipboardCap.apply(text)
+        lastSend = if (capped.truncated) SendOutcome(capped.originalBytes, true) else null
+        return BridgePacket.clipboard(capped.text)
     }
 
     fun handleClipboardPacket(packet: BridgePacket) {
@@ -133,8 +150,8 @@ class ClipboardBridge(
     }
 
     fun makeConnectPacket(): BridgePacket {
-        val content = getCurrentClipText() ?: ""
-        return BridgePacket.clipboardConnect(content, lastClipboardTimestamp)
+        val capped = ClipboardCap.apply(getCurrentClipText() ?: "")
+        return BridgePacket.clipboardConnect(capped.text, lastClipboardTimestamp)
     }
 
     fun onConnectionReady() {
@@ -155,7 +172,7 @@ class ClipboardBridge(
             return
         }
         lastClipboardTimestamp = System.currentTimeMillis()
-        sendPacket(BridgePacket.clipboard(text))
+        sendPacket(cappedPacket(text))
         Log.i(TAG, "Sent current clipboard via manual trigger")
     }
 
@@ -173,7 +190,7 @@ class ClipboardBridge(
         lastContent = text
         lastClipboardTimestamp = System.currentTimeMillis()
 
-        sendPacket(BridgePacket.clipboard(text))
+        sendPacket(cappedPacket(text))
         Log.i(TAG, "Clipboard change detected, sent to remote")
     }
 
@@ -199,7 +216,7 @@ class ClipboardBridge(
         }
         lastContent = text
         lastClipboardTimestamp = System.currentTimeMillis()
-        sendPacket(BridgePacket.clipboard(text))
+        sendPacket(cappedPacket(text))
         Log.i(TAG, "Clipboard sent from activity context (${text.length} chars)")
     }
 
