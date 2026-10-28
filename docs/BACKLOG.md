@@ -25,7 +25,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-6 | Notification mirroring: dismissal, replies, app names | done | `work/br-6-notification-mirroring` |
 | BR-7 | Add a Disconnect control to both apps | ready | |
 | BR-8 | File transfer: sanitise, cap, authenticate, confirm | ready | |
-| BR-9 | Clipboard: stop the dead poll, stop the silent send | ready | |
+| BR-9 | Clipboard: stop the dead poll, stop the silent send | in-progress | `work/br-9-clipboard` |
 | BR-10 | Android: permission rows, resume modal, denied-path recovery | ready | |
 | BR-11 | Mac: Local Network status, accessibility, label stability | ready | |
 | BR-12 | Protocol and process debt | ready | |
