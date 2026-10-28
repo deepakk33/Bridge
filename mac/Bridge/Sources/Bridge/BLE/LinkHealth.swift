@@ -5,16 +5,35 @@ import Foundation
 /// a silent death (BLE still connected but no packets arriving — e.g. the Android
 /// service was killed by One UI battery management).
 enum LinkHealth: Equatable, Sendable {
-    /// Packets flowing normally.
+    /// Packets flowing normally from a verified peer.
     case connected
+    /// A channel is open but the peer is not yet verified against the trust store.
+    case verifying
     /// No packet for 60–90s. Warning state, link not yet declared dead.
     case stale(seconds: Int)
-    /// No packet for >=90s while BLE is still connected: silent service death.
+    /// No packet for >=90s while BLE is still connected, or the peer tore the
+    /// connection down from its side: the phone's service is gone, not the phone.
     case dead
     /// BLE disconnected cleanly (phone walked away).
     case outOfRange
     /// Bluetooth is turned off on the Mac.
     case bluetoothOff
+    /// The link was closed from this side and is not being retried.
+    case disconnected
+}
+
+/// Why the BLE peripheral connection ended. A force-stopped Android app stops
+/// advertising exactly as a departed phone does, so the disconnect reason Core
+/// Bluetooth reports is the only signal that tells the two apart.
+enum DisconnectReason: Equatable, Sendable {
+    /// We cancelled the connection ourselves.
+    case local
+    /// Supervision timeout — the link faded, i.e. the phone moved away.
+    case supervisionTimeout
+    /// The remote stack tore the connection down — app force-stopped, phone Bluetooth off.
+    case peerTerminated
+    /// Anything else, including a disconnect with no error attached.
+    case unknown
 }
 
 enum LinkHealthEvaluator {
@@ -30,15 +49,25 @@ enum LinkHealthEvaluator {
         lastSeen: Date?,
         now: Date = Date(),
         bleConnected: Bool,
-        bluetoothOn: Bool
+        bluetoothOn: Bool,
+        isVerified: Bool = true,
+        lastDisconnect: DisconnectReason? = nil
     ) -> LinkHealth {
         if !bluetoothOn { return .bluetoothOff }
-        if !bleConnected { return .outOfRange }
-        guard let lastSeen else { return .connected }
+        if !bleConnected {
+            switch lastDisconnect {
+            case .local: return .disconnected
+            case .peerTerminated: return .dead
+            case .supervisionTimeout, .unknown, nil: return .outOfRange
+            }
+        }
+        // Silence outranks verification: a peer that opened a socket and then went quiet
+        // is a dead service, not a handshake in progress.
+        guard let lastSeen else { return isVerified ? .connected : .verifying }
         let elapsed = now.timeIntervalSince(lastSeen)
         if elapsed >= deadThreshold { return .dead }
         if elapsed >= staleThreshold { return .stale(seconds: Int(elapsed)) }
-        return .connected
+        return isVerified ? .connected : .verifying
     }
 
     /// "Last seen: just now" / "Xs ago" / "Xm ago" per spec.
@@ -59,9 +88,7 @@ enum LinkHealthEvaluator {
             return "Bluetooth is off. Open Bluetooth settings to re-enable."
         case .outOfRange:
             return "Phone is out of range. It will reconnect automatically when back in range."
-        case .stale:
-            return nil
-        case .connected:
+        case .stale, .connected, .verifying, .disconnected:
             return nil
         }
     }

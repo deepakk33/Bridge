@@ -7,6 +7,10 @@ import os
 final class BLEManager: NSObject, ObservableObject {
     @Published var linkState: LinkStateMachine
     @Published var currentLinkState: LinkState = .disconnected
+    /// What the user is told. Derived from the transport facts below; every link
+    /// indicator reads this, never `currentLinkState`.
+    @Published private(set) var linkHealth: LinkHealth = .disconnected
+    @Published private(set) var lastSeenText: String?
     @Published var connectedDeviceName: String?
     /// nil until the phone reports it this connection — the Mac never invents a count.
     @Published var mirroringState: MirroringState?
@@ -24,6 +28,11 @@ final class BLEManager: NSObject, ObservableObject {
 
     private var peerDeviceId: String?
     private var peerFingerprint: String?
+    private var peripheralConnected = false
+    private var isVerified = false
+    private var lastDisconnect: DisconnectReason?
+    private var healthTimer: Timer?
+    private var loggedHealth: LinkHealth?
     private var deviceId: String
     private var pairingStateCancellable: AnyCancellable?
 
@@ -43,6 +52,9 @@ final class BLEManager: NSObject, ObservableObject {
 
         pairingStateCancellable = pairingManager.objectWillChange.sink { [weak self] in
             self?.objectWillChange.send()
+            // objectWillChange fires before the trust store is updated, so re-read on the
+            // next turn of the run loop.
+            Task { @MainActor in self?.evaluateVerification() }
         }
 
         centralManager = CBCentralManager(delegate: self, queue: .main)
@@ -64,7 +76,16 @@ final class BLEManager: NSObject, ObservableObject {
             }
             await clipboardMonitor.start()
         }
+
+        healthTimer = Timer.scheduledTimer(withTimeInterval: Self.healthTick, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.refreshHealth() }
+        }
     }
+
+    /// How often the health is recomputed. Bounds the gap between a threshold being
+    /// crossed and the user being told; without it the only recompute was the 30s
+    /// watchdog poll against a 90s timeout, so a dead link read "Connected" for 2 minutes.
+    private static let healthTick: TimeInterval = 10
 
     func startScanning() {
         guard centralManager.state == .poweredOn else {
@@ -80,6 +101,7 @@ final class BLEManager: NSObject, ObservableObject {
     }
 
     func disconnect() {
+        lastDisconnect = .local
         pingWatchdog.stop()
         if let peripheral = discoveredPeripheral {
             centralManager.cancelPeripheralConnection(peripheral)
@@ -91,6 +113,8 @@ final class BLEManager: NSObject, ObservableObject {
         mirroringState = nil
         peerDeviceId = nil
         peerFingerprint = nil
+        peripheralConnected = false
+        isVerified = false
         transitionLink(to: .disconnected)
     }
 
@@ -100,13 +124,74 @@ final class BLEManager: NSObject, ObservableObject {
             Self.logger.warning("sendPacket failed: no l2capChannel for \(packet.type)")
             return false
         }
-        channel.send(packet)
-        return true
+        guard isVerified || Self.preVerificationPacketTypes.contains(packet.type) else {
+            Self.logger.warning("sendPacket failed: peer not verified for \(packet.type)")
+            return false
+        }
+        return channel.send(packet)
     }
+
+    /// The only packets worth sending to a peer we have not yet verified: the two that
+    /// make verification happen, plus the heartbeat — a ping carries no data, and without
+    /// it the peer's own watchdog tears the link down while a pair prompt is unanswered.
+    private static let preVerificationPacketTypes: Set<String> = [
+        "bridge.identity", "bridge.pair", "bridge.ping"
+    ]
 
     private func transitionLink(to newState: LinkState) {
         linkState.transition(to: newState)
         currentLinkState = linkState.state
+        refreshHealth()
+    }
+
+    private func refreshHealth() {
+        let lastSeen = pingWatchdog.lastSeen
+        switch centralManager?.state {
+        case .some(.unknown), .some(.resetting), .none:
+            // Core Bluetooth has not reported yet. "Bluetooth off" would be a guess, and a
+            // red dot with settings guidance is the worst possible guess to show.
+            linkHealth = .disconnected
+        case .some(let state):
+            linkHealth = LinkHealthEvaluator.evaluate(
+                lastSeen: lastSeen,
+                bleConnected: peripheralConnected,
+                bluetoothOn: state == .poweredOn,
+                isVerified: isVerified,
+                lastDisconnect: lastDisconnect
+            )
+        }
+        lastSeenText = (linkHealth == .connected || lastSeen == nil)
+            ? nil
+            : LinkHealthEvaluator.lastSeenText(lastSeen: lastSeen)
+
+        if linkHealth != loggedHealth {
+            loggedHealth = linkHealth
+            Self.logger.info("Link health: \(String(describing: self.linkHealth), privacy: .public)")
+        }
+    }
+
+    /// The peer is verified when it has told us who it is and the trust store agrees.
+    /// Only then does the Mac claim a connected link, as Android already does.
+    private func evaluateVerification() {
+        let verified: Bool
+        if let id = peerDeviceId, let fingerprint = peerFingerprint {
+            verified = TrustStore.shared.isTrusted(deviceId: id, fingerprint: fingerprint)
+        } else {
+            verified = false
+        }
+        guard verified != isVerified else { return }
+        isVerified = verified
+
+        if verified {
+            transitionLink(to: .connected)
+            Task { @MainActor in
+                sendPacket(await clipboardMonitor.makeConnectPacket())
+            }
+        } else if l2capChannel != nil {
+            transitionLink(to: .connecting)
+        } else {
+            refreshHealth()
+        }
     }
 
     // MARK: - Connection flow
@@ -132,6 +217,8 @@ final class BLEManager: NSObject, ObservableObject {
         mirroringState = nil
         peerDeviceId = nil
         peerFingerprint = nil
+        peripheralConnected = false
+        isVerified = false
         pairingManager.reset()
 
         guard centralManager.state == .poweredOn else { return }
@@ -148,13 +235,12 @@ final class BLEManager: NSObject, ObservableObject {
 
     private func handleReceivedPacket(_ packet: BridgePacket) {
         pingWatchdog.packetReceived()
+        refreshHealth()
 
-        if let peerId = peerDeviceId, let peerFp = peerFingerprint {
-            let isPaired = TrustStore.shared.isTrusted(deviceId: peerId, fingerprint: peerFp)
-            if !isPaired && packet.type != "bridge.identity" && packet.type != "bridge.pair" {
-                Self.logger.warning("Dropping packet from untrusted device: \(packet.type)")
-                return
-            }
+        if peerDeviceId != nil, peerFingerprint != nil, !isVerified,
+           !Self.preVerificationPacketTypes.contains(packet.type) {
+            Self.logger.warning("Dropping packet from untrusted device: \(packet.type)")
+            return
         }
 
         switch packet.type {
@@ -225,6 +311,7 @@ final class BLEManager: NSObject, ObservableObject {
         connectedDeviceName = name
         pairingManager.setPeerIdentity(deviceId: id, deviceName: name, fingerprint: fp)
         Self.logger.info("Peer identity: \(name) [\(id)]")
+        evaluateVerification()
     }
 
     private func sendIdentity() async {
@@ -262,6 +349,7 @@ final class BLEManager: NSObject, ObservableObject {
                 Self.logger.warning("Watchdog timeout — closing channel")
                 self?.l2capChannel?.close()
                 self?.l2capChannel = nil
+                self?.isVerified = false
                 self?.transitionLink(to: .connecting)
                 self?.linkState.recordLastSeen()
                 if let peripheral = self?.discoveredPeripheral {
@@ -270,6 +358,24 @@ final class BLEManager: NSObject, ObservableObject {
                 self?.startScanning()
             }
         )
+    }
+}
+
+// MARK: - Disconnect reason
+
+extension BLEManager {
+    /// A force-stopped Android app stops advertising exactly as a departed phone does,
+    /// so the code Core Bluetooth attaches to the disconnect is the only thing that
+    /// tells "the service died" apart from "the phone walked away".
+    static func disconnectReason(from error: Error?) -> DisconnectReason {
+        guard let error else { return .unknown }
+        let nsError = error as NSError
+        guard nsError.domain == CBErrorDomain else { return .unknown }
+        switch CBError.Code(rawValue: nsError.code) {
+        case .connectionTimeout: return .supervisionTimeout
+        case .peripheralDisconnected: return .peerTerminated
+        default: return .unknown
+        }
     }
 }
 
@@ -317,7 +423,13 @@ extension BLEManager: CBCentralManagerDelegate {
     ) {
         MainActor.assumeIsolated {
             Self.logger.info("Connected to \(peripheral.name ?? "unnamed")")
+            peripheralConnected = true
+            lastDisconnect = nil
+            // Otherwise the previous session's gap is measured against this one and a
+            // fresh reconnect reads as stale before the first packet lands.
+            pingWatchdog.resetClock()
             connectedDeviceName = peripheral.name
+            refreshHealth()
             peripheral.discoverServices([BridgeConstants.serviceUUID])
         }
     }
@@ -329,6 +441,7 @@ extension BLEManager: CBCentralManagerDelegate {
     ) {
         MainActor.assumeIsolated {
             Self.logger.error("Failed to connect: \(error?.localizedDescription ?? "unknown")")
+            lastDisconnect = Self.disconnectReason(from: error)
             handleDisconnect()
         }
     }
@@ -344,6 +457,10 @@ extension BLEManager: CBCentralManagerDelegate {
             } else {
                 Self.logger.info("Disconnected cleanly")
             }
+            if lastDisconnect != .local {
+                lastDisconnect = Self.disconnectReason(from: error)
+            }
+            Self.logger.info("Disconnect reason: \(String(describing: self.lastDisconnect), privacy: .public)")
             handleDisconnect()
         }
     }
@@ -454,13 +571,13 @@ extension BLEManager: CBPeripheralDelegate {
                 }
             }
             l2capChannel = wrapper
-            transitionLink(to: .connected)
+            // An open socket is not a working link — the peer is unverified until its
+            // identity arrives and the trust store agrees. Android has always said this.
+            transitionLink(to: .connecting)
 
             Task {
                 await sendIdentity()
                 startWatchdog()
-                let connectPacket = await clipboardMonitor.makeConnectPacket()
-                sendPacket(connectPacket)
             }
         }
     }

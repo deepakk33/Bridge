@@ -19,7 +19,7 @@ place a work item is born. One row per item, one detail block per row.
 |----|-------|--------|--------|
 | BR-1 | Grey out the app list while mirroring is paused | done | `work/br-1-mute-greys-app-list` |
 | BR-2 | Render the Mac panel as a window, not an NSMenu | done | `work/br-2-render-the-mac-panel-as-a-window` |
-| BR-3 | Make the link state tell the truth | ready | |
+| BR-3 | Make the link state tell the truth | done | `work/br-3-make-the-link-state-tell-the-truth` |
 | BR-4 | Transport security: decide, then close the gap | idea | |
 | BR-5 | Pairing: six-digit confirmation and a device picker | idea | |
 | BR-6 | Notification mirroring: dismissal, replies, app names | done | `work/br-6-notification-mirroring` |
@@ -29,6 +29,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-10 | Android: permission rows, resume modal, denied-path recovery | ready | |
 | BR-11 | Mac: Local Network status, accessibility, label stability | ready | |
 | BR-12 | Protocol and process debt | ready | |
+| BR-13 | Mac: notice a scan that never returns anything | ready | |
 
 All of BR-2…BR-12 come from [AUDIT-2026-10-26.md](AUDIT-2026-10-26.md), which holds the
 evidence, file:line references and reproduction for each. The audit's own ordering
@@ -295,6 +296,31 @@ requirement that were never implemented — the same gap can reopen next iterati
 - [ ] a spec requirement cannot reach `openspec/specs/` without matching code
 **Notes**: `AUD-K`. The last criterion is a process fix, not a code fix — it is what keeps
 BR-4 and BR-5 from recurring.
+
+### BR-13 — Mac: notice a scan that never returns anything
+
+**Scope**: detect that `scanForPeripherals` has produced no `didDiscover` for a bounded period
+while the link is down, restart the scan, and fall back to
+`retrieveConnectedPeripherals(withServices:)` for a peripheral the system already holds.
+**Why**: `BLEManager` cannot tell "I asked Core Bluetooth to scan and nothing arrived" from
+"nothing is there". Observed live on 2026-10-27: a second app instance quitting sent `stop scan`
+to `bluetoothd` with `updateScanParams:YES` seven seconds after the live instance started its own
+scan; the live app kept believing it was scanning while the daemon was not scanning for it, and
+sat on "Out of range" indefinitely with no retry. Recovery needed a restart or a Bluetooth toggle
+— and the phone was 30 cm away, advertising connectably the whole time. `BLEManager` also never
+calls `retrieveConnectedPeripherals`, which is how Core Bluetooth expects an app to find a
+peripheral the system is already connected to, so a relaunch while the OS holds the link finds
+nothing by design.
+**Platforms**: mac
+**Done when**:
+- [ ] a scan that returns nothing for a bounded period is restarted, and the restart is logged
+- [ ] the app reconnects after its scan is dropped externally, with no restart and no Bluetooth toggle
+- [ ] a peripheral already connected at the OS level is found without waiting for an advertisement
+- [ ] the panel distinguishes "looking" from "looked and found nothing for a long time"
+**Notes**: found while device-testing BR-3; see `docs/ITERATIONS.md` under BR-3 for the daemon
+log evidence. Not a BR-3 regression — nothing in that change touches scanning. Two app instances
+is not a state the product reaches in normal use, but the missing scan watchdog is reachable any
+time macOS drops a scan.
 
 <!-- Template — copy for each new item:
 
