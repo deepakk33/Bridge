@@ -29,7 +29,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-10 | Android: permission rows, resume modal, denied-path recovery | ready | |
 | BR-11 | Mac: Local Network status, accessibility, label stability | ready | |
 | BR-12 | Protocol and process debt | ready | |
-| BR-13 | Mac: notice a scan that never returns anything | in-progress | `work/br-13-notice-a-scan-that-never-returns` |
+| BR-13 | Mac: notice a scan that never returns anything | done | `work/br-13-notice-a-scan-that-never-returns` |
 | BR-14 | Mac: refuse to run twice | ready | |
 | BR-15 | Clipboard: the ADB grant path is dead, decide what replaces it | done | `work/br-15-adb-grant` |
 | BR-16 | Clipboard: decide whether reconnect should push the phone's clip | ready | |
@@ -319,10 +319,13 @@ peripheral the system is already connected to, so a relaunch while the OS holds 
 nothing by design.
 **Platforms**: mac
 **Done when**:
-- [ ] a scan that returns nothing for a bounded period is restarted, and the restart is logged
-- [ ] the app reconnects after its scan is dropped externally, with no restart and no Bluetooth toggle
-- [ ] a peripheral already connected at the OS level is found without waiting for an advertisement
-- [ ] the panel distinguishes "looking" from "looked and found nothing for a long time"
+- [x] a scan that returns nothing for a bounded period is restarted, and the restart is logged
+- [x] the app reconnects after its scan is dropped externally, with no restart and no Bluetooth toggle
+- [~] a peripheral already connected at the OS level is found without waiting for an advertisement
+      — **untested**. macOS released the peripheral on every app exit tried, including SIGKILL, so
+      `retrieveConnectedPeripherals` returned empty on every launch and the non-empty branch has
+      never executed. The call is made on power-on and before each scan restart as specced.
+- [x] the panel distinguishes "looking" from "looked and found nothing for a long time"
 **Notes**: found while device-testing BR-3; see `docs/ITERATIONS.md` under BR-3 for the daemon
 log evidence. Not a BR-3 regression — nothing in that change touches scanning. Two app instances
 is not a state the product reaches in normal use, but the missing scan watchdog is reachable any

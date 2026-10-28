@@ -1005,3 +1005,88 @@ place a new row can be added — with two tests watching it.
 The repo also has one fewer instance of **BR-12**'s last criterion: a spec requirement with no
 working code behind it. Two remain, both in `openspec/specs/security/` and both owned by BR-4
 and BR-5.
+
+---
+
+## BR-13: Mac — Notice a Scan That Never Returns Anything
+
+Branch `work/br-13-notice-a-scan-that-never-returns`, shipped 2026-10-28.
+
+### In plain terms
+
+The Mac app looks for the phone by asking macOS to scan for it. It used to ask once and then
+assume the scan was running forever. It had no way to tell "I am looking and the phone is not
+here" apart from "I asked to look and macOS quietly stopped looking on my behalf".
+
+That second case is real: on 2026-10-27 a second copy of the app quitting told the Bluetooth
+daemon to stop scanning, which stopped the scan belonging to the copy that was still running.
+That copy went on believing it was searching, showed "Out of range", and stayed there — with the
+phone 30 cm away, advertising the whole time. The only fix was quitting the app or toggling
+Bluetooth.
+
+Now the app times its own scan. If twenty seconds pass with nothing found, it says so in the log,
+stops the scan and starts a fresh one — so a scan that was killed behind its back comes back by
+itself.
+
+The panel also stopped overstating what it knows. For the first twenty seconds it says
+**Searching…**, because looking is not the same as having looked. Only after a full period with
+nothing found does it say "Out of range", which is now a conclusion rather than a guess.
+
+### Technically
+
+- `BLEManager` tracks its own `isScanning` and `searchingSince`. `CBCentralManager.isScanning`
+  reports *this app's request*, not the daemon's behaviour — it stayed `true` throughout the
+  observed failure, so it is the symptom and not the signal.
+- A one-shot `Timer` per scan, `LinkHealthEvaluator.scanWatchdogPeriod` = 20 s, following
+  `healthTimer`'s existing main-actor pattern. It is invalidated on discovery, on connect, in
+  `disconnect()` and when Bluetooth goes away.
+- `retrieveConnectedPeripherals(withServices:)` is called on `.poweredOn` and before each scan
+  restart. A peripheral macOS already holds never advertises to this central, so scanning alone
+  could not find it.
+- `LinkHealth` gains `.searching`, applied only where `.outOfRange` previously came from
+  `lastDisconnect` being nil or `.unknown`. A supervision timeout is evidence the phone left, so
+  it still reports `.outOfRange` immediately. `evaluate` stays pure; `searchingSince` defaults to
+  nil so every pre-existing case keeps its answer.
+- No protocol change, no packet change, no Android change. Tier 1 only.
+
+### Known issues and degradations
+
+- **Criterion (c) is untested, not passed.** macOS released the peripheral on every app exit
+  tried, including `SIGKILL`, so `retrieveConnectedPeripherals` returned empty on every launch
+  and the non-empty branch has never executed. The call is made where the spec says; what is
+  unverified is what happens when it returns something. No way to make macOS hold the peripheral
+  across the app's death was found.
+- **The restart loop runs every 20 s for as long as the phone is away.** Deliberate: `stopScan` +
+  `scanForPeripherals` is negligible on a Mac on mains power, and a backoff is the bug — the
+  failure being fixed is a user sitting in front of a phone 30 cm away.
+- **The watchdog can restart a scan that was about to succeed.** Worst case one extra discovery
+  delay, against a current worst case of never.
+- **A connected-but-silent peripheral is deliberately out of scope.** `restartStalledScan`
+  returns early while `peripheralConnected` is true, because reconnecting would reset the ping
+  watchdog's silence clock and hide a dead phone service. That silence belongs to the ping
+  watchdog, which reports "Not responding".
+
+### Found while testing, and left for their owners
+
+- **The device test caught a defect no unit test could.** Discovering the phone cleared
+  `searchingSince`, so for the 676 ms between `didDiscover` and `didConnect` the panel reported
+  "Out of range" about a phone it had just found at RSSI −79. The clock now runs until a
+  peripheral actually connects. Fixed in `ad433bb`, re-observed clean across a 1.29 s connect.
+- **Code review caught three more before hardware did**, the worst being that
+  `restartStalledScan` called `startScanning()`, which reset `searchingSince` — so the state
+  could never age out of `.searching` and "Out of range" was unreachable. Exactly the opposite of
+  the spec row it was written for, and invisible to a unit test of the pure evaluator.
+- **BR-14 is still the right next item.** Reproducing criterion (b) meant deliberately running
+  two instances, which is the state BR-14 exists to prevent. This item makes the app *recover*
+  from a dropped scan; it is not a substitute, since macOS can drop a scan for its own reasons —
+  but the commonest cause is still unguarded.
+
+### What the next item builds on
+
+**BR-14** can now be judged on its own terms rather than as a bug fix: the surviving instance
+already recovers, so a single-instance guard is about not reaching the state, not about escaping
+it. Its fourth criterion — "the surviving instance never loses its scan to another instance
+quitting" — is the one this item already demonstrated recovering from, with timestamps.
+
+**BR-11** inherits a `LinkHealth` with eight states and a `StatusPanel` switch that the compiler
+forces to handle all of them; a new state cannot be silently defaulted.

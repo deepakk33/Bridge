@@ -21,7 +21,8 @@ The states are:
 | Verifying | a channel is open but the peer is not yet verified against the trust store |
 | Stale | the peer is verified but no packet has arrived for at least the stale threshold |
 | Not responding | no packet for at least the dead threshold while the BLE peripheral is still connected, or the peer terminated the connection from its side |
-| Out of range | the BLE link dropped on a supervision timeout, or no peripheral has been found |
+| Searching | no peripheral is connected, the Mac is scanning, and no scan watchdog period has elapsed yet |
+| Out of range | the BLE link dropped on a supervision timeout, or the Mac has been scanning without discovering anything for at least one scan watchdog period |
 | Bluetooth off | the Mac's Bluetooth adapter is off, unauthorized or unsupported |
 | Disconnected | the user or the app closed the link deliberately |
 
@@ -40,14 +41,24 @@ classification deliberately mirrors.
   an open channel to an unverified peer
 - **THEN** the user sees the health state ("Verifying"), never the transport state ("Connected")
 
+#### Scenario: Looking is not the same as having looked
+
+- **WHEN** the Mac has just started scanning and nothing has been discovered yet
+- **THEN** the state is "Searching", and it becomes "Out of range" only once the Mac has been
+  looking for at least one scan watchdog period with nothing found
+
 ---
 
 ### Requirement: A dead phone service is not reported as distance
 
 The Mac SHALL NOT attribute a link failure to distance unless the evidence supports distance.
 Packets ceasing while the BLE peripheral connection is still up, or a disconnect that the peer
-terminated, SHALL be reported as **Not responding**; only a supervision-timeout disconnect or a
-failure to find the peripheral at all SHALL be reported as **Out of range**.
+terminated, SHALL be reported as **Not responding**; only a supervision-timeout disconnect, or a
+scan that has run for at least one watchdog period without discovering anything, SHALL be
+reported as **Out of range**.
+
+A scan that has not yet run for a watchdog period is evidence of nothing and SHALL be reported
+as **Searching**.
 
 Platform constraint: Core Bluetooth reports a remote-terminated disconnect and a
 supervision-timeout disconnect with different `CBError` codes; this distinction is the only
@@ -69,6 +80,12 @@ phone does.
 - **WHEN** no packet of any kind has arrived for the dead threshold but the BLE peripheral
   connection is still open
 - **THEN** the Mac reports "Not responding"
+
+#### Scenario: A fresh scan is not called out of range
+
+- **WHEN** the app has just launched, or the scan has just been restarted, and nothing has been
+  discovered yet
+- **THEN** the Mac reports "Searching", not "Out of range"
 
 ---
 
@@ -99,7 +116,11 @@ no guidance line.
 - **WHEN** the health state is "Connected"
 - **THEN** no guidance line is shown
 
----
+#### Scenario: Searching is transient and shows no guidance
+
+- **WHEN** the health state is "Searching"
+- **THEN** no guidance line is shown, because there is nothing for the user to do while the Mac
+  is still looking
 
 ### Requirement: Health is re-evaluated on a bounded cadence
 
