@@ -96,18 +96,18 @@ Verify commands used below:
 
 ## 8. Default-deny trust gate and line cap
 
-- [ ] 8.1 Android: replace the inline condition in `L2capServer.handlePacket` with the single
+- [x] 8.1 Android: replace the inline condition in `L2capServer.handlePacket` with the single
       `allow(packetType)` gate from design.md — Decision 3, applied before dispatch. Verify unit
       tests cover each gate branch: pre-identity non-exempt packet dropped, `bridge.identity` and
       `bridge.pair` allowed, identified-but-unpinned dropped, mismatched fingerprint dropped,
       `bridge.ping` from an unidentified peer unanswered.
-- [ ] 8.2 Android: delete the `catch (_: IllegalStateException) {}` fail-open; an unreadable trust
+- [x] 8.2 Android: delete the `catch (_: IllegalStateException) {}` fail-open; an unreadable trust
       store denies. Verify a test asserts a throwing trust store drops the packet.
-- [ ] 8.3 Android: make `BridgeTrustManager`'s null-`expectedFingerprint` branch throw
+- [x] 8.3 Android: make `BridgeTrustManager`'s null-`expectedFingerprint` branch throw
       `CertificateException` instead of logging and accepting. Verify a test asserts rejection.
-- [ ] 8.4 Mac: apply the same gate before dispatch in the L2CAP receive path. Verify unit tests
+- [x] 8.4 Mac: apply the same gate before dispatch in the L2CAP receive path. Verify unit tests
       cover the same five branches.
-- [ ] 8.5 Both platforms: replace the unbounded `readLine()` with a 256 KB-capped read that closes
+- [x] 8.5 Both platforms: replace the unbounded `readLine()` with a 256 KB-capped read that closes
       the connection on breach. Verify a test feeds an oversized line with no newline and asserts
       the connection closes and memory stays bounded; verify a second test that a packet at the
       10 KB out-of-band threshold still passes.

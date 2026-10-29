@@ -38,14 +38,17 @@ class BridgeTrustManager(
         val peerCert = chain[0]
         val peerFingerprint = fingerprint(peerCert)
 
-        if (expectedFingerprint != null) {
-            if (peerFingerprint != expectedFingerprint) {
-                Log.w(TAG, "Fingerprint mismatch: expected=$expectedFingerprint actual=$peerFingerprint")
-                throw CertificateException("Certificate fingerprint mismatch")
-            }
-            Log.i(TAG, "Peer fingerprint verified")
-        } else {
-            Log.i(TAG, "Accepting peer cert (no pinned fingerprint): $peerFingerprint")
+        if (expectedFingerprint == null) {
+            // Fail closed. A caller that forgets to pass a pin gets a refused handshake,
+            // not a peer accepted on the strength of having presented any certificate.
+            Log.w(TAG, "No pinned fingerprint to check against — refusing $peerFingerprint")
+            throw CertificateException("No pinned fingerprint for this peer")
         }
+
+        if (peerFingerprint != expectedFingerprint) {
+            Log.w(TAG, "Fingerprint mismatch: expected=$expectedFingerprint actual=$peerFingerprint")
+            throw CertificateException("Certificate fingerprint mismatch")
+        }
+        Log.i(TAG, "Peer fingerprint verified")
     }
 }

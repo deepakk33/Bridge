@@ -324,9 +324,13 @@ final class BLEManager: NSObject, ObservableObject {
         pingWatchdog.packetReceived()
         refreshHealth()
 
-        if peerDeviceId != nil, peerFingerprint != nil, !isVerified,
-           !Self.preVerificationPacketTypes.contains(packet.type) {
-            Self.logger.warning("Dropping packet from untrusted device: \(packet.type)")
+        guard PacketGate.allows(
+            packetType: packet.type,
+            peerDeviceId: peerDeviceId,
+            peerFingerprint: peerFingerprint,
+            isTrusted: { TrustStore.shared.isTrusted(deviceId: $0, fingerprint: $1) }
+        ) else {
+            Self.logger.warning("Dropping \(packet.type) from an untrusted or unidentified peer")
             return
         }
 

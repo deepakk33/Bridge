@@ -6,9 +6,11 @@ import android.bluetooth.BluetoothSocket
 import android.os.Build
 import android.util.Log
 import com.bridge.protocol.BridgePacket
+import com.bridge.protocol.CappedLineReader
 import com.bridge.protocol.PingHandler
 import com.bridge.protocol.PingWatchdog
 import com.bridge.security.CertificateManager
+import com.bridge.security.PacketGate
 import com.bridge.security.PairingManager
 import com.bridge.security.TrustStore
 import kotlinx.coroutines.CoroutineScope
@@ -18,9 +20,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.jsonPrimitive
-import java.io.BufferedReader
 import java.io.IOException
-import java.io.InputStreamReader
 import java.io.OutputStream
 
 class L2capServer(
@@ -107,7 +107,7 @@ class L2capServer(
 
     private fun handleConnection(socket: BluetoothSocket) {
         try {
-            val reader = BufferedReader(InputStreamReader(socket.inputStream, Charsets.UTF_8))
+            val reader = CappedLineReader(socket.inputStream)
             val outputStream = socket.outputStream
             currentOutputStream = outputStream
 
@@ -160,6 +160,10 @@ class L2capServer(
             }
 
             Log.i(TAG, "Connection closed")
+        } catch (e: CappedLineReader.LineTooLongException) {
+            // Broken or hostile. Resynchronising a stream from an attacker-chosen offset
+            // is a parsing problem nobody needs; the link reconnects on its own.
+            Log.e(TAG, "Oversized line from peer — closing connection", e)
         } catch (e: IOException) {
             Log.e(TAG, "Connection error", e)
         } finally {
@@ -203,14 +207,9 @@ class L2capServer(
     }
 
     private fun handlePacket(packet: BridgePacket, outputStream: OutputStream) {
-        if (peerDeviceId != null && peerFingerprint != null) {
-            try {
-                val trusted = TrustStore.getInstance().isTrusted(peerDeviceId!!, peerFingerprint!!)
-                if (!trusted && packet.type != "bridge.identity" && packet.type != "bridge.pair") {
-                    Log.w(TAG, "Dropping packet from untrusted device: ${packet.type}")
-                    return
-                }
-            } catch (_: IllegalStateException) {}
+        if (!PacketGate.allows(packet.type, peerDeviceId, peerFingerprint) { TrustStore.getInstance() }) {
+            Log.w(TAG, "Dropping ${packet.type} from an untrusted or unidentified peer")
+            return
         }
 
         when (packet.type) {

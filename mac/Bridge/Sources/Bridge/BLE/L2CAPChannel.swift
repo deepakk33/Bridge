@@ -26,6 +26,14 @@ final class L2CAPChannel: NSObject, @unchecked Sendable {
     )
 
     private static let bufferSize = 4096
+    /// Past this, a single line is not a packet, it is a peer growing our heap. Payloads
+    /// above 10 KB travel out of band, so this is ~25x the headroom a control packet can
+    /// legitimately need. The connection closes rather than resynchronising the stream
+    /// from an attacker-chosen offset.
+    static let maxLineLength = 256 * 1024
+
+    /// Raised when a peer sends an oversized line, so the owner can drop the link.
+    var onOversizedLine: (@Sendable (Int) -> Void)?
     /// Past this, the stream is not backed up, it is gone. Queued bytes are dropped
     /// rather than held for a drain event that is not coming.
     private static let pendingWriteLimit = 64 * 1024
@@ -203,6 +211,17 @@ final class L2CAPChannel: NSObject, @unchecked Sendable {
     /// Split the read buffer on newlines and parse each complete line as a packet.
     private func processBuffer() {
         let newline: UInt8 = 0x0A
+
+        // Checked before splitting: with no newline in the buffer at all, every byte so
+        // far belongs to one unterminated line.
+        if !readBuffer.contains(newline), readBuffer.count > Self.maxLineLength {
+            Self.logger.error("Oversized line from peer (\(self.readBuffer.count) bytes) — closing")
+            let seen = readBuffer.count
+            readBuffer.removeAll()
+            onOversizedLine?(seen)
+            close()
+            return
+        }
 
         while let newlineIndex = readBuffer.firstIndex(of: newline) {
             let lineData = readBuffer[readBuffer.startIndex..<newlineIndex]
