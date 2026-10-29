@@ -23,6 +23,7 @@
 		46A3F0836126741F2EB48F7D /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82F25AD4EC1B195EEF0212A4 /* NotificationManager.swift */; };
 		485444CDA174012426332C60 /* BLEManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0971CF85B05BD7A4B596D372 /* BLEManager.swift */; };
 		515E1D5A875306FAD192C882 /* NotificationPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81D97DF5382C0F8F6ADAC758 /* NotificationPacketTests.swift */; };
+		54380B7286779E1590D65A1F /* SingleInstanceGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1563BB8A75AAFC1355838AF /* SingleInstanceGuard.swift */; };
 		5E5054D22E7168E2B49CA7C8 /* PingWatchdog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BEC79646EB8C5C1774F379F /* PingWatchdog.swift */; };
 		69CF4BD0E971F9CC842F7214 /* TrustStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7EFB7EF978217A8DAB5F29A /* TrustStoreTests.swift */; };
 		7119C8B066E708DA6105AD72 /* MirroringStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6352397936B6C09C52E78697 /* MirroringStateTests.swift */; };
@@ -36,6 +37,7 @@
 		9749CC395955B3C5BFA2C962 /* BridgePacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92405DBC9DC528F2C17A32E3 /* BridgePacket.swift */; };
 		9752467E7B12213672547F27 /* ClipboardPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 352D3EE8282E7F7AC124CB70 /* ClipboardPacketTests.swift */; };
 		9ACBB3F90ADF8D6C4C01346F /* PingWatchdogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D45ADCE55DFC7BFCCB054D67 /* PingWatchdogTests.swift */; };
+		9AD629917DA1F4D98AFB8393 /* SingleInstanceGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FF958441628E3C922992418 /* SingleInstanceGuardTests.swift */; };
 		A7F2F04FEA9A2BDE2F667E03 /* StatusPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23B445C6C77FD4607AD01C3E /* StatusPanel.swift */; };
 		A89163011205C65ADD146365 /* PairPromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64ABF32D683378EDAC5B5713 /* PairPromptView.swift */; };
 		A9E76F0A9BAF79469D4D80DB /* ClipboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58B0DE230D96A2A95E6F0C64 /* ClipboardMonitor.swift */; };
@@ -92,6 +94,7 @@
 		86DD549D144C99B0C9AAC869 /* AllVectorsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllVectorsTests.swift; sourceTree = "<group>"; };
 		87D7A0814D52836AEB6121A7 /* ShareRequestPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareRequestPacketTests.swift; sourceTree = "<group>"; };
 		8BBD3516611C23924253AAFF /* TransferTierTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferTierTests.swift; sourceTree = "<group>"; };
+		8FF958441628E3C922992418 /* SingleInstanceGuardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleInstanceGuardTests.swift; sourceTree = "<group>"; };
 		92405DBC9DC528F2C17A32E3 /* BridgePacket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgePacket.swift; sourceTree = "<group>"; };
 		9AAD4D7391D72CAFC163F99B /* FileTransferManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTransferManager.swift; sourceTree = "<group>"; };
 		A05D2EFA77CC7611034C95F6 /* PingPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PingPacketTests.swift; sourceTree = "<group>"; };
@@ -102,6 +105,7 @@
 		AE0F8609FF6A4A8A9A0FD720 /* PairingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingManager.swift; sourceTree = "<group>"; };
 		B0F2494F49F91DB6543D7611 /* PayloadChannelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayloadChannelTests.swift; sourceTree = "<group>"; };
 		CE1964FFF4DA8D88BFABA20D /* FileReceiveController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileReceiveController.swift; sourceTree = "<group>"; };
+		D1563BB8A75AAFC1355838AF /* SingleInstanceGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleInstanceGuard.swift; sourceTree = "<group>"; };
 		D45ADCE55DFC7BFCCB054D67 /* PingWatchdogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PingWatchdogTests.swift; sourceTree = "<group>"; };
 		EC781CF8096419A358A95D90 /* PhoneBatteryStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneBatteryStateTests.swift; sourceTree = "<group>"; };
 		F14A7876264A29DA1B376782 /* PermissionChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionChecker.swift; sourceTree = "<group>"; };
@@ -151,6 +155,7 @@
 				A05D2EFA77CC7611034C95F6 /* PingPacketTests.swift */,
 				D45ADCE55DFC7BFCCB054D67 /* PingWatchdogTests.swift */,
 				87D7A0814D52836AEB6121A7 /* ShareRequestPacketTests.swift */,
+				8FF958441628E3C922992418 /* SingleInstanceGuardTests.swift */,
 				8BBD3516611C23924253AAFF /* TransferTierTests.swift */,
 				A7EFB7EF978217A8DAB5F29A /* TrustStoreTests.swift */,
 			);
@@ -163,6 +168,7 @@
 			children = (
 				A7F6AEAAFE8B7A3039814426 /* BridgeApp.swift */,
 				015E0581D699A8D25C81E072 /* Info.plist */,
+				D1563BB8A75AAFC1355838AF /* SingleInstanceGuard.swift */,
 				CA28928AB466A3B688E7E3F5 /* BLE */,
 				D898E58722832329C9097C3A /* Clipboard */,
 				8F1FA94302F79A2138D4821D /* FileTransfer */,
@@ -343,6 +349,7 @@
 				023A58E9796C719825E7D20C /* PingPacketTests.swift in Sources */,
 				9ACBB3F90ADF8D6C4C01346F /* PingWatchdogTests.swift in Sources */,
 				F7452A80C0351B2D1BBCFD14 /* ShareRequestPacketTests.swift in Sources */,
+				9AD629917DA1F4D98AFB8393 /* SingleInstanceGuardTests.swift in Sources */,
 				C34FDDE9FB007537CDA62B2C /* TransferTierTests.swift in Sources */,
 				69CF4BD0E971F9CC842F7214 /* TrustStoreTests.swift in Sources */,
 			);
@@ -374,6 +381,7 @@
 				0CD81BE51B5BFC75197BAFAC /* PingHandler.swift in Sources */,
 				5E5054D22E7168E2B49CA7C8 /* PingWatchdog.swift in Sources */,
 				45BE58D3A566578C6AF1D21A /* RfcommTransfer.swift in Sources */,
+				54380B7286779E1590D65A1F /* SingleInstanceGuard.swift in Sources */,
 				A7F2F04FEA9A2BDE2F667E03 /* StatusPanel.swift in Sources */,
 				070D3638957E2EFB9E037671 /* TLSWrapper.swift in Sources */,
 				017961800877FA510F290145 /* TransferTier.swift in Sources */,
