@@ -30,7 +30,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-11 | Mac: Local Network status, accessibility, label stability | ready | |
 | BR-12 | Protocol and process debt | ready | |
 | BR-13 | Mac: notice a scan that never returns anything | done | `work/br-13-notice-a-scan-that-never-returns` |
-| BR-14 | Mac: refuse to run twice | in-progress | `work/br-14-refuse-to-run-twice` |
+| BR-14 | Mac: refuse to run twice | done | `work/br-14-refuse-to-run-twice` |
 | BR-15 | Clipboard: the ADB grant path is dead, decide what replaces it | done | `work/br-15-adb-grant` |
 | BR-16 | Clipboard: decide whether reconnect should push the phone's clip | ready | |
 | BR-17 | Media control: drive the phone's player from the Mac | ready | |
@@ -350,10 +350,10 @@ the survivor unable to see a phone 30 cm away until the app was restarted. Two i
 easy to reach: build from Xcode once while the installed copy is running.
 **Platforms**: mac
 **Done when**:
-- [ ] launching a second copy brings the running one to the front and exits, leaving one process
-- [ ] this holds when the two copies are different builds from different paths
-- [ ] the surviving instance never loses its scan to another instance quitting
-- [ ] the guard does not prevent a relaunch after a genuine quit or crash
+- [x] launching a second copy brings the running one to the front and exits, leaving one process
+- [x] this holds when the two copies are different builds from different paths
+- [x] the surviving instance never loses its scan to another instance quitting
+- [x] the guard does not prevent a relaunch after a genuine quit or crash
 **Notes**: found while device-testing BR-9. BR-13 makes the app *recover* from a dropped scan;
 this stops the commonest cause. Land BR-13 first — a single-instance guard is not a substitute
 for a scan watchdog, since macOS can drop a scan for its own reasons.
