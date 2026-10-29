@@ -6,26 +6,27 @@ import Security
 
 final class PayloadChannelTests: XCTestCase {
 
-    /// Skips when the Mac has no TLS-capable identity.
+    /// Skips when this environment will not let a socket listen at all.
     ///
-    /// `CertificateManager.loadExistingIdentity()` matches neither `kSecAttrLabel` nor
-    /// `kSecAttrApplicationTag` — a `kSecClassIdentity` query returns whatever identity
-    /// the keychain holds, which on a dev machine is the "Bridge Dev" code-signing
-    /// certificate. So the generated device certificate is never stored or used, and the
-    /// one that *is* returned has extendedKeyUsage=codeSigning, which Network.framework
-    /// refuses for TLS (the listener fails with EINVAL before any handshake).
-    ///
-    /// Tracked as the blocker for BR-4 task 7.3. These tests come back the moment the
-    /// identity lookup is fixed.
-    private func skipUnlessIdentityCanServeTLS() async throws {
-        let identity = try await CertificateManager.shared.getIdentity()
-        var certRef: SecCertificate?
-        SecIdentityCopyCertificate(identity, &certRef)
-        let summary = certRef.flatMap { SecCertificateCopySubjectSummary($0) as String? } ?? ""
-        try XCTSkipUnless(
-            summary == "Bridge Device",
-            "Mac identity is '\(summary)', not the Bridge device certificate — see BR-4 task 7.3"
-        )
+    /// Some sandboxes deny binding a listening socket, and `NWListener` then fails with
+    /// `EINVAL` before TLS is reached — plain TCP fails identically, so a failure here
+    /// says nothing about the payload code. Run the suite outside such a sandbox to
+    /// exercise these.
+    private func skipUnlessSocketsCanListen() async throws {
+        let listener = try NWListener(using: .tcp, on: .any)
+        let settled = expectation(description: "listener settled")
+        var canListen = false
+        listener.stateUpdateHandler = { state in
+            switch state {
+            case .ready: canListen = true; settled.fulfill()
+            case .failed: settled.fulfill()
+            default: break
+            }
+        }
+        listener.start(queue: .global())
+        await fulfillment(of: [settled], timeout: 5)
+        listener.cancel()
+        try XCTSkipUnless(canListen, "this environment does not permit listening sockets")
     }
 
     /// Both ends of a loopback transfer are this process, so the Mac's own certificate
@@ -47,7 +48,7 @@ final class PayloadChannelTests: XCTestCase {
 
     /// Server serves a payload over loopback; client reads exact bytes; checksums match.
     func testLoopbackRoundTripChecksum() async throws {
-        try await skipUnlessIdentityCanServeTLS()
+        try await skipUnlessSocketsCanListen()
         let tls = try await loopbackParameters()
         let payload = Data((0..<1024).map { UInt8($0 & 0xFF) })
         let server = try PayloadServer(payload: payload, parameters: tls)
@@ -80,7 +81,7 @@ final class PayloadChannelTests: XCTestCase {
 
     /// Client reads exactly payloadSize even if the server offers more bytes.
     func testClientIgnoresExcessBytes() async throws {
-        try await skipUnlessIdentityCanServeTLS()
+        try await skipUnlessSocketsCanListen()
         let tls = try await loopbackParameters()
         let payload = Data(repeating: 0x5A, count: 2048)
         let server = try PayloadServer(payload: payload, parameters: tls)
@@ -105,7 +106,7 @@ final class PayloadChannelTests: XCTestCase {
 
     /// Server bound to an ephemeral port reports a nonzero port before serving.
     func testEphemeralPortAssigned() async throws {
-        try await skipUnlessIdentityCanServeTLS()
+        try await skipUnlessSocketsCanListen()
         let tls = try await loopbackParameters()
         let server = try PayloadServer(payload: Data([1, 2, 3]), parameters: tls)
         let ready = expectation(description: "ready")
@@ -118,7 +119,7 @@ final class PayloadChannelTests: XCTestCase {
 
     /// A stalled server (no client connects) times out and cleans up.
     func testServerTimeout() async throws {
-        try await skipUnlessIdentityCanServeTLS()
+        try await skipUnlessSocketsCanListen()
         let tls = try await loopbackParameters()
         let server = try PayloadServer(payload: Data([1, 2, 3]), parameters: tls, timeout: 1)
         let done = expectation(description: "timeout")
@@ -132,7 +133,7 @@ final class PayloadChannelTests: XCTestCase {
 
     /// A client pinned to the wrong fingerprint gets no payload.
     func testClientRefusesAnUnpinnedServer() async throws {
-        try await skipUnlessIdentityCanServeTLS()
+        try await skipUnlessSocketsCanListen()
         let serverTLS = try await loopbackParameters()
         let clientTLS = try await mismatchedParameters()
         let payload = Data(repeating: 0x11, count: 1024)
@@ -160,7 +161,7 @@ final class PayloadChannelTests: XCTestCase {
 
     /// A server pinned to the wrong fingerprint serves nobody.
     func testServerRefusesAnUnpinnedClient() async throws {
-        try await skipUnlessIdentityCanServeTLS()
+        try await skipUnlessSocketsCanListen()
         let serverTLS = try await mismatchedParameters()
         let clientTLS = try await loopbackParameters()
         let payload = Data(repeating: 0x22, count: 1024)

@@ -91,6 +91,14 @@ Verify commands used below:
 - [x] 7.4 Refuse to open a payload listener toward a peer with no pinned fingerprint, on both
       platforms, before the `bridge.share.request` is sent. Verify a test on each side asserts no
       listener is bound and the transfer is reported refused.
+- [x] 7.6 **Added 2026-10-29, blocks 7.3.** Fix `CertificateManager.loadExistingIdentity()`:
+      a `kSecClassIdentity` query on macOS ignores both `kSecAttrLabel` and
+      `kSecAttrApplicationTag`, so it returns whatever identity the keychain holds — on a dev
+      machine the "Bridge Dev" code-signing certificate. The generated device certificate has
+      therefore never been stored or used, and the Mac's pinned "device fingerprint" has always
+      been its code-signing certificate's. Look the certificate up by label (certificate queries
+      do respect it) and pair it with its key via `SecIdentityCreateWithCertificate`. Verify a
+      test asserts the loaded identity's subject is "Bridge Device", not "Bridge Dev".
 - [ ] 7.5 Verify a Mac↔Android file transfer end to end over Tier 3 with TLS on both ends, and
       confirm with a packet capture that the payload bytes are TLS records, not the file.
 

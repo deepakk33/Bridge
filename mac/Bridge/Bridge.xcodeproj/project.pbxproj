@@ -31,6 +31,7 @@
 		72CB87466034E4FADF76E2C0 /* PairingCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = F909A371C04E550752994F99 /* PairingCode.swift */; };
 		74023612371A00373BF81B07 /* PayloadClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69FC0E53777F564A0AE74EC3 /* PayloadClient.swift */; };
 		743549BE8C00B9587E2BD397 /* DevicePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B48B277E4B6FA0D17C661D3 /* DevicePickerView.swift */; };
+		78D299EBB2963C9ACE3DF245 /* CertificateManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B996C9B1C7ADA8B0F5410CF /* CertificateManagerTests.swift */; };
 		79281DEFD35F2E69D77A034B /* FramedWriterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5AF27C7B66F8ADEEB4537D6 /* FramedWriterTests.swift */; };
 		8233CAFAD0D7B6A9F953D36F /* TrustStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84DAE9B943673867F6E91824 /* TrustStore.swift */; };
 		83FB28C1575F47D4535D342C /* CertificateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56B364144621CA738A409CA7 /* CertificateManager.swift */; };
@@ -92,6 +93,7 @@
 		352D3EE8282E7F7AC124CB70 /* ClipboardPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardPacketTests.swift; sourceTree = "<group>"; };
 		3B1D256091EBDB7F2BF16157 /* PacketGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketGateTests.swift; sourceTree = "<group>"; };
 		481843FD2F6EA3B41D37D96C /* DeviceDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceDirectory.swift; sourceTree = "<group>"; };
+		4B996C9B1C7ADA8B0F5410CF /* CertificateManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CertificateManagerTests.swift; sourceTree = "<group>"; };
 		56B364144621CA738A409CA7 /* CertificateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CertificateManager.swift; sourceTree = "<group>"; };
 		58B0DE230D96A2A95E6F0C64 /* ClipboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitor.swift; sourceTree = "<group>"; };
 		58E003C57BDD9F417908C0C4 /* Bridge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Bridge.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -159,6 +161,7 @@
 			children = (
 				86DD549D144C99B0C9AAC869 /* AllVectorsTests.swift */,
 				ABD9184A949EFAF49F053D20 /* BridgePacketTests.swift */,
+				4B996C9B1C7ADA8B0F5410CF /* CertificateManagerTests.swift */,
 				352D3EE8282E7F7AC124CB70 /* ClipboardPacketTests.swift */,
 				8FBB403934BDB28B43D5D3C2 /* DeviceDirectoryTests.swift */,
 				A5AF27C7B66F8ADEEB4537D6 /* FramedWriterTests.swift */,
@@ -360,6 +363,7 @@
 			files = (
 				970A6E486B671EAF219376D9 /* AllVectorsTests.swift in Sources */,
 				BBB52C374052D155182228CA /* BridgePacketTests.swift in Sources */,
+				78D299EBB2963C9ACE3DF245 /* CertificateManagerTests.swift in Sources */,
 				9752467E7B12213672547F27 /* ClipboardPacketTests.swift in Sources */,
 				52D08B4E081AF43EE77BB067 /* DeviceDirectoryTests.swift in Sources */,
 				79281DEFD35F2E69D77A034B /* FramedWriterTests.swift in Sources */,

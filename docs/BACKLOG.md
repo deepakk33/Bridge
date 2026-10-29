@@ -143,6 +143,17 @@ call was framed as all-or-nothing; reading the code shows exposure and cost run 
   `while result == errSSLWouldBlock { result = SSLHandshake(ctx) }` against a non-blocking stream
   whose `tlsRead` returns `errSSLWouldBlock` on every empty read.
 
+**Found during implementation (2026-10-29), in scope by the user's call:** the Mac has never had
+a device certificate. `CertificateManager.loadExistingIdentity()` queries `kSecClassIdentity`
+filtered by `kSecAttrLabel`, and macOS ignores that filter — the keychain holds exactly one
+identity and queries by label *and* by application tag both return it: the **"Bridge Dev"
+code-signing certificate** (RSA 2048, `extendedKeyUsage = Code Signing`). So
+`generateAndStoreIdentity()` has never run, and the fingerprint the Mac pins and derives the
+six-digit code from is its code-signing certificate's. It is stable, which is why pairing
+appeared to work, but it cannot serve TLS (a listener built on it fails with `EINVAL` before any
+handshake — almost certainly why mutual TLS was specced and never wired) and it changes silently
+if the app is rebuilt with a different signing identity. Fixed here; forces a re-pair.
+
 A third fail-open the Scope above does not name, found while verifying: `BridgeTrustManager`
 constructed with a null `expectedFingerprint` logs the peer fingerprint and **accepts it**
 (`BridgeTrustManager.kt:47`). It is in scope for the default-deny work.
