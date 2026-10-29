@@ -37,9 +37,15 @@ struct StatusPanel: View {
                 onAccept: { bleManager.pairingManager.acceptIncomingPair() },
                 onReject: { bleManager.pairingManager.rejectIncomingPair() }
             )
-            // A replacement request reuses this view, so tie identity to the request or the
-            // second one inherits the first's countdown.
+            // A replacement request reuses this view, so tie identity to the request.
             .id(request.id)
+        } else if case .unpaired = bleManager.pairingManager.state,
+                  bleManager.pairingManager.incomingPairRequest == nil,
+                  TrustStore.shared.isEmpty {
+            DevicePickerView(
+                devices: bleManager.discoveredDevices,
+                onPick: { bleManager.connectToDiscovered($0) }
+            )
         }
     }
 

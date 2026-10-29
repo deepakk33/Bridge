@@ -114,14 +114,14 @@ Verify commands used below:
 
 ## 9. Mac: device picker
 
-- [ ] 9.1 Accumulate discovered peripherals (name, RSSI, peripheral, last-seen) in `BLEManager`
+- [x] 9.1 Accumulate discovered peripherals (name, RSSI, peripheral, last-seen) in `BLEManager`
       instead of connecting from `didDiscover`, connecting automatically only when the peripheral
       is the paired device. Verify a unit test asserts no connect is issued while unpaired and
       that the paired device still connects automatically.
-- [ ] 9.2 Age entries out on a last-seen timer so a device does not flicker between advertising
+- [x] 9.2 Age entries out on a last-seen timer so a device does not flicker between advertising
       intervals. Verify a test asserts an entry survives one missed interval and is removed after
       the timeout.
-- [ ] 9.3 Render the picker in the status panel with name and signal strength, and connect on
+- [x] 9.3 Render the picker in the status panel with name and signal strength, and connect on
       selection. Verify on device that two advertising phones both appear and only the chosen one
       is connected.
 - [ ] 9.4 Confirm BR-13's scan watchdog still behaves with the picker open — discovery keeps
