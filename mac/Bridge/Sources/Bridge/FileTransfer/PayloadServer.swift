@@ -30,14 +30,22 @@ final class PayloadServer: @unchecked Sendable {
 
     /// - Parameters:
     ///   - payload: the exact bytes to serve.
+    ///   - parameters: mutual-TLS parameters pinned to the peer (see `PayloadTLS`).
+    ///     There is no plaintext initialiser: a transfer that cannot be encrypted is
+    ///     refused rather than downgraded.
     ///   - timeout: inactivity timeout before aborting (default 30s per spec).
     /// - Parameter advertiseBonjour: when true (Tier 3), publishes the listening
     ///   port as an `_bridge._tcp` mDNS service so a LAN peer can discover it.
-    init(payload: Data, timeout: TimeInterval = 30, advertiseBonjour: Bool = false) throws {
+    init(
+        payload: Data,
+        parameters: NWParameters,
+        timeout: TimeInterval = 30,
+        advertiseBonjour: Bool = false
+    ) throws {
         self.payload = payload
         self.timeout = timeout
         self.advertiseBonjour = advertiseBonjour
-        self.listener = try NWListener(using: .tcp, on: .any)
+        self.listener = try NWListener(using: parameters, on: .any)
         if advertiseBonjour {
             self.listener.service = NWListener.Service(
                 name: Host.current().localizedName ?? "Bridge",

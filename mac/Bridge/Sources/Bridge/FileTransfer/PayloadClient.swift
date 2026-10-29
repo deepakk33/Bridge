@@ -21,6 +21,7 @@ final class PayloadClient: @unchecked Sendable {
 
     private let endpoint: NWEndpoint
     private let expected: Int
+    private let parameters: NWParameters
     private let timeout: TimeInterval
     private let queue = DispatchQueue(label: "com.bridge.mac.payloadclient")
 
@@ -39,17 +40,22 @@ final class PayloadClient: @unchecked Sendable {
     private var fileCompletion: ((Result<URL, Error>) -> Void)?
     private var onProgress: ((Int, Int) -> Void)?
 
-    init(host: String, port: Int, expectedBytes: Int, timeout: TimeInterval = 30) {
+    /// - Parameter parameters: mutual-TLS parameters pinned to the peer (see
+    ///   `PayloadTLS`). There is no plaintext initialiser: a transfer that cannot be
+    ///   encrypted is refused rather than downgraded.
+    init(host: String, port: Int, expectedBytes: Int, parameters: NWParameters, timeout: TimeInterval = 30) {
         let nwPort = NWEndpoint.Port(rawValue: UInt16(port)) ?? .any
         self.endpoint = .hostPort(host: NWEndpoint.Host(host), port: nwPort)
         self.expected = expectedBytes
+        self.parameters = parameters
         self.timeout = timeout
     }
 
     /// Connect to an already-discovered endpoint (e.g. an mDNS service result).
-    init(endpoint: NWEndpoint, expectedBytes: Int, timeout: TimeInterval = 30) {
+    init(endpoint: NWEndpoint, expectedBytes: Int, parameters: NWParameters, timeout: TimeInterval = 30) {
         self.endpoint = endpoint
         self.expected = expectedBytes
+        self.parameters = parameters
         self.timeout = timeout
     }
 
@@ -80,7 +86,7 @@ final class PayloadClient: @unchecked Sendable {
     }
 
     private func beginConnection() {
-        let conn = NWConnection(to: endpoint, using: .tcp)
+        let conn = NWConnection(to: endpoint, using: parameters)
         connection = conn
         conn.stateUpdateHandler = { [weak self] state in
             guard let self else { return }

@@ -80,7 +80,7 @@ Verify commands used below:
 - [ ] 7.1 Take the branch task 1.1 decided: either switch `L2capServer` to
       `listenUsingL2capChannel()`, or leave the insecure listen and record why. Verify the link
       still comes up end-to-end on device and the choice is noted in design.md.
-- [ ] 7.2 Android payload TLS: wrap `PayloadServer`'s `ServerSocket` with
+- [x] 7.2 Android payload TLS: wrap `PayloadServer`'s `ServerSocket` with
       `createSSLContext(BridgeTrustManager(peerFingerprint)).serverSocketFactory`, `needClientAuth
       = true`; wrap `PayloadClient` with the matching `socketFactory`. Verify a unit test transfers
       bytes over a loopback TLS pair and a second test asserts a wrong-fingerprint peer is refused.
@@ -88,7 +88,7 @@ Verify commands used below:
       `NWConnection` `NWParameters(tls:tcp:)` with
       `sec_protocol_options_set_peer_authentication_required` and a verify block comparing the
       leaf's SHA-256 to the pin. Verify the same two tests on the Mac side.
-- [ ] 7.4 Refuse to open a payload listener toward a peer with no pinned fingerprint, on both
+- [x] 7.4 Refuse to open a payload listener toward a peer with no pinned fingerprint, on both
       platforms, before the `bridge.share.request` is sent. Verify a test on each side asserts no
       listener is bound and the transfer is reported refused.
 - [ ] 7.5 Verify a Mac↔Android file transfer end to end over Tier 3 with TLS on both ends, and

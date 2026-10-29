@@ -7,6 +7,8 @@ import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.net.ServerSocket
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLServerSocket
 
 /**
  * Out-of-band TCP payload server (KDE Connect payload mechanism).
@@ -16,19 +18,24 @@ import java.net.ServerSocket
  * so a large file never has to sit fully in memory. Used by Tier 2
  * (RFCOMM-equivalent) and Tier 3 (Wi-Fi LAN); keeps the Tier 1 BLE control
  * channel free during transfer.
+ *
+ * The connection is mutual TLS against the peer's pinned fingerprint ([PayloadTls]), so
+ * the payload never crosses the network in the clear and a peer that cannot prove it is
+ * the pinned device gets no bytes at all.
  */
 class PayloadServer private constructor(
     private val total: Long,
     private val openSource: () -> InputStream,
-    private val timeoutMs: Int
+    private val timeoutMs: Int,
+    private val sslContext: SSLContext
 ) {
     /** In-memory payload (used by tests and tiny transfers). */
-    constructor(payload: ByteArray, timeoutMs: Int = 30_000) :
-        this(payload.size.toLong(), { ByteArrayInputStream(payload) }, timeoutMs)
+    constructor(payload: ByteArray, sslContext: SSLContext, timeoutMs: Int = 30_000) :
+        this(payload.size.toLong(), { ByteArrayInputStream(payload) }, timeoutMs, sslContext)
 
     /** File-backed payload, streamed from disk without loading it into memory. */
-    constructor(file: File, timeoutMs: Int = 30_000) :
-        this(file.length(), { file.inputStream() }, timeoutMs)
+    constructor(file: File, sslContext: SSLContext, timeoutMs: Int = 30_000) :
+        this(file.length(), { file.inputStream() }, timeoutMs, sslContext)
 
     companion object {
         private const val CHUNK = 64 * 1024
@@ -41,7 +48,10 @@ class PayloadServer private constructor(
 
     /** Bind to an OS-assigned ephemeral port. Returns the port. Call before advertising. */
     fun bind(): Int {
-        val socket = ServerSocket(0)
+        val socket = sslContext.serverSocketFactory.createServerSocket(0) as SSLServerSocket
+        // The peer must present its certificate too: pinning one direction would leave
+        // the sender serving a file to anyone who connects.
+        socket.needClientAuth = true
         socket.soTimeout = timeoutMs
         serverSocket = socket
         return socket.localPort

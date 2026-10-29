@@ -23,30 +23,49 @@ final class FileReceiveController {
             return
         }
 
-        if let host, let port {
-            Self.logger.info("Fetching '\(filename)' (\(payloadSize) bytes) from \(host):\(port)")
-            let client = PayloadClient(host: host, port: port, expectedBytes: payloadSize)
-            run(client, filename: filename)
-            return
-        }
+        Task { @MainActor in
+            // No pin, no transfer. An unpaired sender gets refused rather than served
+            // over an unencrypted fallback.
+            let parameters: NWParameters
+            do {
+                parameters = try await PayloadTLS.pairedPeerParameters()
+            } catch {
+                Self.logger.error("Refusing '\(filename)': \(String(describing: error))")
+                return
+            }
 
-        Self.logger.info("Fetching '\(filename)' (\(payloadSize) bytes) via mDNS")
-        let browser = MdnsBrowser()
-        self.browser = browser
-        browser.discover(timeout: 8, onFound: { [weak self] endpoint in
-            Task { @MainActor in
-                self?.download(from: endpoint, filename: filename, payloadSize: payloadSize)
+            if let host, let port {
+                Self.logger.info("Fetching '\(filename)' (\(payloadSize) bytes) from \(host):\(port)")
+                let client = PayloadClient(
+                    host: host, port: port, expectedBytes: payloadSize, parameters: parameters
+                )
+                run(client, filename: filename)
+                return
             }
-        }, onTimeout: { [weak self] in
-            Task { @MainActor in
-                Self.logger.error("mDNS discovery timed out; cannot fetch '\(filename)'")
-                self?.browser = nil
-            }
-        })
+
+            Self.logger.info("Fetching '\(filename)' (\(payloadSize) bytes) via mDNS")
+            let browser = MdnsBrowser()
+            self.browser = browser
+            browser.discover(timeout: 8, onFound: { [weak self] endpoint in
+                Task { @MainActor in
+                    self?.download(
+                        from: endpoint, filename: filename,
+                        payloadSize: payloadSize, parameters: parameters
+                    )
+                }
+            }, onTimeout: { [weak self] in
+                Task { @MainActor in
+                    Self.logger.error("mDNS discovery timed out; cannot fetch '\(filename)'")
+                    self?.browser = nil
+                }
+            })
+        }
     }
 
-    private func download(from endpoint: NWEndpoint, filename: String, payloadSize: Int) {
-        let client = PayloadClient(endpoint: endpoint, expectedBytes: payloadSize)
+    private func download(
+        from endpoint: NWEndpoint, filename: String, payloadSize: Int, parameters: NWParameters
+    ) {
+        let client = PayloadClient(endpoint: endpoint, expectedBytes: payloadSize, parameters: parameters)
         run(client, filename: filename)
     }
 

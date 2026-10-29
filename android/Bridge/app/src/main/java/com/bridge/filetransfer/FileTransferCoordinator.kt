@@ -36,7 +36,7 @@ class FileTransferCoordinator(
 
         when (decision.tier) {
             TransferTier.WIFI_LAN -> {
-                val server = PayloadServer(file)
+                val server = PayloadServer(file, PayloadTls.forPairedPeer())
                 val port = server.bind()
                 val host = localWifiIp()
                 val nsd = nsdManager?.let { NsdTransfer(it) }

@@ -7,8 +7,12 @@ actor CertificateManager {
     static let shared = CertificateManager()
 
     private static let logger = Logger(subsystem: "com.bridge.mac", category: "CertificateManager")
-    private static let keychainLabel = "com.bridge.mac.certificate"
-    private static let keychainTag = "com.bridge.mac.key".data(using: .utf8)!
+    // v2: the original certificate carried no X.509 extensions, which Network.framework
+    // rejects outright — a TLS listener built on it fails to start with EINVAL before any
+    // handshake. Bumping the label generates a conforming certificate instead of reusing
+    // the unusable one. The fingerprint changes, so paired devices must pair again.
+    private static let keychainLabel = "com.bridge.mac.certificate.v2"
+    private static let keychainTag = "com.bridge.mac.key.v2".data(using: .utf8)!
 
     private var cachedIdentity: SecIdentity?
     private var cachedFingerprint: String?
@@ -148,6 +152,7 @@ actor CertificateManager {
             derOID([0x55, 0x04, 0x03]) + derUTF8String("Bridge Device")
         )))) // subject = issuer (self-signed)
         tbs.append(contentsOf: subjectPublicKeyInfo(pubKeyData: pubKeyData))
+        tbs.append(contentsOf: v3Extensions())
 
         let tbsSequence = derSequence(content: tbs)
 
@@ -194,6 +199,47 @@ actor CertificateManager {
     private func derBitString(_ data: Data) -> Data { derTag(0x03, Data([0x00]) + data) }
     private func derOctetString(_ data: Data) -> Data { derTag(0x04, data) }
     private func derUTF8String(_ str: String) -> Data { derTag(0x0C, Data(str.utf8)) }
+
+    private func derBoolean(_ value: Bool) -> Data { derTag(0x01, Data([value ? 0xFF : 0x00])) }
+
+    /// The v3 extensions a modern TLS stack requires before it will use a certificate.
+    /// Without these the identity is valid as a certificate and useless as a TLS peer.
+    private func v3Extensions() -> Data {
+        // basicConstraints (2.5.29.19), critical: an empty SEQUENCE means CA:FALSE.
+        let basicConstraints = derSequence(content:
+            derOID([0x55, 0x1D, 0x13]) + derBoolean(true) +
+            derOctetString(derSequence(content: Data()))
+        )
+
+        // keyUsage (2.5.29.15), critical: digitalSignature only — the long-term key signs
+        // the ephemeral ECDHE parameters, it never encrypts or agrees directly.
+        // BIT STRING with 7 unused bits and bit 0 set.
+        let keyUsage = derSequence(content:
+            derOID([0x55, 0x1D, 0x0F]) + derBoolean(true) +
+            derOctetString(derTag(0x03, Data([0x07, 0x80])))
+        )
+
+        // extendedKeyUsage (2.5.29.37): both, because each device is the payload server
+        // for files it sends and the client for files it receives.
+        let serverAuth: [UInt8] = [0x2B, 0x06, 0x01, 0x05, 0x05, 0x07, 0x03, 0x01]
+        let clientAuth: [UInt8] = [0x2B, 0x06, 0x01, 0x05, 0x05, 0x07, 0x03, 0x02]
+        let extendedKeyUsage = derSequence(content:
+            derOID([0x55, 0x1D, 0x25]) +
+            derOctetString(derSequence(content: derOID(serverAuth) + derOID(clientAuth)))
+        )
+
+        // subjectAltName (2.5.29.17): dNSName [2]. The pinned-fingerprint verify block
+        // replaces hostname checking, but a certificate with no SAN is malformed to some
+        // stacks and costs nothing to supply.
+        let subjectAltName = derSequence(content:
+            derOID([0x55, 0x1D, 0x11]) +
+            derOctetString(derSequence(content: derTag(0x82, Data("bridge.local".utf8))))
+        )
+
+        return derExplicit(tag: 3, content: derSequence(
+            content: basicConstraints + keyUsage + extendedKeyUsage + subjectAltName
+        ))
+    }
 
     private func derInteger(_ data: Data) -> Data {
         var padded = data
