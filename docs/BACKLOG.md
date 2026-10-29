@@ -20,8 +20,8 @@ place a work item is born. One row per item, one detail block per row.
 | BR-1 | Grey out the app list while mirroring is paused | done | `work/br-1-mute-greys-app-list` |
 | BR-2 | Render the Mac panel as a window, not an NSMenu | done | `work/br-2-render-the-mac-panel-as-a-window` |
 | BR-3 | Make the link state tell the truth | done | `work/br-3-make-the-link-state-tell-the-truth` |
-| BR-4 | Transport security: decide, then close the gap | idea | |
-| BR-5 | Pairing: six-digit confirmation and a device picker | idea | |
+| BR-4 | Transport security: decide, then close the gap | in-progress | `work/br-4-transport-security-and-pairing` |
+| BR-5 | Pairing: six-digit confirmation and a device picker | in-progress | `work/br-4-transport-security-and-pairing` |
 | BR-6 | Notification mirroring: dismissal, replies, app names | done | `work/br-6-notification-mirroring` |
 | BR-7 | Add a Disconnect control to both apps | ready | |
 | BR-8 | File transfer: sanitise, cap, authenticate, confirm | ready | |
@@ -122,8 +122,30 @@ packet type is processed from an unidentified peer — the spec says the opposit
 - [ ] an uninitialised trust store drops packets rather than passing them
 - [ ] a line over the cap closes the connection
 - [ ] docs and specs match the shipped transport, whichever way the decision lands
-**Notes**: `AUD-C`. Status is `idea`, not `ready`, because the TLS-or-amend-docs call is
-yours. Land with BR-5 as one change — they compound.
+**Notes**: `AUD-C`. Land with BR-5 as one change — they compound.
+
+**Decision (2026-10-29, confirmed by the user): split encryption by path.** The TLS-or-amend-docs
+call was framed as all-or-nothing; reading the code shows exposure and cost run opposite ways:
+
+- **File payloads** are plaintext TCP over Wi-Fi — a plain `java.net.ServerSocket`
+  (`PayloadServer.kt:44`) to a Mac `PayloadServer` with no TLS — so anyone on the LAN can read a
+  transferred file. This path gets **real mutual TLS with pinned fingerprints**, and it is the
+  cheap one: `CertificateManager.createSSLContext()` layers straight onto a `java.net.Socket` and
+  finally gets its caller; the Mac side uses `NWProtocolTLS` with a verify block.
+- **The BLE control channel** needs physical proximity plus sniffer hardware to attack, and TLS
+  over it is the expensive option — `BluetoothSocket` is not a `java.net.Socket`, so
+  `SSLSocketFactory` cannot wrap it and mutual TLS would mean hand-driving `SSLEngine`. Instead
+  switch `listenUsingInsecureL2capChannel()` to `listenUsingL2capChannel()` for LE link-layer
+  encryption. Needs a device spike: the Mac must bond with the phone for the secure variant to
+  accept it. If the spike fails, this channel stays plaintext and the docs say so.
+- **`TLSWrapper.swift` is deleted.** It is built on Secure Transport (deprecated since macOS
+  10.15), has never had a caller, and its handshake busy-spins —
+  `while result == errSSLWouldBlock { result = SSLHandshake(ctx) }` against a non-blocking stream
+  whose `tlsRead` returns `errSSLWouldBlock` on every empty read.
+
+A third fail-open the Scope above does not name, found while verifying: `BridgeTrustManager`
+constructed with a null `expectedFingerprint` logs the peer fingerprint and **accepts it**
+(`BridgeTrustManager.kt:47`). It is in scope for the default-deny work.
 
 ### BR-5 — Pairing: six-digit confirmation and a device picker
 
@@ -141,8 +163,20 @@ itself and inject packets with no human touching either screen.
 - [ ] declining on either side leaves both trust stores unchanged
 - [ ] a fingerprint that does not match the pin closes the connection and needs a deliberate re-pair
 - [ ] an unpaired Mac lists discovered phones by name and RSSI and waits for a choice
-**Notes**: `AUD-D`. Needs BR-2 first for a presentable confirmation UI. Status is `idea`
-pending the BR-4 decision, since the two land together.
+**Notes**: `AUD-D`. Needs BR-2 first for a presentable confirmation UI — shipped. Lands with
+BR-4 as one change on one branch; see the BR-4 decision block above for the transport shape.
+
+Auto-accept lives in three places, all confirmed on disk, and all three must go:
+- `L2capServer.kt` — `pm.onPairRequest` logs "Auto-accepting pair request" and calls
+  `pm.acceptPair()` unconditionally.
+- `PairingManager.swift` `setPeerIdentity` — auto-pairs whenever the trust store is empty.
+- `PairingManager.swift` `handlePairAcceptOrRequest` — the `.unpaired` branch stages the
+  confirmation sheet and then calls `acceptIncomingPair()` on the next line anyway, and the
+  `.paired` branch re-accepts a changed fingerprint ("peer may have lost trust store"), which is
+  the re-pair hole in the Why above.
+
+The six-digit code exists nowhere on either side (grep returns nothing), so it is new work, not
+wiring. Derive it from both fingerprints so both ends compute the same digits independently.
 
 ### BR-6 — Notification mirroring: dismissal, replies, app names
 
