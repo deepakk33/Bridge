@@ -15,16 +15,16 @@ Verify commands used below:
 
 ## 2. Shared: six-digit derivation and its vectors
 
-- [ ] 2.1 Write `protocol/vectors/pairing-code.json` — at least 8 fingerprint pairs with their
+- [x] 2.1 Write `protocol/vectors/pairing-code.json` — at least 8 fingerprint pairs with their
       expected six digits, including a pair given in both orders, two identical fingerprints, and
       a pair whose digits begin with a zero. Verify the file parses and each entry has both
       fingerprints and a 6-character expected string.
-- [ ] 2.2 Mac: add `PairingCode.derive(_:_:)` per `protocol/pairing` — lowercase, sort,
+- [x] 2.2 Mac: add `PairingCode.derive(_:_:)` per `protocol/pairing` — lowercase, sort,
       concatenate, SHA-256, first 4 bytes big-endian, mod 1e6, zero-pad 6. Verify a new test
       reads the vector file and every entry passes, including the leading-zero case.
-- [ ] 2.3 Android: add `PairingCode.derive(a, b)` with the identical algorithm. Verify a new unit
+- [x] 2.3 Android: add `PairingCode.derive(a, b)` with the identical algorithm. Verify a new unit
       test reads the same vector file and every entry passes.
-- [ ] 2.4 Verify cross-platform agreement: both test suites green against the one shared file
+- [x] 2.4 Verify cross-platform agreement: both test suites green against the one shared file
       (Mac tests and `./gradlew test`), so neither implementation can drift alone.
 
 ## 3. Mac: pairing becomes a two-sided gate

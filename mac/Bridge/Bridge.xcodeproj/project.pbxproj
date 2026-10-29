@@ -27,6 +27,7 @@
 		5E5054D22E7168E2B49CA7C8 /* PingWatchdog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BEC79646EB8C5C1774F379F /* PingWatchdog.swift */; };
 		69CF4BD0E971F9CC842F7214 /* TrustStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7EFB7EF978217A8DAB5F29A /* TrustStoreTests.swift */; };
 		7119C8B066E708DA6105AD72 /* MirroringStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6352397936B6C09C52E78697 /* MirroringStateTests.swift */; };
+		72CB87466034E4FADF76E2C0 /* PairingCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = F909A371C04E550752994F99 /* PairingCode.swift */; };
 		74023612371A00373BF81B07 /* PayloadClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69FC0E53777F564A0AE74EC3 /* PayloadClient.swift */; };
 		79281DEFD35F2E69D77A034B /* FramedWriterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5AF27C7B66F8ADEEB4537D6 /* FramedWriterTests.swift */; };
 		8233CAFAD0D7B6A9F953D36F /* TrustStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84DAE9B943673867F6E91824 /* TrustStore.swift */; };
@@ -49,6 +50,7 @@
 		C16EFDA9255A73CD89193263 /* PairingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE0F8609FF6A4A8A9A0FD720 /* PairingManager.swift */; };
 		C34FDDE9FB007537CDA62B2C /* TransferTierTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BBD3516611C23924253AAFF /* TransferTierTests.swift */; };
 		D357134A1CDC703E61710615 /* PhoneBatteryStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC781CF8096419A358A95D90 /* PhoneBatteryStateTests.swift */; };
+		D4EB2958E8EEACE1E071D321 /* PairingCodeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6B16FA2B28B0413E1F8F961 /* PairingCodeTests.swift */; };
 		F7452A80C0351B2D1BBCFD14 /* ShareRequestPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87D7A0814D52836AEB6121A7 /* ShareRequestPacketTests.swift */; };
 		F9178A7945E521ABDB6C670C /* FileTransferManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AAD4D7391D72CAFC163F99B /* FileTransferManager.swift */; };
 		FFB59835A37FB80721011E42 /* PayloadServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20416889391F161180DE2CC6 /* PayloadServer.swift */; };
@@ -99,6 +101,7 @@
 		9AAD4D7391D72CAFC163F99B /* FileTransferManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTransferManager.swift; sourceTree = "<group>"; };
 		A05D2EFA77CC7611034C95F6 /* PingPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PingPacketTests.swift; sourceTree = "<group>"; };
 		A5AF27C7B66F8ADEEB4537D6 /* FramedWriterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FramedWriterTests.swift; sourceTree = "<group>"; };
+		A6B16FA2B28B0413E1F8F961 /* PairingCodeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingCodeTests.swift; sourceTree = "<group>"; };
 		A7EFB7EF978217A8DAB5F29A /* TrustStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrustStoreTests.swift; sourceTree = "<group>"; };
 		A7F6AEAAFE8B7A3039814426 /* BridgeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeApp.swift; sourceTree = "<group>"; };
 		ABD9184A949EFAF49F053D20 /* BridgePacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgePacketTests.swift; sourceTree = "<group>"; };
@@ -112,6 +115,7 @@
 		F1F277B0176220A76331FCC3 /* IdentityPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityPacketTests.swift; sourceTree = "<group>"; };
 		F23E809C7F4DC7042B7B1F41 /* PingHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PingHandler.swift; sourceTree = "<group>"; };
 		F79D4CCAEAE96BBDD50FBC16 /* PairPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairPacketTests.swift; sourceTree = "<group>"; };
+		F909A371C04E550752994F99 /* PairingCode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingCode.swift; sourceTree = "<group>"; };
 		FDE74C495F299579D0791A25 /* LinkHealth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkHealth.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -130,6 +134,7 @@
 			isa = PBXGroup;
 			children = (
 				56B364144621CA738A409CA7 /* CertificateManager.swift */,
+				F909A371C04E550752994F99 /* PairingCode.swift */,
 				AE0F8609FF6A4A8A9A0FD720 /* PairingManager.swift */,
 				0F8626B23D13052AC57460B7 /* TLSWrapper.swift */,
 				84DAE9B943673867F6E91824 /* TrustStore.swift */,
@@ -148,6 +153,7 @@
 				0443ED625311A6173521E3A9 /* LinkHealthTests.swift */,
 				6352397936B6C09C52E78697 /* MirroringStateTests.swift */,
 				81D97DF5382C0F8F6ADAC758 /* NotificationPacketTests.swift */,
+				A6B16FA2B28B0413E1F8F961 /* PairingCodeTests.swift */,
 				F79D4CCAEAE96BBDD50FBC16 /* PairPacketTests.swift */,
 				B0F2494F49F91DB6543D7611 /* PayloadChannelTests.swift */,
 				3241536C325DAFEBA01D62D9 /* PermissionCheckerTests.swift */,
@@ -343,6 +349,7 @@
 				7119C8B066E708DA6105AD72 /* MirroringStateTests.swift in Sources */,
 				515E1D5A875306FAD192C882 /* NotificationPacketTests.swift in Sources */,
 				0C93898C1A7925A1AB65584A /* PairPacketTests.swift in Sources */,
+				D4EB2958E8EEACE1E071D321 /* PairingCodeTests.swift in Sources */,
 				2BCFC4D3F72C5E1A49D456AD /* PayloadChannelTests.swift in Sources */,
 				BC1DA1C26EB80DD0FD5F95F8 /* PermissionCheckerTests.swift in Sources */,
 				D357134A1CDC703E61710615 /* PhoneBatteryStateTests.swift in Sources */,
@@ -374,6 +381,7 @@
 				942247D88931C66C49ACC257 /* MirroringState.swift in Sources */,
 				46A3F0836126741F2EB48F7D /* NotificationManager.swift in Sources */,
 				A89163011205C65ADD146365 /* PairPromptView.swift in Sources */,
+				72CB87466034E4FADF76E2C0 /* PairingCode.swift in Sources */,
 				C16EFDA9255A73CD89193263 /* PairingManager.swift in Sources */,
 				74023612371A00373BF81B07 /* PayloadClient.swift in Sources */,
 				FFB59835A37FB80721011E42 /* PayloadServer.swift in Sources */,
