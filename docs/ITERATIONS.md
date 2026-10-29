@@ -1244,3 +1244,81 @@ quitting" — is the one this item already demonstrated recovering from, with ti
 
 **BR-11** inherits a `LinkHealth` with eight states and a `StatusPanel` switch that the compiler
 forces to handle all of them; a new state cannot be silently defaulted.
+
+---
+
+## BR-14: Mac — Refuse to Run Twice
+
+Branch `work/br-14-refuse-to-run-twice`, shipped 2026-10-29.
+
+### In plain terms
+
+Two copies of the Mac app could run at once — easiest to reach by building from Xcode while the
+installed copy in `/Applications` is already running. They do not coexist. When one of them quits
+it tells the Bluetooth daemon to stop scanning, and the daemon stops scanning for the *other* one
+too. The survivor then sits on "Out of range" with the phone next to it, until it is restarted.
+
+Now a second copy notices the first, brings it to the front and quits before it has started
+anything of its own. One app, one Bluetooth connection, no interference.
+
+The check asks macOS which applications are running rather than leaving a marker file behind.
+That matters for the case nobody plans for: if the app crashes, there is no marker to clean up,
+so the next launch simply works.
+
+### Technically
+
+`SingleInstanceGuard` (`mac/Bridge/Sources/Bridge/SingleInstanceGuard.swift`) runs as the first
+statement of `BridgeApp.init()`, ahead of the `BLEManager` construction that creates the
+`CBCentralManager`. It reads `NSWorkspace.shared.runningApplications`, matches on bundle
+identifier alone — two builds at different paths is the case it exists for — excludes itself by
+pid, then activates the other instance and calls `exit(0)`.
+
+`exit(0)` rather than `NSApp.terminate(nil)`: during `App.init()` the AppKit run loop has not
+started, and the process holds nothing that needs unwinding.
+
+The decision is a pure function over `(pid, bundleIdentifier, isTerminated)` triples, so all of it
+is unit-tested without launching two apps. Eight tests, 135 in the suite, all green.
+
+### What code review caught
+
+- **Handing over to a corpse.** A quitting app stays in `runningApplications` with a -1 pid. Quit
+  and relaunch immediately and the new copy matched the dead one, failed to activate it (that
+  returns nil) and exited anyway — **zero** Bridge processes, the opposite of the intent.
+  `holder()` now ignores terminated entries.
+- **The test host was itself a second instance.** `BridgeTests` has `TEST_HOST` = `Bridge.app`, so
+  `xcodebuild test` launches the whole app. The guard has to be skipped there or every test run
+  dies when a real Bridge is up — but skipping only the guard left the test host starting a
+  central and stopping the real app's scan on exit. That is BR-14's own bug, reachable from the
+  project's normal parallel-worktree workflow. `startScanning()` now returns early under XCTest.
+
+This happened for real during the item: the first `xcodebuild test` run, before that fix, almost
+certainly stopped the scan of a Bridge instance that had been running since the previous day.
+
+### Device test
+
+All four criteria on MacBook Air M3 + Galaxy S25, from `log stream` with timestamps:
+
+- second launch logged `Bridge is already running (pid 38026); handing over and exiting`, and
+  `pgrep` showed one process;
+- it held across different builds from different paths (`/Applications` survivor, DerivedData
+  second);
+- the survivor connected at 11:25:22 (RSSI -32), the second copy exited at 11:25:23, and pings
+  kept arriving at 11:25:52 and 11:26:22 — no `searching`, no reconnect, scan untouched;
+- relaunch worked after a clean quit and after `kill -9`, with nothing to clear by hand.
+
+### Known limits
+
+- **A second launch is visually almost silent.** The app is `LSUIElement`: no dock icon, no
+  window, and no public API to open another process's `MenuBarExtra`. `activate()` is close to a
+  no-op. Decided deliberately at the plan gate over a notification or an icon flash.
+- **Two launches in the same instant could both pass the check.** Not reachable by the human path
+  this fixes, and the lock that would close it is what breaks crash recovery.
+- **The XCTest escape hatch is a behaviour difference between test and ship**, in two places now
+  (the guard and `startScanning`).
+
+### What the next item builds on
+
+BR-13's scan watchdog and this guard are complements, not alternatives: this removes the
+commonest cause of a dropped scan, the watchdog still covers the ones macOS causes on its own.
+Any future work that launches the Mac app from a script should expect a second launch to exit
+silently — check the process list, not the exit code.

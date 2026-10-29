@@ -94,6 +94,9 @@ final class BLEManager: NSObject, ObservableObject {
     private static let healthTick: TimeInterval = 10
 
     func startScanning() {
+        // BridgeTests is hosted in Bridge.app, so a test run is a second instance. Scanning from
+        // it would stop the real app's scan when the test host quits (BR-14).
+        guard !SingleInstanceGuard.isUnderTest(ProcessInfo.processInfo.environment) else { return }
         guard centralManager.state == .poweredOn else {
             Self.logger.warning("Cannot scan: BT not powered on")
             return

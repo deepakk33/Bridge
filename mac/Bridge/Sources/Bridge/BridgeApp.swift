@@ -8,6 +8,7 @@ struct BridgeApp: App {
     @StateObject private var fileTransfer: FileTransferManager
 
     init() {
+        SingleInstanceGuard.enforce()
         NotificationManager.shared.requestPermission()
         let manager = BLEManager()
         _bleManager = StateObject(wrappedValue: manager)
