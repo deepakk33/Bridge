@@ -66,7 +66,18 @@ final class BLEManager: NSObject, ObservableObject {
         centralManager = CBCentralManager(delegate: self, queue: .main)
 
         pairingManager.onPairConfirmationPending = { [weak self] deviceName in
-            self?.notificationManager.postPairConfirmationPending(deviceName: deviceName)
+            self?.notificationManager.postPairConfirmationPending(
+                deviceName: deviceName,
+                verificationCode: self?.pairingManager.incomingPairRequest?.verificationCode
+            )
+        }
+
+        // A pinned device presenting a different certificate is a reinstall or an
+        // impostor. The link is not usable either way, and the pin stays put so
+        // returning that device to service needs a deliberate unpair.
+        pairingManager.onFingerprintMismatch = { [weak self] deviceName in
+            Self.logger.error("Closing link to \(deviceName): certificate does not match the pin")
+            self?.disconnect()
         }
 
         pairingManager.configure(localDeviceId: deviceId) { [weak self] packet in
@@ -74,6 +85,14 @@ final class BLEManager: NSObject, ObservableObject {
         }
         notificationManager.configure { [weak self] packet in
             self?.sendPacket(packet) ?? false
+        }
+
+        Task { @MainActor [weak self] in
+            // The verification code needs this device's own fingerprint, and
+            // CertificateManager is an actor — fetch it off the synchronous init path.
+            if let fingerprint = try? await CertificateManager.shared.getFingerprint() {
+                self?.pairingManager.setLocalFingerprint(fingerprint)
+            }
         }
 
         Task {

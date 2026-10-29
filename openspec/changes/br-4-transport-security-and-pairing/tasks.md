@@ -29,30 +29,30 @@ Verify commands used below:
 
 ## 3. Mac: pairing becomes a two-sided gate
 
-- [ ] 3.1 Add separate local and remote decision state to `PairingManager` (pending / accepted /
+- [x] 3.1 Add separate local and remote decision state to `PairingManager` (pending / accepted /
       declined each), pinning only when both are accepted, in either arrival order. Verify unit
       tests cover: local-then-remote pins; remote-then-local pins; remote accept alone does not
       pin; decline on either side pins nothing and clears both.
-- [ ] 3.2 Remove the auto-pair in `setPeerIdentity` (the `TrustStore.shared.isEmpty` branch) and
+- [x] 3.2 Remove the auto-pair in `setPeerIdentity` (the `TrustStore.shared.isEmpty` branch) and
       the `acceptIncomingPair()` call that follows `presentPairConfirmation` in
       `handlePairAcceptOrRequest`'s `.unpaired` branch. Verify a test asserts that an empty trust
       store plus an incoming request leaves the store empty until an explicit accept.
-- [ ] 3.3 Make the `.paired` branch stop re-accepting a changed fingerprint: close the connection
+- [x] 3.3 Make the `.paired` branch stop re-accepting a changed fingerprint: close the connection
       and leave the pin intact, per `protocol/pairing`'s mismatch requirement. Verify a test
       asserts the pinned fingerprint is unchanged and the connection is closed.
-- [ ] 3.4 Confirm `yieldsOnCrossedRequest` still resolves crossed initiation with the gate in
+- [x] 3.4 Confirm `yieldsOnCrossedRequest` still resolves crossed initiation with the gate in
       place. Verify the existing crossed-request tests pass plus a new one where both sides' users
       accept after the yield.
-- [ ] 3.5 Scope the 30-second timeout to the peer's decision only; a local prompt awaiting the
+- [x] 3.5 Scope the 30-second timeout to the peer's decision only; a local prompt awaiting the
       user does not expire. Verify a test asserts a pending local prompt survives past 30s while
       an unanswered remote request expires.
 
 ## 4. Mac: pairing UI
 
-- [ ] 4.1 Show the six digits, the peer device name, and Accept / Decline in the pair
+- [x] 4.1 Show the six digits, the peer device name, and Accept / Decline in the pair
       confirmation surface built in BR-2. Verify by launching the app against a staged pending
       request and reading the rendered panel.
-- [ ] 4.2 Surface the confirmation outside the panel (the BR-2 banner path) so it is reachable
+- [x] 4.2 Surface the confirmation outside the panel (the BR-2 banner path) so it is reachable
       when the menu-bar panel is closed. Verify by triggering a request with the panel shut and
       observing the banner.
 

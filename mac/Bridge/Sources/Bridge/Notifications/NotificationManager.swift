@@ -207,10 +207,16 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
     /// A pair confirmation is waiting. The prompt itself is a sheet on the menu-bar
     /// panel, so it is invisible until that panel is opened — without this the request
     /// is staged where nobody can see it and the phone waits on a reply that never comes.
-    func postPairConfirmationPending(deviceName: String) {
+    /// Carries the six digits so the Mac's code is readable next to the phone's without
+    /// opening the panel first — the panel dismisses whenever another app takes focus.
+    func postPairConfirmationPending(deviceName: String, verificationCode: String?) {
         let content = UNMutableNotificationContent()
         content.title = "\(deviceName) wants to pair"
-        content.body = "Open Bridge in the menu bar to confirm."
+        if let verificationCode {
+            content.body = "Code \(verificationCode). Open Bridge in the menu bar to confirm."
+        } else {
+            content.body = "Open Bridge in the menu bar to confirm."
+        }
         content.sound = .default
 
         let request = UNNotificationRequest(
