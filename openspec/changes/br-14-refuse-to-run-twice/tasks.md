@@ -14,7 +14,7 @@
 
 - [x] 2.1 Add the guard's side-effecting entry point: query `NSRunningApplication`, and on a
       yield decision activate the other instance and `exit(0)`; verify the build succeeds
-- [ ] 2.2 Make the entry point return without checking anything when
+- [x] 2.2 Make the entry point return without checking anything when
       `XCTestConfigurationFilePath` is set in the environment, and cover that with a test, so the
       `BridgeTests` host is never killed by the guard; verify `xcodebuild … test` passes while a
       copy of `Bridge.app` is running

@@ -13,13 +13,18 @@ enum SingleInstanceGuard {
     struct Instance: Sendable {
         let pid: pid_t
         let bundleIdentifier: String?
+        /// A quitting app stays in the snapshot, with a -1 pid. Handing over to one of those
+        /// would exit this copy too and leave no Bridge running at all.
+        var isTerminated: Bool = false
     }
 
     /// The instance already holding the app, or nil to carry on launching. Matched on bundle
     /// identifier alone — two builds at different paths is exactly the case this exists for.
     static func holder(among running: [Instance], selfPid: pid_t, bundleIdentifier: String?) -> Instance? {
         guard let bundleIdentifier else { return nil }
-        return running.first { $0.pid != selfPid && $0.bundleIdentifier == bundleIdentifier }
+        return running.first {
+            $0.pid != selfPid && $0.bundleIdentifier == bundleIdentifier && !$0.isTerminated
+        }
     }
 
     static func isUnderTest(_ environment: [String: String]) -> Bool {
@@ -35,7 +40,7 @@ enum SingleInstanceGuard {
 
         let current = NSRunningApplication.current
         let running = NSWorkspace.shared.runningApplications.map {
-            Instance(pid: $0.processIdentifier, bundleIdentifier: $0.bundleIdentifier)
+            Instance(pid: $0.processIdentifier, bundleIdentifier: $0.bundleIdentifier, isTerminated: $0.isTerminated)
         }
         guard let other = holder(
             among: running,
