@@ -30,11 +30,11 @@
 
 ## 4. Device test (MacBook Air M3 + Galaxy S25)
 
-- [ ] 4.1 With one Bridge running from `/Applications`, launch the Xcode build from its
+- [x] 4.1 With one Bridge running from `/Applications`, launch the Xcode build from its
       `DerivedData` path; confirm with `pgrep -fl Bridge.app` that exactly one process remains
       and the survivor is the original pid
-- [ ] 4.2 With the phone connected and the survivor showing a live link, repeat 4.1 and confirm
+- [x] 4.2 With the phone connected and the survivor showing a live link, repeat 4.1 and confirm
       the survivor's link health does not drop and the phone stays visible — the failure BR-14
       exists to prevent
-- [ ] 4.3 Quit the running instance normally, relaunch; it starts and reaches the menu bar.
+- [x] 4.3 Quit the running instance normally, relaunch; it starts and reaches the menu bar.
       Then `kill -9` the running instance and relaunch; it starts with nothing to clear by hand
