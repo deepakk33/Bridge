@@ -6,7 +6,7 @@ import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
-class TrustStore private constructor(context: Context) {
+class TrustStore private constructor(context: Context) : TrustStoreAccess {
 
     companion object {
         private const val TAG = "TrustStore"
@@ -47,12 +47,12 @@ class TrustStore private constructor(context: Context) {
 
     // commit(), not apply(): a pin that is still in flight when the process dies
     // leaves the peer trusting us while we no longer trust it.
-    fun pin(deviceId: String, fingerprint: String) {
+    override fun pin(deviceId: String, fingerprint: String) {
         val written = prefs.edit().putString(KEY_PREFIX + deviceId, fingerprint).commit()
         Log.i(TAG, "Pinned fingerprint for device $deviceId (persisted=$written)")
     }
 
-    fun unpin(deviceId: String) {
+    override fun unpin(deviceId: String) {
         prefs.edit().remove(KEY_PREFIX + deviceId).commit()
         Log.i(TAG, "Unpinned device $deviceId")
     }
@@ -62,7 +62,7 @@ class TrustStore private constructor(context: Context) {
         Log.i(TAG, "Unpinned all devices")
     }
 
-    fun isTrusted(deviceId: String, fingerprint: String): Boolean {
+    override fun isTrusted(deviceId: String, fingerprint: String): Boolean {
         return prefs.getString(KEY_PREFIX + deviceId, null) == fingerprint
     }
 
@@ -70,10 +70,10 @@ class TrustStore private constructor(context: Context) {
         return prefs.contains(KEY_PREFIX + deviceId)
     }
 
-    fun pinnedFingerprint(deviceId: String): String? {
+    override fun pinnedFingerprint(deviceId: String): String? {
         return prefs.getString(KEY_PREFIX + deviceId, null)
     }
 
-    val isEmpty: Boolean
+    override val isEmpty: Boolean
         get() = prefs.all.isEmpty()
 }

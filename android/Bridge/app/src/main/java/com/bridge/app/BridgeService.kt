@@ -43,6 +43,7 @@ class BridgeService : Service() {
         const val EXTRA_FILE_PATH = "com.bridge.EXTRA_FILE_PATH"
         const val EXTRA_FILE_NAME = "com.bridge.EXTRA_FILE_NAME"
         private const val PERMISSION_WARNING_NOTIFICATION_ID = 2
+        private const val PAIR_CONFIRMATION_NOTIFICATION_ID = 3
         var clipboardBridge: ClipboardBridge? = null
             private set
 
@@ -203,6 +204,17 @@ class BridgeService : Service() {
         )
 
         blePeripheral = BlePeripheral(this, ::onConnectionStateChanged)
+
+        // Nothing is pinned without a human. The digits go in the notification too, so
+        // they can be compared against the Mac without opening anything first.
+        blePeripheral?.setPairConfirmationHandler { deviceName, code ->
+            com.bridge.security.PairConfirmation.raise(deviceName, code) { accepted ->
+                blePeripheral?.answerPairing(accepted)
+                clearPairConfirmation()
+            }
+            postPairConfirmation(deviceName, code)
+        }
+
         blePeripheral?.start()
 
         com.bridge.notifications.NotificationFilterStore.init(this)
@@ -324,6 +336,17 @@ class BridgeService : Service() {
     private fun restartBlePeripheral() {
         blePeripheral?.stop()
         blePeripheral = BlePeripheral(this, ::onConnectionStateChanged)
+
+        // Nothing is pinned without a human. The digits go in the notification too, so
+        // they can be compared against the Mac without opening anything first.
+        blePeripheral?.setPairConfirmationHandler { deviceName, code ->
+            com.bridge.security.PairConfirmation.raise(deviceName, code) { accepted ->
+                blePeripheral?.answerPairing(accepted)
+                clearPairConfirmation()
+            }
+            postPairConfirmation(deviceName, code)
+        }
+
         blePeripheral?.start()
     }
 
@@ -365,6 +388,31 @@ class BridgeService : Service() {
         }
     }
 
+    private fun postPairConfirmation(deviceName: String, code: String) {
+        val open = Intent(this, com.bridge.security.PairConfirmationActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        val notification = Notification.Builder(this, BridgeConstants.NOTIFICATION_CHANNEL_ID)
+            .setContentTitle("$deviceName wants to pair")
+            .setContentText("Code $code. Tap to confirm.")
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentIntent(
+                android.app.PendingIntent.getActivity(
+                    this, 0, open, android.app.PendingIntent.FLAG_IMMUTABLE
+                )
+            )
+            // Not auto-cancel: dismissing the shade is not an answer, and the peer is
+            // waiting on one.
+            .setOngoing(true)
+            .build()
+        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+            .notify(PAIR_CONFIRMATION_NOTIFICATION_ID, notification)
+    }
+
+    private fun clearPairConfirmation() {
+        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+            .cancel(PAIR_CONFIRMATION_NOTIFICATION_ID)
+    }
+
     private fun postPermissionWarning() {
         val notification = Notification.Builder(this, BridgeConstants.NOTIFICATION_CHANNEL_ID)
             .setContentTitle("Bridge cannot mirror notifications")
@@ -385,6 +433,10 @@ class BridgeService : Service() {
 
     override fun onDestroy() {
         Log.i(TAG, "BridgeService destroyed")
+        // The link is going away, so no answer is owed and a stale prompt would pin
+        // against a peer that is no longer there.
+        com.bridge.security.PairConfirmation.clear()
+        clearPairConfirmation()
         try { unregisterReceiver(clipboardTestReceiver) } catch (_: Exception) {}
         clipboardBridge?.stop()
         clipboardBridge = null

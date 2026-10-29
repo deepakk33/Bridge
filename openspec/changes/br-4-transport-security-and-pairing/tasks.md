@@ -58,18 +58,18 @@ Verify commands used below:
 
 ## 5. Android: pairing becomes a two-sided gate
 
-- [ ] 5.1 Mirror task 3.1 in `security/PairingManager.kt` — separate local and remote decisions,
+- [x] 5.1 Mirror task 3.1 in `security/PairingManager.kt` — separate local and remote decisions,
       pin only on both. Verify unit tests cover the same four cases.
-- [ ] 5.2 Remove all three unconditional `acceptPair()` paths: the `onPairRequest` callback in
+- [x] 5.2 Remove all three unconditional `acceptPair()` paths: the `onPairRequest` callback in
       `L2capServer.handleConnection`, and the two inside
       `PairingManager.handlePairAcceptOrRequest`. Verify a test asserts an incoming request
       leaves the trust store unchanged until `acceptPair()` is called explicitly.
-- [ ] 5.3 Close the connection on a fingerprint that does not match the pin, leaving the pin
+- [x] 5.3 Close the connection on a fingerprint that does not match the pin, leaving the pin
       intact. Verify a unit test asserts both.
 
 ## 6. Android: pairing UI
 
-- [ ] 6.1 Add a pairing confirmation screen showing the six digits, the peer name, and Accept /
+- [x] 6.1 Add a pairing confirmation screen showing the six digits, the peer name, and Accept /
       Decline, raised from the foreground service when a request arrives. Verify on device that
       it appears with the app backgrounded.
 - [ ] 6.2 Verify the two screens show identical digits for the same device pair, side by side on

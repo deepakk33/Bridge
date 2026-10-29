@@ -138,8 +138,20 @@ class BlePeripheral(
         onPairCompletedHandler = handler
     }
 
+    /** Raised when a peer needs confirming, with the six digits the Mac shows too. */
+    fun setPairConfirmationHandler(handler: (deviceName: String, code: String) -> Unit) {
+        onPairConfirmationRequiredHandler = handler
+        l2capServer?.onPairConfirmationRequired = handler
+    }
+
+    /** The user answered the confirmation. */
+    fun answerPairing(accepted: Boolean) {
+        if (accepted) l2capServer?.acceptPairing() else l2capServer?.rejectPairing()
+    }
+
     private var onConnectHandler: (() -> Unit)? = null
     private var onPairCompletedHandler: (() -> Unit)? = null
+    private var onPairConfirmationRequiredHandler: ((deviceName: String, code: String) -> Unit)? = null
     private var onShareRequestHandler: ((com.bridge.protocol.BridgePacket) -> Unit)? = null
 
     fun stop() {
@@ -170,6 +182,7 @@ class BlePeripheral(
             }
             l2capServer = server
             server.onPairCompleted = onPairCompletedHandler
+            server.onPairConfirmationRequired = onPairConfirmationRequiredHandler
             server.onShareRequest = onShareRequestHandler
             server.onLinkReady = { onConnectHandler?.invoke() }
             server.onPeerVerified = { verified, name ->

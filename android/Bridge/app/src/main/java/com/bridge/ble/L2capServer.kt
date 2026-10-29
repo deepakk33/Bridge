@@ -38,6 +38,13 @@ class L2capServer(
     var onLinkReady: (() -> Unit)? = null
 
     /**
+     * Raised when a peer must be confirmed by the user, carrying the six digits that
+     * the other screen shows at the same moment. Nothing is pinned until the answer
+     * comes back through [acceptPairing] or [rejectPairing].
+     */
+    var onPairConfirmationRequired: ((deviceName: String, code: String) -> Unit)? = null
+
+    /**
      * Fired once the peer's identity is known (and again when pairing completes),
      * reporting whether the connected peer is trusted and its display name.
      * A socket connection alone is not a usable link — only a verified peer is.
@@ -52,6 +59,16 @@ class L2capServer(
         adapter.listenUsingInsecureL2capChannel()
 
     val psm: Int = serverSocket.psm
+
+    /** This device's own fingerprint — half of the verification code's input. */
+    private val localFingerprint: String? by lazy {
+        try {
+            CertificateManager.getInstance().getFingerprint()
+        } catch (e: Exception) {
+            Log.e(TAG, "No local fingerprint — pairing cannot be confirmed", e)
+            null
+        }
+    }
 
     private var activeSocket: BluetoothSocket? = null
     private var pairingManager: PairingManager? = null
@@ -94,15 +111,25 @@ class L2capServer(
             val outputStream = socket.outputStream
             currentOutputStream = outputStream
 
-            pairingManager = PairingManager(deviceId) { packet -> send(packet, outputStream) }.also { pm ->
-                pm.onPairRequest = { deviceName, fingerprint ->
-                    Log.i(TAG, "Auto-accepting pair request from $deviceName (fp: $fingerprint)")
-                    pm.acceptPair()
+            pairingManager = PairingManager(
+                localDeviceId = deviceId,
+                localFingerprint = localFingerprint,
+                sendPacket = { packet -> send(packet, outputStream) }
+            ).also { pm ->
+                // Nothing is pinned without a human. The confirmation goes to the UI and
+                // the answer comes back through acceptPair()/rejectPair().
+                pm.onPairRequest = { deviceName, fingerprint, code ->
+                    Log.i(TAG, "Pair confirmation needed for $deviceName (fp: $fingerprint)")
+                    onPairConfirmationRequired?.invoke(deviceName, code)
                 }
                 pm.onPairCompleted = {
                     onPairCompleted?.invoke()
                     // Pairing just pinned the peer → the link is now verified.
                     onPeerVerified?.invoke(true, peerName)
+                }
+                pm.onFingerprintMismatch = { deviceName ->
+                    Log.e(TAG, "Closing link to $deviceName: certificate does not match the pin")
+                    try { socket.close() } catch (_: IOException) {}
                 }
             }
 
@@ -145,6 +172,16 @@ class L2capServer(
     /** Trigger phone-initiated pairing on the active connection, if any. */
     fun requestPairing() {
         pairingManager?.requestPair()
+    }
+
+    /** The user accepted the confirmation raised by [onPairConfirmationRequired]. */
+    fun acceptPairing() {
+        pairingManager?.acceptPair()
+    }
+
+    /** The user declined. Neither trust store changes. */
+    fun rejectPairing() {
+        pairingManager?.rejectPair()
     }
 
     /**
