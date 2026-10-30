@@ -1322,3 +1322,80 @@ BR-13's scan watchdog and this guard are complements, not alternatives: this rem
 commonest cause of a dropped scan, the watchdog still covers the ones macOS causes on its own.
 Any future work that launches the Mac app from a script should expect a second launch to exit
 silently — check the process list, not the exit code.
+
+## BR-4 + BR-5 — Transport security and pairing (2026-10-30)
+
+Branch `work/br-4-transport-security-and-pairing`, change archived as
+`2026-10-30-br-4-transport-security-and-pairing`. Two backlog rows, one change: the detail blocks
+for both said they land together, and they do — a six-digit code is decorative over a channel
+that drops nothing, and default-deny is academic if anything can pair itself.
+
+### In plain words
+
+Before this, anything in Bluetooth range could pair itself with the Mac and start sending it
+commands, with nobody touching either screen. Now both screens show the same six digits and a
+human has to accept on each before anything is trusted. Files sent over Wi-Fi used to cross the
+network readable by anyone on it; they are now encrypted. And the Mac, which used to grab the
+first phone it heard, now shows you a list and waits.
+
+### Technically
+
+- **Pairing is a two-sided gate.** Each side tracks its own user's answer and the peer's
+  separately and pins only when both are accept, in either order. Five auto-accept paths were
+  removed — three on Android, two on the Mac, including the one that staged a confirmation and
+  then accepted on the next line, and the one that re-accepted a *changed* fingerprint.
+- **The six-digit code** is derived from both certificate fingerprints (sorted, concatenated,
+  SHA-256, first four bytes, mod 10^6) and never transmitted. Shared vectors in
+  `protocol/test-vectors/pairing-code.json` are read by both suites, so the two implementations
+  cannot drift apart silently.
+- **One `PacketGate` per platform** answers "may this peer send this type?" before dispatch.
+  Default-deny is the shape of the function, not a branch inside it: the old checks sat behind
+  "if we know who the peer is", so a stranger was the one peer never checked. Three fail-opens
+  closed with it.
+- **Encryption is per path.** The payload connection — a real socket, crossing a real network —
+  is mutual TLS pinned to the peer's fingerprint. The L2CAP control channel is left to proximity,
+  because `BluetoothSocket` is not a `java.net.Socket` and TLS there means hand-driving an
+  `SSLEngine`. The docs now say this instead of claiming blanket mutual TLS.
+- **`TLSWrapper` deleted** — Secure Transport, deprecated since macOS 10.15, never called, and
+  its handshake busy-spun on `errSSLWouldBlock` against a non-blocking stream.
+
+### The thing nobody was looking for
+
+**The Mac had never had a device certificate.** `loadExistingIdentity()` queried
+`kSecClassIdentity` filtered by `kSecAttrLabel`; macOS ignores that filter on that class and
+returns whatever identity the keychain holds — here, the app's own *code-signing* identity. So
+the lookup always succeeded, the generator never ran, and the fingerprint Bridge pinned at
+pairing and derived the six digits from was the code-signing certificate's. Stable, which is why
+pairing appeared to work, and unusable for TLS, which is probably why mutual TLS was specced and
+never wired. Fixing the lookup exposed two more: a hardcoded serial of `1`, so every regenerated
+certificate collided with the first one ever made and was silently not stored; and
+`kSecAttrLabel` being ignored for certificates too. The certificate also gained the v3 extensions
+it never had. **This changes the Mac's fingerprint, so existing pairings must be redone.**
+
+### Known issues and degradations
+
+- **The control channel is unencrypted.** Clipboard text and notification contents cross it in
+  the clear over the air. The secure-L2CAP spike (task 1.1) was not run. BR-19.
+- **Mac payload TLS is written but not verified.** The environment used for this work denies
+  listening sockets, so `NWListener` cannot start and six payload tests skip; plain TCP fails
+  identically there, so the skip says nothing about the code. The Android side *is* verified,
+  including a man-in-the-middle capture proving the payload never crosses the wire in the clear.
+- **The Mac never answers a ping**, identically on `main`, so Android's 3-second `probeLink`
+  always fails and drops the link. Invisible while pairing was automatic; now that a confirmation
+  waits on a human, the link drops and reconnects repeatedly during pairing. BR-19.
+- **Device tests 6.2, 11.3, 11.6, 11.7 and 11.9 were not run**, deferred with the user's explicit
+  confirmation. 11.6 and 11.7 need a peer that misbehaves on purpose and are unit-tested only.
+
+### What hardware caught that 181 tests did not
+
+Three real defects, all about what happens to the *scan* around a pairing, which no unit test
+touches: the picker showed every phone as "Unnamed device" (nothing advertised a name, and
+`CBPeripheral.name` is nil pre-connect — the name now rides in the scan response); declining
+stranded the Mac with an empty picker and a stopped scan, so a decline was a dead end; and the
+certificate bug above. Worth remembering the next time a plan says unit tests are enough.
+
+### What the next item builds on
+
+BR-19 carries the three review findings left out of here. BR-18 carries the notification app
+list, raised during this testing and not caused by it. Anything that assumes the control channel
+is confidential is wrong until BR-19's first bullet lands.
