@@ -22,7 +22,9 @@ brew install --cask deepakk33/tap/bridge-link      # Mac
 
 - **Mac**: Swift 6, SwiftUI menu-bar app, Core Bluetooth, Network.framework
 - **Android**: Kotlin, `connectedDevice` foreground service, `NotificationListenerService`
-- **Protocol**: newline-delimited JSON, `bridge.*` packet types, mutual TLS
+- **Protocol**: newline-delimited JSON, `bridge.*` packet types. Mutual TLS with pinned
+  certificates on the out-of-band payload connection; the BLE L2CAP control channel is
+  currently unencrypted
 
 ## What it does
 

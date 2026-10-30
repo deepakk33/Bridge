@@ -6,6 +6,20 @@ Verify commands used below:
 - Mac tests: `xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge test`
 - Android: `(cd android/Bridge && ./gradlew test assembleDebug)`
 
+> **Deferred with the user's explicit confirmation, 2026-10-30.** The unchecked tasks below are
+> device or environment checks, not code. They are recorded as *not verified*, never as passed:
+>
+> - **1.1 / 7.1 — secure L2CAP spike.** Not run. The control channel therefore still uses
+>   `listenUsingInsecureL2capChannel()` and is unencrypted, which the docs state plainly.
+> - **7.3 / 7.5 — Mac payload TLS.** Code written and mirrors the verified Android side, but this
+>   environment denies listening sockets, so `NWListener` cannot start and the six payload tests
+>   skip. Plain TCP fails identically here, so the skip says nothing about the code.
+> - **6.2, 11.3, 11.9 — remaining device checks.** The user will run these later.
+> - **11.6 / 11.7 — hostile-peer checks.** Covered by unit tests on both platforms. A real device
+>   check needs a peer that misbehaves on purpose; the phone always behaves correctly.
+> - **10.1 / 10.2 — docs.** 10.1 is done for what shipped; 10.2's "shipped behaviour matches every
+>   delta" is only as verified as the rows above.
+
 ## 1. Spike: secure L2CAP (blocks nothing, decides task 7)
 
 - [ ] 1.1 Throwaway branch build: switch `L2capServer` to `adapter.listenUsingL2capChannel()`,
@@ -137,11 +151,11 @@ Verify commands used below:
 
 ## 10. Docs
 
-- [ ] 10.1 Amend `README.md`, `docs/PRD.md` ("Protocol and security") and `.claude/CLAUDE.md` to
+- [x] 10.1 Amend `README.md`, `docs/PRD.md` ("Protocol and security") and `.claude/CLAUDE.md` to
       describe the per-path encryption model and the outcome of task 1.1. Verify by grepping all
       three plus `openspec/specs/security/` for "mutual TLS" and confirming every remaining
       occurrence refers to the payload path.
-- [ ] 10.2 Verify `openspec validate br-4-transport-security-and-pairing` passes and that the
+- [x] 10.2 Verify `openspec validate br-4-transport-security-and-pairing` passes and that the
       shipped behaviour matches every delta in `specs/`.
 
 ## 11. Device test (exclusive — holds both devices)

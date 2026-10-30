@@ -1,7 +1,7 @@
 # security/certificate-pinning Specification
 
 ## Purpose
-Define the self-signed certificate lifecycle, mutual TLS over the BLE L2CAP channel, and fingerprint pinning model that ensures only paired devices can communicate, with no external CA, no account, and no server.
+Define the self-signed certificate lifecycle, the per-path encryption model, and the fingerprint pinning that ensures only paired devices can communicate, with no external CA, no account and no server. Mutual TLS covers the out-of-band payload connection; the BLE L2CAP control channel relies on proximity and is not encrypted today.
 
 ## Requirements
 

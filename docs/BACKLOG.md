@@ -34,6 +34,8 @@ place a work item is born. One row per item, one detail block per row.
 | BR-15 | Clipboard: the ADB grant path is dead, decide what replaces it | done | `work/br-15-adb-grant` |
 | BR-16 | Clipboard: decide whether reconnect should push the phone's clip | ready | |
 | BR-17 | Media control: drive the phone's player from the Mac | ready | |
+| BR-18 | Notifications: the app list is thin and new apps are not mirrored | idea | |
+| BR-19 | Pairing and link hardening left over from BR-4+BR-5 | ready | |
 
 All of BR-2…BR-12 come from [AUDIT-2026-10-26.md](AUDIT-2026-10-26.md), which holds the
 evidence, file:line references and reproduction for each. The audit's own ordering
@@ -588,3 +590,60 @@ during implementation.
 **Notes**: links to PRD sections, prior iterations, known constraints.
 
 -->
+
+### BR-18 — Notifications: the app list is thin and new apps are not mirrored
+
+**Scope**: decide what the per-app notification list should show and when a newly seen app
+should be mirrored, then make the list reflect that.
+**Why**: reported 2026-10-30 — the filter screen shows only 6 apps. The list is built from a
+"seen" set that `BridgeNotificationListener` fills on the first notification from each package
+(`BridgeNotificationListener.kt:83`), so it only ever contains apps that have posted since
+Bridge gained notification access. Clearing app data empties it and it refills slowly, which is
+how this surfaced. Two separate questions fall out:
+
+- Should the list be seeded from installed apps that can post notifications, rather than waiting
+  for each one to post? A list that starts empty reads as broken.
+- Newly seen apps are inconsistent. On 2026-10-30 `seen_packages` held 7 entries and
+  `allowed_packages` 6: every app was auto-allowed except `com.android.shell`, which was
+  recorded as seen and refused in the same call (`Filtered out com.android.shell (muted=false,
+  allowed=false)`). That looks like a first-sight race between `recordSeen` and `shouldForward`,
+  so the very first notification from a new app may be dropped.
+
+**Platforms**: android
+**Done when**:
+- [ ] opening the filter screen on a fresh install shows a useful list, not an empty one
+- [ ] the first notification from a newly seen app behaves the same way as the second
+- [ ] a decision is recorded on whether new apps default to mirrored or muted, and the UI says so
+**Notes**: raised by the user during BR-4+BR-5 device testing. Not caused by that change — the
+behaviour predates it; it only became visible because app data was cleared during the test.
+
+### BR-19 — Pairing and link hardening left over from BR-4+BR-5
+
+**Scope**: three defects found by review of `work/br-4-transport-security-and-pairing` that were
+deliberately not fixed there, plus the ping behaviour that made one of them visible.
+**Why**: each is real but none blocked that item, and folding them in would have widened a change
+that already spanned two backlog rows.
+
+- **The Mac never answers a ping.** `PingHandler.handle()` logs and returns; it sends nothing,
+  identically on `main`. Android's `probeLink()` sends a ping and closes the link if no packet
+  arrives within 3 s, so the probe always fails. It was invisible while pairing was automatic;
+  now that a confirmation can sit for minutes, the link drops repeatedly during pairing and
+  reconnects. Decide whether the Mac should answer, or whether `probeLink` should not expect a
+  reply the protocol never defined.
+- **`TrustStore.pairedDeviceId()` returns an arbitrary key.** Mac `TrustStore.swift:55` and
+  Android `pairedFingerprint()` both take the first entry of an unordered map. With two pins —
+  reachable, because a non-empty trust store connects to any advertiser — `PayloadTLS` pins the
+  payload connection to the wrong peer.
+- **The Mac's local fingerprint arrives asynchronously.** `setLocalFingerprint` is delivered by a
+  detached `Task`; an identity packet that beats it makes `presentPairConfirmation` return with
+  no prompt and no retry, so pairing silently cannot start. Android's lazy `localFingerprint`
+  fails the same way.
+
+**Platforms**: both
+**Done when**:
+- [ ] the link is not dropped by `probeLink` during a pairing that waits on a human
+- [ ] the payload connection pins to the peer actually connected, with more than one device pinned
+- [ ] a pair confirmation still appears when the identity packet arrives before the local
+      fingerprint is ready
+**Notes**: from the `code-review` pass on BR-4+BR-5, 2026-10-30. The five other findings from
+that review were fixed in that branch.
