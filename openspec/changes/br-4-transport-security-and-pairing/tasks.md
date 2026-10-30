@@ -149,7 +149,7 @@ Verify commands used below:
 Run on MacBook Air M3 + Galaxy S25. Announce before starting; no second `Bridge.app` running.
 **Start from a cleared trust store on both ends** — the first-run path is what changed.
 
-- [ ] 11.1 Clear both trust stores, then verify both screens show the same six digits before
+- [x] 11.1 Clear both trust stores, then verify both screens show the same six digits before
       anything is pinned (BR-5 criterion 1).
 - [ ] 11.2 Verify declining on the Mac leaves both trust stores unchanged; repeat declining on the
       phone (BR-5 criterion 2).
