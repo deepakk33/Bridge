@@ -81,6 +81,13 @@ final class BLEManager: NSObject, ObservableObject {
         // A pinned device presenting a different certificate is a reinstall or an
         // impostor. The link is not usable either way, and the pin stays put so
         // returning that device to service needs a deliberate unpair.
+        // A decline is not a dead end: drop the link so the scan restarts and the
+        // picker repopulates, ready for another choice.
+        pairingManager.onPairDeclined = { [weak self] in
+            Self.logger.info("Pairing declined — returning to the device picker")
+            self?.disconnect()
+        }
+
         pairingManager.onFingerprintMismatch = { [weak self] deviceName in
             Self.logger.error("Closing link to \(deviceName): certificate does not match the pin")
             self?.disconnect()

@@ -97,6 +97,39 @@ final class PairingManagerTests: XCTestCase {
         XCTAssertTrue(TrustStore.shared.isEmpty)
     }
 
+    /// Connecting stops the scan and empties the picker, so a decline that does not drop
+    /// the link leaves the Mac with nothing to click and no way back short of relaunching.
+    func testLocalDeclineAsksToReturnToThePicker() {
+        var returned = false
+        manager.onPairDeclined = { returned = true }
+        identifyUnknownPhone()
+        manager.handlePairPacket(BridgePacket.pairRequest())
+        manager.rejectIncomingPair()
+
+        XCTAssertTrue(returned, "declining must return the Mac to the picker")
+    }
+
+    func testRemoteDeclineAlsoReturnsToThePicker() {
+        var returned = false
+        manager.onPairDeclined = { returned = true }
+        identifyUnknownPhone()
+        manager.acceptIncomingPair()
+        manager.handlePairPacket(BridgePacket.pairReject())
+
+        XCTAssertTrue(returned, "a decline on the phone must also free the Mac to retry")
+    }
+
+    /// Unpairing a paired device is a different path and must not be mistaken for a decline.
+    func testUnpairingDoesNotFireTheDeclineHook() {
+        TrustStore.shared.pin(deviceId: "phone-1", fingerprint: phoneFingerprint)
+        identifyUnknownPhone()
+        var returned = false
+        manager.onPairDeclined = { returned = true }
+        manager.unpair()
+
+        XCTAssertFalse(returned)
+    }
+
     // MARK: - An empty trust store is not consent
 
     func testEmptyTrustStoreDoesNotAutoPair() {

@@ -26,6 +26,12 @@ final class PairingManager: ObservableObject {
     /// menu-bar panel (the sheet only renders while that panel is open).
     var onPairConfirmationPending: ((String) -> Void)?
 
+    /// Raised when a pairing is declined by either side and nothing was pinned. The
+    /// caller drops the link and resumes scanning: the connection stopped the scan and
+    /// emptied the picker, so without this a decline leaves the Mac with nothing to
+    /// click and no way back short of relaunching.
+    var onPairDeclined: (() -> Void)?
+
     /// Raised when a device whose `deviceId` is pinned presents a different
     /// fingerprint. The caller closes the link; the pin is deliberately left intact,
     /// so returning that device to service needs a deliberate unpair.
@@ -142,6 +148,7 @@ final class PairingManager: ObservableObject {
         cancelTimeout()
         if case .paired = state {} else {
             state = .unpaired
+            onPairDeclined?()
         }
         Self.logger.info("Rejected pair request")
     }
@@ -280,6 +287,7 @@ final class PairingManager: ObservableObject {
             incomingPairRequest = nil
             resetDecisions()
             Self.logger.info("Peer declined pairing — nothing pinned")
+            onPairDeclined?()
         }
     }
 
