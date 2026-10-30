@@ -42,16 +42,21 @@ class CappedLineReader(
      */
     fun readLine(): String? {
         buffer.reset()
+        var seen = 0
         while (true) {
             val b = input.read()
             if (b == -1) {
                 return if (buffer.size() == 0) null else decode()
             }
             if (b == NEWLINE) return decode()
+            // The cap counts every byte read, not just buffered ones: skipping it for
+            // '\r' would let a peer stream carriage returns forever, never hitting the
+            // bound and never returning a line.
+            seen++
+            if (seen > cap) throw LineTooLongException(seen, cap)
             // A lone '\r' is not a terminator; the wire format is '\n'-delimited, and
             // dropping it keeps a CRLF-producing peer parseable.
             if (b == CARRIAGE_RETURN) continue
-            if (buffer.size() >= cap) throw LineTooLongException(buffer.size() + 1, cap)
             buffer.write(b)
         }
     }

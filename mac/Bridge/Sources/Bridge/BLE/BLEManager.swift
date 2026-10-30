@@ -738,6 +738,14 @@ extension BLEManager: CBPeripheralDelegate {
             }
             Self.logger.info("L2CAP channel opened")
             let wrapper = L2CAPChannel(channel: channel)
+            // Without this the channel closes silently and the link reads as connected
+            // until the ping watchdog trips.
+            wrapper.onOversizedLine = { [weak self] bytes in
+                Task { @MainActor in
+                    Self.logger.error("Peer sent an oversized line (\(bytes) bytes) — dropping the link")
+                    self?.disconnect()
+                }
+            }
             wrapper.onPacketReceived = { [weak self] packet in
                 Task { @MainActor in
                     self?.handleReceivedPacket(packet)

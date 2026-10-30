@@ -144,6 +144,12 @@ class BlePeripheral(
         l2capServer?.onPairConfirmationRequired = handler
     }
 
+    /** Raised when a pending confirmation is abandoned because the link dropped. */
+    fun setPairConfirmationClearedHandler(handler: () -> Unit) {
+        onPairConfirmationClearedHandler = handler
+        l2capServer?.onPairConfirmationCleared = handler
+    }
+
     /** The user answered the confirmation. */
     fun answerPairing(accepted: Boolean) {
         if (accepted) l2capServer?.acceptPairing() else l2capServer?.rejectPairing()
@@ -152,6 +158,7 @@ class BlePeripheral(
     private var onConnectHandler: (() -> Unit)? = null
     private var onPairCompletedHandler: (() -> Unit)? = null
     private var onPairConfirmationRequiredHandler: ((deviceName: String, code: String) -> Unit)? = null
+    private var onPairConfirmationClearedHandler: (() -> Unit)? = null
     private var onShareRequestHandler: ((com.bridge.protocol.BridgePacket) -> Unit)? = null
 
     fun stop() {
@@ -183,6 +190,7 @@ class BlePeripheral(
             l2capServer = server
             server.onPairCompleted = onPairCompletedHandler
             server.onPairConfirmationRequired = onPairConfirmationRequiredHandler
+            server.onPairConfirmationCleared = onPairConfirmationClearedHandler
             server.onShareRequest = onShareRequestHandler
             server.onLinkReady = { onConnectHandler?.invoke() }
             server.onPeerVerified = { verified, name ->

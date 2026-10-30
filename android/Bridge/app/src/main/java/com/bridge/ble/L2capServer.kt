@@ -44,6 +44,9 @@ class L2capServer(
      */
     var onPairConfirmationRequired: ((deviceName: String, code: String) -> Unit)? = null
 
+    /** The link dropped with a confirmation outstanding; drop its notification too. */
+    var onPairConfirmationCleared: (() -> Unit)? = null
+
     /**
      * Fired once the peer's identity is known (and again when pairing completes),
      * reporting whether the connected peer is trusted and its display name.
@@ -99,6 +102,11 @@ class L2capServer(
                 peerName = null
                 pairingManager?.reset()
                 pairingManager = null
+                // The peer is gone, so no answer is owed. Without this the confirmation
+                // stays pending behind an ongoing (undismissable) notification whose
+                // Accept is a silent no-op.
+                com.bridge.security.PairConfirmation.clear()
+                onPairConfirmationCleared?.invoke()
                 pingWatchdog.stop()
                 onConnectionChanged(false)
             }

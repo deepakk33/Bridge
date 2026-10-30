@@ -70,6 +70,24 @@ class CappedLineReaderTest {
         assertTrue("served ${endless.served}", endless.served < 1024 * 16)
     }
 
+    /** A peer streaming carriage returns must still hit the cap. */
+    @Test
+    fun `endless carriage returns are capped`() {
+        val endless = object : InputStream() {
+            var served = 0
+            override fun read(): Int { served++; return '\r'.code }
+        }
+        val e = runCatching { CappedLineReader(endless, cap = 512).readLine() }.exceptionOrNull()
+        assertTrue("expected the cap to fire, got $e", e is CappedLineReader.LineTooLongException)
+    }
+
+    /** CRLF still parses: the cap counts bytes, it does not reject '\r'. */
+    @Test
+    fun `crlf line just under the cap still passes`() {
+        val line = "x".repeat(30)
+        assertEquals(line, reader("$line\r\n", cap = 64).readLine())
+    }
+
     @Test
     fun `empty lines are returned not skipped`() {
         val r = reader("\na\n")

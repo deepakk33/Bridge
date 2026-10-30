@@ -303,8 +303,11 @@ final class PairingManager: ObservableObject {
             // pinned us drop that pin, which is how the link ended up half-paired.
             Self.logger.info("Peer did not answer in time — giving up locally")
             if case .awaitingResponse = state {
+                // The local user's acceptance stands. Clearing it would mean a peer that
+                // answers late pins us while we do not pin it — the half-paired state
+                // this timeout exists to avoid.
                 state = .unpaired
-                resetDecisions()
+                remoteDecision = .pending
             }
         }
     }

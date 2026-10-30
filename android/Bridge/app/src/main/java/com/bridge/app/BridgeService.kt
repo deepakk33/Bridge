@@ -215,6 +215,8 @@ class BridgeService : Service() {
             postPairConfirmation(deviceName, code)
         }
 
+        blePeripheral?.setPairConfirmationClearedHandler { clearPairConfirmation() }
+
         blePeripheral?.start()
 
         com.bridge.notifications.NotificationFilterStore.init(this)

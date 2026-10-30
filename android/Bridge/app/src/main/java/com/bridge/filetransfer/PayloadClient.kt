@@ -37,12 +37,18 @@ class PayloadClient(
      */
     private fun connect(): SSLSocket {
         val plain = Socket()
-        plain.connect(InetSocketAddress(host, port), timeoutMs)
-        plain.soTimeout = timeoutMs
-        val ssl = sslContext.socketFactory.createSocket(plain, host, port, true) as SSLSocket
-        ssl.soTimeout = timeoutMs
-        ssl.startHandshake()
-        return ssl
+        try {
+            plain.connect(InetSocketAddress(host, port), timeoutMs)
+            plain.soTimeout = timeoutMs
+            val ssl = sslContext.socketFactory.createSocket(plain, host, port, true) as SSLSocket
+            ssl.soTimeout = timeoutMs
+            ssl.startHandshake()
+            return ssl
+        } catch (e: Throwable) {
+            // A refused pin throws here, and a retry per mismatch would leak one fd each.
+            try { plain.close() } catch (_: IOException) {}
+            throw e
+        }
     }
 
     /** Connect, read exactly [expectedBytes], close. Throws on incomplete transfer. */
