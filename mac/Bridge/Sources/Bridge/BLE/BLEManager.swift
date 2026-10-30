@@ -555,9 +555,12 @@ extension BLEManager: CBCentralManagerDelegate {
             }
 
             peripheralsByID[peripheral.identifier] = peripheral
+            // CBPeripheral.name is usually nil before connecting; the advertised local
+            // name arrives in the scan response, which is where the phone puts it.
+            let advertisedName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
             deviceDirectory.record(
                 id: peripheral.identifier,
-                name: peripheral.name ?? "Unnamed device",
+                name: advertisedName ?? peripheral.name ?? "Unnamed device",
                 rssi: RSSI.intValue
             )
             publishDiscoveredDevices()

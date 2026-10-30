@@ -300,8 +300,16 @@ class BlePeripheral(
             .addServiceUuid(BridgeConstants.SERVICE_PARCEL_UUID)
             .build()
 
+        // The name goes in the scan response, not the advertisement: the advertisement's
+        // 31 bytes are nearly spent on the 128-bit service UUID, and a device name long
+        // enough to overflow it would make advertising fail outright. The scan response
+        // has its own 31 bytes, and an unpaired Mac needs the name to show a picker.
+        val scanResponse = AdvertiseData.Builder()
+            .setIncludeDeviceName(true)
+            .build()
+
         try {
-            advertiser?.startAdvertising(settings, data, advertiseCallback)
+            advertiser?.startAdvertising(settings, data, scanResponse, advertiseCallback)
             Log.i(TAG, "BLE advertising started")
         } catch (e: SecurityException) {
             Log.e(TAG, "SecurityException starting advertising", e)

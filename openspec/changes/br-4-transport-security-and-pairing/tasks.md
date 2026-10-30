@@ -132,7 +132,7 @@ Verify commands used below:
 - [x] 9.3 Render the picker in the status panel with name and signal strength, and connect on
       selection. Verify on device that two advertising phones both appear and only the chosen one
       is connected.
-- [ ] 9.4 Confirm BR-13's scan watchdog still behaves with the picker open — discovery keeps
+- [x] 9.4 Confirm BR-13's scan watchdog still behaves with the picker open — discovery keeps
       running, no spurious restarts. Verify by reading the log across a picker session.
 
 ## 10. Docs
@@ -155,9 +155,9 @@ Run on MacBook Air M3 + Galaxy S25. Announce before starting; no second `Bridge.
       phone (BR-5 criterion 2).
 - [ ] 11.3 Pair successfully, then reinstall the Android app to force a new certificate and verify
       the connection closes on the mismatch and needs a deliberate re-pair (BR-5 criterion 3).
-- [ ] 11.4 With the Mac unpaired, verify it lists discovered phones by name and RSSI and waits for
+- [x] 11.4 With the Mac unpaired, verify it lists discovered phones by name and RSSI and waits for
       a choice (BR-5 criterion 4).
-- [ ] 11.5 Verify a peer that has sent no identity packet gets no packet type processed — inject a
+- [x] 11.5 Verify a peer that has sent no identity packet gets no packet type processed — inject a
       `bridge.clipboard` before identity and confirm the drop in the log (BR-4 criterion 1).
 - [ ] 11.6 Verify an uninitialised trust store drops rather than passes (BR-4 criterion 2).
 - [ ] 11.7 Verify a line over the 256 KB cap closes the connection (BR-4 criterion 3).
