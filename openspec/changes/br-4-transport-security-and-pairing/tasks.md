@@ -151,7 +151,7 @@ Run on MacBook Air M3 + Galaxy S25. Announce before starting; no second `Bridge.
 
 - [x] 11.1 Clear both trust stores, then verify both screens show the same six digits before
       anything is pinned (BR-5 criterion 1).
-- [ ] 11.2 Verify declining on the Mac leaves both trust stores unchanged; repeat declining on the
+- [x] 11.2 Verify declining on the Mac leaves both trust stores unchanged; repeat declining on the
       phone (BR-5 criterion 2).
 - [ ] 11.3 Pair successfully, then reinstall the Android app to force a new certificate and verify
       the connection closes on the mismatch and needs a deliberate re-pair (BR-5 criterion 3).
