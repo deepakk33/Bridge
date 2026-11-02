@@ -89,6 +89,51 @@ final class PairingManagerTests: XCTestCase {
         )
     }
 
+    /// Holding a confirmation is only better than dropping it if someone re-reads the
+    /// Keychain. Without this the hold is a quieter version of the same dead end.
+    func testHoldingAConfirmationAsksForTheFingerprintAgain() {
+        let late = PairingManager()
+        late.configure(localDeviceId: "mac-1") { _ in }
+        var asked = 0
+        late.onLocalFingerprintNeeded = { asked += 1 }
+
+        late.setPeerIdentity(
+            deviceId: "phone-1", deviceName: "Galaxy S25", fingerprint: phoneFingerprint
+        )
+
+        XCTAssertEqual(asked, 1, "a held confirmation must ask for the fingerprint")
+    }
+
+    /// Nothing is pinned for a user who was shown no digits. Without the local
+    /// fingerprint no code exists, so there is nothing they could have compared.
+    func testAcceptingWithNoVerificationCodeDoesNotPin() {
+        let late = PairingManager()
+        late.configure(localDeviceId: "mac-1") { _ in }
+
+        late.setPeerIdentity(
+            deviceId: "phone-1", deviceName: "Galaxy S25", fingerprint: phoneFingerprint
+        )
+        // The peer says yes first; only this device's confirmation is missing.
+        late.handlePairPacket(BridgePacket.pairRequest())
+        late.acceptIncomingPair()
+
+        XCTAssertFalse(
+            TrustStore.shared.isTrusted(deviceId: "phone-1", fingerprint: phoneFingerprint),
+            "a peer must not be pinned on a confirmation that was never shown"
+        )
+    }
+
+    /// The same acceptance succeeds once the digits can actually be derived.
+    func testAcceptingPinsOnceTheCodeExists() {
+        identifyUnknownPhone()
+        manager.handlePairPacket(BridgePacket.pairRequest())
+        manager.acceptIncomingPair()
+
+        XCTAssertTrue(
+            TrustStore.shared.isTrusted(deviceId: "phone-1", fingerprint: phoneFingerprint)
+        )
+    }
+
     // MARK: - Both decisions required, either order
 
     func testLocalThenRemoteAcceptPins() {

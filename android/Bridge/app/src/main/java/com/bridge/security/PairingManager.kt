@@ -136,6 +136,13 @@ class PairingManager(
             Log.i(TAG, "Already accepted pairing with $deviceName")
             return
         }
+        // Re-reads the local fingerprint. Null means no digits could ever have been
+        // shown, so this user has compared nothing — and if the peer has already
+        // accepted, pinIfBothAccepted() below would pin on that empty confirmation.
+        if (verificationCode == null) {
+            Log.e(TAG, "Refusing to accept $deviceName: no verification code to compare")
+            return
+        }
 
         localDecision = Decision.ACCEPTED
         val peerAskedFirst = remoteDecision == Decision.ACCEPTED

@@ -70,6 +70,11 @@ final class PairingManager: ObservableObject {
     /// dropping the peer left pairing silently impossible for the connection.
     private var deferredConfirmation: (deviceId: String, deviceName: String, fingerprint: String)?
 
+    /// Raised when a confirmation is held for want of the local fingerprint. The owner
+    /// re-reads the Keychain: a read that failed once must not stay failed, or holding
+    /// the confirmation is just a quieter version of dropping it.
+    var onLocalFingerprintNeeded: (() -> Void)?
+
     /// Crossed initiation: both sides sent a request at once. The lower deviceId
     /// stays the initiator, the other yields and accepts, so exactly one accept
     /// flows and both sides pin. Equal (or unknown local) ids make both yield,
@@ -206,6 +211,13 @@ final class PairingManager: ObservableObject {
             Self.logger.info("Already accepted pairing with \(deviceName)")
             return
         }
+        // Nil means no digits could ever have been shown, so this user has compared
+        // nothing — and if the peer has already accepted, pinIfBothAccepted() below
+        // would pin on that empty confirmation.
+        guard verificationCode != nil else {
+            Self.logger.error("Refusing to accept \(deviceName): no verification code to compare")
+            return
+        }
 
         localDecision = .accepted
         let peerAskedFirst = remoteDecision == .accepted
@@ -273,6 +285,7 @@ final class PairingManager: ObservableObject {
             // Keychain read lands. Cleared by `reset()` if the peer leaves first.
             Self.logger.info("No local fingerprint yet — holding the confirmation for \(deviceName)")
             deferredConfirmation = (deviceId, deviceName, fingerprint)
+            onLocalFingerprintNeeded?()
             return
         }
         incomingPairRequest = PairRequestInfo(

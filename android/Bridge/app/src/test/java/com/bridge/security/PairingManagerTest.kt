@@ -288,6 +288,37 @@ class PairingManagerTest {
         assertFalse("a held request must not survive a disconnect", asked)
     }
 
+    /**
+     * Nothing is pinned for a user who was shown no digits. The in-app Pair button
+     * reaches acceptPair() directly, and with the peer already accepted
+     * pinIfBothAccepted() would otherwise pin on a confirmation that never appeared.
+     */
+    @Test
+    fun `accepting with no verification code does not pin`() {
+        val bare = PairingManager(
+            localDeviceId = "phone-1",
+            localFingerprint = { null },
+            trustStore = { store },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+            sendPacket = { sent.add(it) }
+        )
+        bare.setPeerIdentity("mac-1", "MacBook Air", macFingerprint)
+        bare.handlePairPacket(BridgePacket.pairRequest())
+        bare.acceptPair()
+
+        assertTrue("nothing may be pinned without digits to compare", store.isEmpty)
+    }
+
+    /** The same acceptance succeeds once the digits can actually be derived. */
+    @Test
+    fun `accepting pins once the code exists`() {
+        identifyUnknownMac()
+        manager.handlePairPacket(BridgePacket.pairRequest())
+        manager.acceptPair()
+
+        assertFalse("the peer must be pinned", store.isEmpty)
+    }
+
     @Test
     fun `verification code is available once a peer is known`() {
         assertNull(manager.verificationCode)

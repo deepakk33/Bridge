@@ -68,10 +68,10 @@
 
 ## 8. Verify
 
-- [ ] 8.1 Run `xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge test` and
+- [x] 8.1 Run `xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge test` and
       `(cd android/Bridge && ./gradlew test assembleDebug)` and read both outputs green
-- [ ] 8.2 Run `openspec validate --change br-19-pairing-and-link-hardening` and read it clean
-- [ ] 8.3 Grep both trees for `pairedDeviceId` and `pairedFingerprint` and verify no references
+- [x] 8.2 Run `openspec validate --change br-19-pairing-and-link-hardening` and read it clean
+- [x] 8.3 Grep both trees for `pairedDeviceId` and `pairedFingerprint` and verify no references
       remain outside the archive
 
 ## 9. Device test — MacBook Air M3 + Galaxy S25 (exclusive, one window)

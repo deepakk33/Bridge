@@ -41,8 +41,20 @@ class FileTransferCoordinator(
 
         when (decision.tier) {
             TransferTier.WIFI_LAN -> {
-                val peerId = connectedPeerId() ?: throw PayloadTls.NotPairedException()
-                val server = PayloadServer(file, PayloadTls.forPairedPeer(peerId))
+                // No pin, no transfer — and no crash. This runs on onStartCommand's
+                // thread, where an escaping exception takes the whole service down;
+                // sharing a file with the Mac out of range is an ordinary failure.
+                val tls = runCatching {
+                    PayloadTls.forPairedPeer(
+                        connectedPeerId() ?: throw PayloadTls.NotPairedException()
+                    )
+                }.getOrElse {
+                    Log.w(TAG, "Refusing to send $filename: no pinned peer on the live link", it)
+                    if (notifId != null) notifier.failure(notifId, filename, "Not paired")
+                    file.delete()
+                    return
+                }
+                val server = PayloadServer(file, tls)
                 val port = server.bind()
                 val host = localWifiIp()
                 val nsd = nsdManager?.let { NsdTransfer(it) }
