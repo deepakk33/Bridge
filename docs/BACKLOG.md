@@ -34,7 +34,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-13 | Mac: notice a scan that never returns anything | done | `work/br-13-notice-a-scan-that-never-returns` |
 | BR-14 | Mac: refuse to run twice | done | `work/br-14-refuse-to-run-twice` |
 | BR-15 | Clipboard: the ADB grant path is dead, decide what replaces it | done | `work/br-15-adb-grant` |
-| BR-16 | Android: BridgeService connection lifecycle | ready | |
+| BR-16 | Android: BridgeService connection lifecycle | in-progress | `work/br-16-bridgeservice-connection-lifecycle` |
 | BR-17 | Media control: drive the phone's player from the Mac | ready | |
 | BR-18 | Notifications: the app list is thin and new apps are not mirrored | done | |
 | BR-19 | Pairing and link hardening left over from BR-4+BR-5 | done | `work/br-19-pairing-and-link-hardening` |
