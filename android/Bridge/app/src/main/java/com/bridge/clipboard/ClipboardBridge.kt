@@ -168,6 +168,9 @@ class ClipboardBridge(
     fun onConnectionReady() {
         isConnected = true
         lastContent = null
+        // makeConnectPacket() used to clear this as a side effect of sending the clip. It no
+        // longer sends one, so clear it here or a truncation warning outlives its session.
+        lastSend = null
         Log.i(TAG, "Connection ready, reset lastContent for fresh send")
     }
 

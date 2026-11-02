@@ -29,6 +29,20 @@ final class ClipboardMonitorTests: XCTestCase {
         return try BridgePacket.deserialize(from: try JSONSerialization.data(withJSONObject: packetDict))
     }
 
+    /// These tests write to the real pasteboard, which belongs to whoever is running them.
+    private var saved: String?
+
+    override func setUp() {
+        super.setUp()
+        saved = NSPasteboard.general.string(forType: .string)
+    }
+
+    override func tearDown() {
+        NSPasteboard.general.clearContents()
+        if let saved { NSPasteboard.general.setString(saved, forType: .string) }
+        super.tearDown()
+    }
+
     func testConnectPacketWithoutContentLeavesPasteboardAlone() async throws {
         let packet = try timestampOnlyVector()
         XCTAssertNil(packet.body["content"], "the vector must carry no content key")

@@ -29,7 +29,6 @@ class L2capServer(
     private val handlers: BleHandlers,
     private val onConnectionChanged: (connected: Boolean) -> Unit
 ) {
-    var onBatteryReceived: ((currentCharge: Int, isCharging: Boolean) -> Unit)? = null
     var onLinkReady: (() -> Unit)? = null
 
     /**
