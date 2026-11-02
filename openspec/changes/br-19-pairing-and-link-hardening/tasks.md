@@ -76,7 +76,7 @@
 
 ## 9. Device test — MacBook Air M3 + Galaxy S25 (exclusive, one window)
 
-- [ ] 9.1 Unpair both sides, pair fresh, and leave the Mac's confirmation sheet open for three
+- [x] 9.1 Unpair both sides, pair fresh, and leave the Mac's confirmation sheet open for three
       minutes while opening the Android app twice; verify the link is never dropped and the
       confirmation is still answerable (Done-when 1)
 - [ ] 9.2 With the phone paired, pin a second device id by hand, then send a file Mac→phone and
@@ -87,5 +87,5 @@
       screens (Done-when 3). Repeat five times — it is a race, one pass is not evidence
 - [x] 9.4 Leave the paired link idle for five minutes and read the Mac's log: verify one ping per
       30 s with one reply each, and no ping storm
-- [ ] 9.5 Record each criterion pass/fail with what was observed in the change folder's device
+- [x] 9.5 Record each criterion pass/fail with what was observed in the change folder's device
       test notes

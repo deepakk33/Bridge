@@ -96,7 +96,26 @@ bytes, a reply carrying `replyTo` as 75.
   `stop scan` / `updateScanParams:YES` poisoning described in CLAUDE.md, and recovery needed a
   Bluetooth power cycle. It follows directly from the `SingleInstanceGuard` gap above.
 
-## Not yet run
+## Not run — reported as untested, not as passed
 
-- Task 9.2 — two devices pinned, file transfer each way.
-- Task 9.3 — cold-start race between the identity packet and the Keychain read, five times.
+- **Task 9.2 — two devices pinned, a file each way. UNTESTED.** Blocked twice over. The phone
+  had no Wi-Fi (only `rmnet_data0`, 192.0.0.2, against the Mac's 192.168.0.143), and with no
+  shared network `TierRouter` routes every payload to Tier 2, whose serving path reports
+  "Small-file Bluetooth path not available yet" and never constructs `PayloadTls` — so the
+  pinning fix cannot be exercised at all. Bluetooth then wedged (above) before Wi-Fi could be
+  arranged. Setup was staged and has since been torn down: a decoy pin
+  `00000000-dead-beef-0000-decoy0000001` was briefly added to the Mac trust store, chosen
+  because it sorts ahead of the real device id, and a 900 KB payload was pushed to the phone.
+  Both were removed afterwards; the Mac trust store holds only the real phone pin.
+
+  The fix is covered by unit tests on both platforms (`testTwoPinnedDevicesPinToTheConnectedPeer`,
+  `PayloadTlsTest`), which assert the named peer's pin is used and that an unpinned peer is
+  refused while another device is pinned. That is not the same as a real handshake.
+
+- **Task 9.3 — the cold-start race, five times. PARTIALLY RUN.** The digit match was confirmed
+  (above), but the race itself was never reproduced: the Keychain read won every time, so the
+  new deferred-confirmation path (`No local fingerprint yet — holding the confirmation`) never
+  appeared in any log. It is covered only by unit tests
+  (`testIdentityBeforeLocalFingerprintStillRaisesTheConfirmation`,
+  `testHoldingAConfirmationAsksForTheFingerprintAgain`, and the Android equivalents). The
+  five-times repeat was not performed.
