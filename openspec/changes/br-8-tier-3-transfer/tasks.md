@@ -2,10 +2,10 @@
 
 > Nothing in section 3 is written until section 1 names a cause and section 2 records it.
 
-- [ ] 1.1 Rule the macOS Local Network permission in or out **without** trusting the UI row: read
+- [x] 1.1 Rule the macOS Local Network permission in or out **without** trusting the UI row: read
       the real authorization state for the Bridge bundle, and record what it says. Verify by
       stating the value observed, not by reading `PermissionChecker`.
-- [ ] 1.2 Prove the socket path independently of Bridge: run a plain TCP listener on the Mac and
+- [x] 1.2 Prove the socket path independently of Bridge: run a plain TCP listener on the Mac and
       connect from the phone (`adb shell` or a scratch app), then the reverse. Verify by recording
       which directions carried bytes. This separates "macOS blocks the connection" from "the TLS
       handshake fails".

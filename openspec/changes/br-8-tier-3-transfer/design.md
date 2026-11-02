@@ -116,6 +116,65 @@ surface.
   `shared_prefs/bridge_trust_store.xml` via `run-as` rather than `pm clear`, which keeps the
   runtime permissions.
 
+## Finding (in progress, 2026-11-02)
+
+### Ruled out
+
+**The network path is clean.** Plain TCP was proved in both directions with the real devices on
+one LAN (Mac `192.168.0.143`, phone `192.168.0.6`): a Python listener on the Mac accepted from the
+phone and delivered bytes, and `nc` from the Mac delivered bytes to a listener on the phone. No AP
+isolation, no firewall drop, and macOS is not blocking local network traffic for a terminal
+process.
+
+**BR-16's device test was not a valid Tier 3 test.** The phone's Wi-Fi was off — `wlan0` had no
+address and the only route was `rmnet_data0` (mobile data, `192.0.0.2`) — so it had no path to the
+Mac's LAN address at all. That failure says nothing about Tier 3 and is discarded as evidence.
+BR-19's attempts, which recorded both devices on `192.168.0.x` with a clean ping, remain valid.
+
+### Reproduced properly
+
+Phone→Mac, 716800 B, both devices on one LAN, driven over adb through `ShareReceiverActivity`:
+
+| time | side | event |
+|---|---|---|
+| 16:04:16.429 | phone | `Wi-Fi payload server on 192.168.0.6:45995`, `sendPacket: bridge.share.request` |
+| 16:04:16.437 | Mac | `Incoming file … payloadSize=716800 port=45995` |
+| 16:04:16.457 | Mac | `Fetching … from …:45995` |
+| 16:04:17.949 | phone | `SSLHandshakeException: Read error … I/O error during system call` |
+| 16:04:47.962 | Mac | `Payload client timed out after 30.000000s` |
+
+### The contradiction that has to be resolved next
+
+Network.framework's own log for that connection:
+
+```
+nw_endpoint_handler_cancel [C3 IPv4#…:45995 waiting parent-flow
+  (satisfied (Path is satisfied), viable, interface: en0[802.11], ipv4, dns, uses wifi, LQM: good)]
+reporting state cancelled error server closed session with no notification
+```
+
+The Mac's connection was still in **`waiting`** when its own 30 s timeout cancelled it — it never
+reached `ready` — while the path was satisfied and viable throughout. `PayloadTLS`'s verify block
+never logged, consistent with no handshake having started.
+
+But the phone's server *accepted* a connection and then failed reading 1.5 s later. A connection
+cannot both be unestablished at the Mac and accepted at the phone, so one of these is true:
+
+1. the TCP connection completed and Network.framework reports `waiting` for a connection stuck
+   before TLS — in which case no ClientHello was sent, and the phone saw a silent peer; or
+2. the phone accepted something that was not this connection, and the Mac's TCP never completed —
+   which points at macOS Local Network authorization for the Bridge bundle specifically. The
+   terminal test above does not cover this: that permission is per-application, and `nc` proves
+   only that *Terminal* has it.
+
+A packet capture on `en0` filtered to the payload port settles this in one run: either a ClientHello
+leaves the Mac or it does not. `tcpdump` needs privileges this session does not hold.
+
+**Current best hypothesis: (2), Local Network authorization for Bridge.** It explains the
+`waiting` state under a satisfied path, the absent verify-block log, the 30 s timeout rather than a
+refusal, and BR-19's symmetric failures. It is not yet established, and the fix is not started
+until it is.
+
 ## Open Questions
 
 None that change the specs, the approach or the task breakdown. The cause of the handshake failure
