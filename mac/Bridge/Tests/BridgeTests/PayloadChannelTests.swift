@@ -160,6 +160,48 @@ final class PayloadChannelTests: XCTestCase {
     }
 
     /// A server pinned to the wrong fingerprint serves nobody.
+    /// A stranger on the LAN reaching the port first must not cost the real peer its transfer.
+    /// The slot belongs to whoever completes the pinned handshake, not to whoever dials first.
+    func testAStrangerConnectingFirstDoesNotStealTheSlot() async throws {
+        try await skipUnlessSocketsCanListen()
+        let tls = try await loopbackParameters()
+        let payload = Data(repeating: 0x33, count: 4096)
+        let server = try PayloadServer(payload: payload, parameters: tls, timeout: 8)
+
+        let ready = expectation(description: "ready")
+        let done = expectation(description: "done")
+        var port = 0
+        var served = false
+        server.start(onReady: { port = $0; ready.fulfill() }, completion: { res in
+            if case .success = res { served = true }
+        })
+        await fulfillment(of: [ready], timeout: 5)
+
+        // A plain TCP connection with no TLS at all — the LAN stranger.
+        let stranger = NWConnection(
+            host: "127.0.0.1", port: NWEndpoint.Port(rawValue: UInt16(port))!, using: .tcp
+        )
+        stranger.start(queue: .global())
+        try await Task.sleep(nanoseconds: 300_000_000)
+
+        // Now the real peer.
+        let client = PayloadClient(
+            host: "127.0.0.1", port: port, expectedBytes: payload.count,
+            parameters: tls, timeout: 5
+        )
+        var received: Data?
+        client.start { result in
+            if case .success(let data) = result { received = data }
+            done.fulfill()
+        }
+        await fulfillment(of: [done], timeout: 12)
+        stranger.cancel()
+        server.cancel()
+
+        XCTAssertTrue(served, "the real peer must still be served")
+        XCTAssertEqual(received, payload, "and must receive every byte")
+    }
+
     func testServerRefusesAnUnpinnedClient() async throws {
         try await skipUnlessSocketsCanListen()
         let serverTLS = try await mismatchedParameters()

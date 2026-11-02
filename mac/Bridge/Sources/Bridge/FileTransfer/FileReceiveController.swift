@@ -11,6 +11,31 @@ import os
 final class FileReceiveController {
     private static let logger = Logger(subsystem: "com.bridge.mac", category: "FileReceiveController")
 
+    /// Largest payload accepted. A declared size above this is refused before a connection is
+    /// made or a file created, so a hostile number cannot commit resources.
+    nonisolated static let maxPayloadBytes = 2 * 1024 * 1024 * 1024  // 2 GiB
+
+    /// The peer picks this number; it is not evidence of anything until it is bounded.
+    nonisolated static func isAcceptableSize(_ payloadSize: Int) -> Bool {
+        payloadSize > 0 && payloadSize <= maxPayloadBytes
+    }
+
+    /// Reduce a peer-supplied filename to something that can only land inside the download
+    /// directory. The name is untrusted input: it must not be able to steer the path.
+    nonisolated static func safeName(_ raw: String) -> String {
+        let flattened = raw
+            .replacingOccurrences(of: "\\", with: "/")
+            .replacingOccurrences(of: ":", with: "_")
+        let last = flattened.split(separator: "/").last.map(String.init) ?? ""
+        let trimmed = last.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != ".", trimmed != ".." else { return "BridgeFile" }
+        // Leave room under the filesystem's 255-byte limit for the " (n)" de-duplication suffix.
+        guard trimmed.utf8.count > 200 else { return trimmed }
+        let ext = (trimmed as NSString).pathExtension
+        let stem = String((trimmed as NSString).deletingPathExtension.prefix(150))
+        return ext.isEmpty ? stem : "\(stem).\(ext)"
+    }
+
     private var browser: MdnsBrowser?
     private var client: PayloadClient?
 
@@ -22,6 +47,12 @@ final class FileReceiveController {
     ) {
         guard payloadSize > 0 else {
             Self.logger.info("Share request '\(filename)' has no payload; ignoring")
+            return
+        }
+        // Before a port is opened or a file created: a declared size is a claim, not a fact.
+        guard Self.isAcceptableSize(payloadSize) else {
+            Self.logger.error("Refusing '\(filename)': declared \(payloadSize) bytes exceeds the cap")
+            postFailure(filename: Self.safeName(filename), reason: "The file is too large to accept.")
             return
         }
 
@@ -75,7 +106,7 @@ final class FileReceiveController {
         self.client = client
         let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
-        let safeName = filename.isEmpty ? "BridgeFile" : filename
+        let safeName = Self.safeName(filename)
         let dest = Self.uniqueURL(downloads.appendingPathComponent(safeName))
 
         client.start(savingTo: dest, onProgress: { written, total in
@@ -91,11 +122,21 @@ final class FileReceiveController {
                     self.postNotification(filename: url.lastPathComponent)
                 case .failure(let error):
                     Self.logger.error("Payload download failed for '\(filename)': \(String(describing: error))")
+                    // A log line is not telling the user; they were expecting a file.
+                    self.postFailure(filename: safeName, reason: "The transfer did not finish.")
                 }
                 self.client = nil
                 self.browser = nil
             }
         })
+    }
+
+    private func postFailure(filename: String, reason: String) {
+        let content = UNMutableNotificationContent()
+        content.title = "File not received"
+        content.body = "\(filename) — \(reason)"
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request)
     }
 
     private func postNotification(filename: String) {

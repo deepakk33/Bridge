@@ -34,18 +34,22 @@
 
 ## 4. Close the security holes — Mac
 
-- [ ] 4.1 Reduce an incoming filename to a basename before it reaches `appendingPathComponent`,
+- [x] 4.1 Reduce an incoming filename to a basename before it reaches `appendingPathComponent`,
       rejecting or flattening separators and parent references. Write the test first, including
       `../../.zshenv`, an empty name, and a name that is only separators. Verify the Mac suite goes
       red then green.
-- [ ] 4.2 Refuse a `payloadSize` above the cap before a port is opened or a file created, and
+- [x] 4.2 Refuse a `payloadSize` above the cap before a port is opened or a file created, and
       surface the refusal. Test first with a size far above the cap. Verify the Mac suite.
-- [ ] 4.3 Serve the payload only to the peer whose pinned certificate matches the requester; a
+- [x] 4.3 Serve the payload only to the peer whose pinned certificate matches the requester; a
       different host gets no bytes. Test first. Verify the Mac suite.
+      *The leak was already closed by TLS pinning; the real defect was denial — the first TCP
+      connection claimed the only slot, so a stranger cost the real peer its transfer. The slot is
+      now claimed on `.ready`. The loopback test for it **skips in this environment** ("does not
+      permit listening sockets"), so device task 6.6 is the real check.*
 - [ ] 4.4 Announce an incoming file with name and size before writing, with a decline that leaves
       nothing behind and closes the sender's window. Verify the Mac suite and that a declined
       transfer does not hold the listener open for its full timeout.
-- [ ] 4.5 Surface a failed receive to the user rather than only logging it. Verify the Mac suite.
+- [x] 4.5 Surface a failed receive to the user rather than only logging it. Verify the Mac suite.
 
 ## 5. Close the security holes — Android
 
