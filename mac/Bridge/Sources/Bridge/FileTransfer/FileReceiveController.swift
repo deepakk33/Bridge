@@ -17,7 +17,9 @@ final class FileReceiveController {
     /// Begin fetching an incoming file. No-op when there is no payload body.
     /// Prefers a direct `host:port` connection (carried in the share request);
     /// falls back to mDNS discovery when no host is provided.
-    func receive(filename: String, payloadSize: Int, port: Int?, host: String?) {
+    func receive(
+        filename: String, payloadSize: Int, port: Int?, host: String?, peerDeviceId: String
+    ) {
         guard payloadSize > 0 else {
             Self.logger.info("Share request '\(filename)' has no payload; ignoring")
             return
@@ -28,7 +30,7 @@ final class FileReceiveController {
             // over an unencrypted fallback.
             let parameters: NWParameters
             do {
-                parameters = try await PayloadTLS.pairedPeerParameters()
+                parameters = try await PayloadTLS.pairedPeerParameters(for: peerDeviceId)
             } catch {
                 Self.logger.error("Refusing '\(filename)': \(String(describing: error))")
                 return

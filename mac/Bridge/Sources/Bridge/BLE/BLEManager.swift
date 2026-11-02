@@ -32,6 +32,11 @@ final class BLEManager: NSObject, ObservableObject {
 
     private var peerDeviceId: String?
     private var peerFingerprint: String?
+
+    /// The peer on the live control connection, or nil when nothing is connected or it
+    /// has not identified itself. The payload connection is pinned to this, never to a
+    /// device read out of the trust store — the store holds every phone ever paired.
+    var connectedPeerId: String? { peerDeviceId }
     private var peripheralConnected = false
     private var isVerified = false
     private var lastDisconnect: DisconnectReason?
@@ -426,12 +431,18 @@ final class BLEManager: NSObject, ObservableObject {
                 "port": packet.payloadPort ?? -1
             ]
         )
-        // Fetch the payload over the out-of-band channel (mDNS + TCP) and save it.
+        // Fetch the payload over the out-of-band channel (mDNS + TCP) and save it,
+        // pinned to the peer that sent this request.
+        guard let senderId = peerDeviceId else {
+            Self.logger.error("Refusing '\(filename)': the sender has not identified itself")
+            return
+        }
         fileReceiver.receive(
             filename: filename,
             payloadSize: Int(packet.payloadSize),
             port: packet.payloadPort,
-            host: packet.payloadHost
+            host: packet.payloadHost,
+            peerDeviceId: senderId
         )
     }
 

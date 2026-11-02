@@ -52,10 +52,6 @@ final class TrustStore: @unchecked Sendable {
         lock.withLock { trustedDevices[deviceId] }
     }
 
-    func pairedDeviceId() -> String? {
-        lock.withLock { trustedDevices.keys.first }
-    }
-
     var isEmpty: Bool {
         lock.withLock { trustedDevices.isEmpty }
     }

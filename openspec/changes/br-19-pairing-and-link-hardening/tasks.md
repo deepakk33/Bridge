@@ -30,11 +30,11 @@
 
 ## 4. Mac — pin the payload to the connected peer
 
-- [ ] 4.1 Write the failing test in `PayloadChannelTests`: with two devices pinned, parameters
+- [x] 4.1 Write the failing test in `PayloadChannelTests`: with two devices pinned, parameters
       built for peer A verify A's fingerprint and reject B's. Verify it fails today
-- [ ] 4.2 Replace `PayloadTLS.pairedPeerParameters()` with `pairedPeerParameters(for:)`, delete
+- [x] 4.2 Replace `PayloadTLS.pairedPeerParameters()` with `pairedPeerParameters(for:)`, delete
       `TrustStore.pairedDeviceId()`, and verify the compiler names every call site
-- [ ] 4.3 Inject a `connectedPeerId: () -> String?` supplier into `FileTransferManager` and
+- [x] 4.3 Inject a `connectedPeerId: () -> String?` supplier into `FileTransferManager` and
       `FileReceiveController` from `BLEManager`, and verify a nil result fails the transfer with
       `Error.notPaired` rather than opening a listener (test asserts no listener is bound)
 

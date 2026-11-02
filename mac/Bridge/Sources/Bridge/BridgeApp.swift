@@ -12,9 +12,10 @@ struct BridgeApp: App {
         NotificationManager.shared.requestPermission()
         let manager = BLEManager()
         _bleManager = StateObject(wrappedValue: manager)
-        _fileTransfer = StateObject(wrappedValue: FileTransferManager(sendPacket: { packet in
-            _ = manager.sendPacket(packet)
-        }))
+        _fileTransfer = StateObject(wrappedValue: FileTransferManager(
+            sendPacket: { packet in _ = manager.sendPacket(packet) },
+            connectedPeerId: { manager.connectedPeerId }
+        ))
     }
 
     var body: some Scene {

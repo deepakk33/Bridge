@@ -61,12 +61,15 @@ enum PayloadTLS {
         return NWParameters(tls: options, tcp: NWProtocolTCP.Options())
     }
 
-    /// Parameters for the single paired peer.
-    /// - Throws: `Error.notPaired` when nothing is pinned, so no listener is opened and
-    ///   no connection is attempted — an unpaired peer gets no bytes rather than plaintext ones.
-    static func pairedPeerParameters() async throws -> NWParameters {
-        guard let deviceId = TrustStore.shared.pairedDeviceId(),
-              let fingerprint = TrustStore.shared.pinnedFingerprint(for: deviceId) else {
+    /// Parameters pinned to `deviceId` — the peer on the control connection that asked
+    /// for this transfer, never a device read out of the trust store. The store can hold
+    /// more than one phone and holds them in no order, so "the paired device" is not a
+    /// thing it can answer.
+    /// - Throws: `Error.notPaired` when that peer is not pinned, so no listener is opened
+    ///   and no connection is attempted — an unpaired peer gets no bytes rather than
+    ///   plaintext ones.
+    static func pairedPeerParameters(for deviceId: String) async throws -> NWParameters {
+        guard let fingerprint = TrustStore.shared.pinnedFingerprint(for: deviceId) else {
             throw Error.notPaired
         }
         guard let identity = try? await CertificateManager.shared.getIdentity() else {
