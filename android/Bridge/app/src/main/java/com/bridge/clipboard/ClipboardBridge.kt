@@ -107,6 +107,7 @@ class ClipboardBridge(
 
     fun handleClipboardConnectPacket(packet: BridgePacket) {
         val content = packet.body["content"]?.jsonPrimitive?.content ?: return
+        if (content.isEmpty()) return
         val remoteTimestamp = packet.body["timestamp"]?.jsonPrimitive?.long ?: return
 
         if (remoteTimestamp == 0L) return

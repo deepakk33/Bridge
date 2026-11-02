@@ -61,6 +61,34 @@ final class ClipboardMonitorTests: XCTestCase {
                        "a connect packet with no content must not change the pasteboard")
     }
 
+    func testEmptyContentIsIgnoredNotApplied() async throws {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString("the user's clip", forType: .string)
+
+        // A newer timestamp with an empty clip: applying it would wipe the pasteboard.
+        let packet = BridgePacket.clipboardConnect(content: "",
+                                                   timestamp: Int64(Date().timeIntervalSince1970 * 1000))
+        XCTAssertNil(packet.body["content"], "an empty clip must not be put on the wire")
+
+        let monitor = ClipboardMonitor()
+        await monitor.handleClipboardConnectPacket(packet)
+
+        XCTAssertEqual(pasteboard.string(forType: .string), "the user's clip",
+                       "an empty clip must never clear the pasteboard")
+    }
+
+    func testNoPasteboardStringSendsNoContent() async throws {
+        NSPasteboard.general.clearContents()  // no string at all
+
+        let monitor = ClipboardMonitor()
+        let packet = await monitor.makeConnectPacket()
+
+        XCTAssertEqual(packet.type, "bridge.clipboard.connect")
+        XCTAssertNil(packet.body["content"],
+                     "a non-string pasteboard offers no clip; \"\" would wipe the phone's")
+    }
+
     func testConnectPacketWithContentStillApplies() async throws {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()

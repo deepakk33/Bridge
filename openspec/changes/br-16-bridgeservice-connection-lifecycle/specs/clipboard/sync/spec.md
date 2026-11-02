@@ -4,10 +4,14 @@
 On every reconnect, both sides send a `bridge.clipboard.connect` packet carrying the
 epoch-millisecond timestamp of when that side's clipboard was last set.
 
-The Mac SHALL include its current pasteboard text in that packet. The phone SHALL NOT: its packet
-carries the timestamp alone, with no `content` field, because a reconnect is not a user asking for
-a send (see "Phone-to-Mac clipboard sends are user-initiated"). A receiver that finds no `content`
-SHALL ignore the packet rather than treat it as an empty clipboard.
+The Mac SHALL include its current pasteboard text in that packet when it has text to offer, and
+SHALL omit `content` when it does not. The phone SHALL always omit it: its packet carries the
+timestamp alone, because a reconnect is not a user asking for a send (see "Phone-to-Mac clipboard
+sends are user-initiated").
+
+A receiver SHALL ignore a packet whose `content` is absent **or empty**, rather than treat it as an
+empty clipboard. Neither side sends an empty `content`, and a receiver that applied one would clear
+the peer's clipboard.
 
 Platform constraint: this makes the reconnect exchange one-directional in effect. Mac→phone
 convergence after a gap is unchanged; phone→Mac convergence after a gap requires the user to tap
@@ -28,6 +32,13 @@ the tile or the in-app send control.
 - **WHEN** a `bridge.clipboard.connect` packet arrives with a newer timestamp and no `content`
   field
 - **THEN** the receiver leaves its clipboard unchanged, and does not clear it
+
+#### Scenario: The Mac has no text on the pasteboard
+
+- **WHEN** the Mac reconnects while its pasteboard holds no string — an image, say, leaving its
+  last-set timestamp at the earlier text's time and therefore newer than the phone's
+- **THEN** its `bridge.clipboard.connect` omits `content`, and the phone's clipboard is left alone
+  rather than cleared
 
 #### Scenario: Equal timestamps on reconnect
 - **WHEN** both sides send `bridge.clipboard.connect` with the same timestamp (or timestamps

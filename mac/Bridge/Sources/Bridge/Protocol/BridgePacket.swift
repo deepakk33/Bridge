@@ -141,14 +141,17 @@ struct BridgePacket: @unchecked Sendable {
         )
     }
 
-    static func clipboardConnect(content: String, timestamp: Int64) -> BridgePacket {
-        BridgePacket(
+    /// `content` is omitted when there is no clip to offer. Absent means "nothing to say";
+    /// an empty string reads as a newer, empty clipboard and would wipe the peer's.
+    static func clipboardConnect(content: String?, timestamp: Int64) -> BridgePacket {
+        var body: [String: Any] = ["timestamp": timestamp]
+        if let content, !content.isEmpty {
+            body["content"] = content
+        }
+        return BridgePacket(
             id: Int64(Date().timeIntervalSince1970 * 1000),
             type: "bridge.clipboard.connect",
-            body: [
-                "content": content,
-                "timestamp": timestamp
-            ]
+            body: body
         )
     }
 

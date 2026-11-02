@@ -44,7 +44,8 @@
       "expectedFields": {
         "content": "",
         "timestamp": 1697300002000
-      }
+      },
+      "comment": "Parses, but carries nothing to apply: a receiver must ignore an empty content exactly as it ignores an absent one. Applying it would wipe the peer's clipboard. Since BR-16 neither side sends this."
     },
     {
       "name": "clipboard_connect_timestamp_only",

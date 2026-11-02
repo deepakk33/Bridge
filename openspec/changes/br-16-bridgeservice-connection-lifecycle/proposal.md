@@ -36,8 +36,9 @@ PRD: Tier 1 (BLE L2CAP control channel) — the resident link every other tier i
   is what BR-9 intended. **Degradation**: after a gap, the phone's newer clip needs one tap to
   reach the Mac; it no longer arrives on its own.
 - **The exception clause in `clipboard/sync` goes away**, replaced by the rule stated outright.
-- No new packet type. The `bridge.clipboard.connect` body loses an optional field; the Mac already
-  guards on `content` being present and ignores a packet without it, so no Mac behaviour changes.
+- **The Mac stops sending an empty clip.** It omits `content` when its pasteboard holds no text,
+  and both sides ignore an empty `content` as they already ignored an absent one.
+- No new packet type. The `bridge.clipboard.connect` body loses an optional field.
 
 ## Capabilities
 
@@ -62,9 +63,13 @@ None.
 - `clipboard/ClipboardBridge.kt` — `makeConnectPacket()`
 - `protocol/BridgePacket.kt` — the `clipboardConnect` factory
 
-**Code (Mac):** no behaviour change. `ClipboardMonitor.handleClipboardConnectPacket` already
-returns early when `content` is absent; a test is added to hold that, per the rule that a protocol
-change is checked on both sides.
+**Code (Mac):** `ClipboardMonitor` and `BridgePacket`. Found during this item's code review and
+confirmed in the source: the Mac sent `content: ""` whenever its pasteboard held no string, and
+since `pollClipboard` leaves `lastClipboardTimestamp` at the last text's time, that reads to the
+phone as a newer, empty clip — **wiping the phone's clipboard on the next reconnect**. The Mac now
+omits `content` when it has no text, and both receivers ignore an empty `content` as they already
+ignored an absent one. Scope widened deliberately on 2026-11-02: it is data loss, it is the exact
+hazard this change's own requirement names, and the fix is two lines.
 
 **Protocol:** `protocol/test-vectors/clipboard-connect.json` gains a timestamp-only vector.
 

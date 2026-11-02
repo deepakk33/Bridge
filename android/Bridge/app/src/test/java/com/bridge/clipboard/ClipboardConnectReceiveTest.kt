@@ -56,6 +56,20 @@ class ClipboardConnectReceiveTest {
     }
 
     @Test
+    fun `an empty clip is ignored, never applied`() {
+        val packet = vector("clipboard_connect_empty_content")
+        assertEquals("", packet.body["content"]?.jsonPrimitive?.content)
+
+        val bridge = bridge()
+        val before = bridge.lastClipboardTimestamp
+
+        // Were an empty clip applied, this would reach the absent clipboard service and throw.
+        bridge.handleClipboardConnectPacket(packet)
+
+        assertEquals(before, bridge.lastClipboardTimestamp)
+    }
+
+    @Test
     fun `the timestamp-only vector still parses as a connect packet`() {
         val packet = vector("clipboard_connect_timestamp_only")
         assertEquals("bridge.clipboard.connect", packet.type)
