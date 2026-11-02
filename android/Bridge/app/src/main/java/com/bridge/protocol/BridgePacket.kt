@@ -209,14 +209,19 @@ data class BridgePacket(
             }
         )
 
-        fun clipboardConnect(content: String, timestamp: Long): BridgePacket = BridgePacket(
+        /**
+         * The reconnect packet the phone sends: a timestamp and nothing else. The `content` key
+         * is absent rather than empty — both receivers ignore a packet without it, but an empty
+         * string reads as a newer, empty clip and would clear the peer's clipboard.
+         */
+        fun clipboardConnect(timestamp: Long): BridgePacket = BridgePacket(
             id = System.currentTimeMillis(),
             type = "bridge.clipboard.connect",
             body = buildJsonObject {
-                put("content", content)
                 put("timestamp", timestamp)
             }
         )
+
     }
 }
 

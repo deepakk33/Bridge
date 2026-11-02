@@ -235,7 +235,7 @@ class L2capServer(
                 val replyId = packet.body["requestReplyId"]?.jsonPrimitive?.content
                 val message = packet.body["message"]?.jsonPrimitive?.content
                 if (replyId != null && message != null) {
-                    handlers.onNotificationReply?.invoke(replyId, message)
+                    handlers.onNotificationReply.orWarn(packet.type)?.invoke(replyId, message)
                 } else {
                     Log.w(TAG, "Invalid notification.reply packet")
                 }
@@ -243,19 +243,19 @@ class L2capServer(
             "bridge.notification.request" -> {
                 val cancel = packet.body["cancel"]?.jsonPrimitive?.content
                 if (cancel != null) {
-                    handlers.onNotificationRequest?.invoke(cancel)
+                    handlers.onNotificationRequest.orWarn(packet.type)?.invoke(cancel)
                 } else {
                     Log.w(TAG, "Invalid notification.request packet")
                 }
             }
             "bridge.clipboard" -> {
-                handlers.onClipboardReceived?.invoke(packet)
+                handlers.onClipboardReceived.orWarn(packet.type)?.invoke(packet)
             }
             "bridge.clipboard.connect" -> {
-                handlers.onClipboardConnectReceived?.invoke(packet)
+                handlers.onClipboardConnectReceived.orWarn(packet.type)?.invoke(packet)
             }
             "bridge.share.request" -> {
-                handlers.onShareRequest?.invoke(packet)
+                handlers.onShareRequest.orWarn(packet.type)?.invoke(packet)
             }
             "bridge.notification" -> {
                 Log.d(TAG, "Received bridge.notification — not applicable on phone side")
@@ -265,6 +265,15 @@ class L2capServer(
             }
             else -> Log.w(TAG, "Unknown packet type: ${packet.type}")
         }
+    }
+
+    /**
+     * A null handler used to make a packet vanish without a trace: received, parsed, admitted by
+     * the trust gate, then dropped in silence. BR-16 cost an afternoon to that. Say so instead.
+     */
+    private fun <T : Any> T?.orWarn(type: String): T? {
+        if (this == null) Log.w(TAG, "No handler registered for $type — packet dropped")
+        return this
     }
 
     private fun handleIdentityPacket(packet: BridgePacket) {

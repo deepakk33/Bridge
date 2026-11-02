@@ -30,33 +30,37 @@
 
 ## 3. Android — make a dropped packet visible
 
-- [ ] 3.1 Add a private helper in `L2capServer` that logs at warn with the packet type when an
+- [x] 3.1 Add a private helper in `L2capServer` that logs at warn with the packet type when an
       optional handler is null, and use it at every dispatch site that invokes one. Leave the
       `else -> Unknown packet type` arm unchanged. Verify `./gradlew test assembleDebug` is green;
       the warn line itself is confirmed on device in task 6.4.
 
 ## 4. Shared — the reconnect packet drops its clipboard text
 
-- [ ] 4.1 Add a `clipboard_connect_timestamp_only` vector to
+- [x] 4.1 Add a `clipboard_connect_timestamp_only` vector to
       `protocol/test-vectors/clipboard-connect.json`: a valid `bridge.clipboard.connect` body with
       `timestamp` and **no** `content` key. Verify the file parses as JSON.
-- [ ] 4.2 Android: extend the clipboard packet test so the new vector round-trips, and add a case
+- [x] 4.2 Android: extend the clipboard packet test so the new vector round-trips, and add a case
       asserting `handleClipboardConnectPacket` leaves the clipboard unchanged for a newer-timestamp
       packet with no `content` — and that it does *not* treat it as an empty clip. Verify
       `./gradlew test` fails on the second case before 4.3.
-- [ ] 4.3 Give `BridgePacket.clipboardConnect` a timestamp-only form that omits `content`, and have
+      *Done as `ClipboardConnectReceiveTest`. `ClipboardBridge` could not be constructed in a JVM
+      test (eager `getSystemService` cast, no mocking library); resolved its clipboard service
+      lazily instead, and the test builds a `ContextWrapper(null)`, so no test dependency was
+      added. Teeth confirmed by mutating the guard to `?: ""` — the test fails.*
+- [x] 4.3 Give `BridgePacket.clipboardConnect` a timestamp-only form that omits `content`, and have
       `ClipboardBridge.makeConnectPacket()` use it; drop the now-dead cap/`lastSend` bookkeeping
       from that function only if nothing else reads it. Verify `./gradlew test assembleDebug` turns
       4.2 green.
-- [ ] 4.4 Mac: add a `ClipboardMonitor` test that a `bridge.clipboard.connect` with a newer
+- [x] 4.4 Mac: add a `ClipboardMonitor` test that a `bridge.clipboard.connect` with a newer
       timestamp and no `content` leaves `NSPasteboard` untouched, driven from the same vector.
       Verify `xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge test` passes. No Mac
       source change is expected — if one is needed, stop and say so.
 
 ## 5. Specs and docs
 
-- [ ] 5.1 Run `openspec validate br-16-bridgeservice-connection-lifecycle` and read the output.
-- [ ] 5.2 Confirm no text outside the change folder still defers the reconnect question to BR-16
+- [x] 5.1 Run `openspec validate br-16-bridgeservice-connection-lifecycle` and read the output.
+- [x] 5.2 Confirm no text outside the change folder still defers the reconnect question to BR-16
       (`grep -rn 'BR-16' openspec/ docs/`), so the criterion about the exception clause can be
       checked at wrap.
 

@@ -1,5 +1,5 @@
 {
-  "description": "Valid bridge.clipboard.connect packets for iter-4 reconnect sync",
+  "description": "Valid bridge.clipboard.connect packets for reconnect sync. Since BR-16 the phone sends the timestamp-only form: a reconnect is not a user asking for a send.",
   "valid": [
     {
       "name": "clipboard_connect_normal",
@@ -44,6 +44,20 @@
       "expectedFields": {
         "content": "",
         "timestamp": 1697300002000
+      }
+    },
+    {
+      "name": "clipboard_connect_timestamp_only",
+      "comment": "What the phone sends on reconnect since BR-16: no content key at all. A receiver must ignore it, not read it as an empty clipboard.",
+      "packet": {
+        "id": 1697300003000,
+        "type": "bridge.clipboard.connect",
+        "body": {
+          "timestamp": 1697300002500
+        }
+      },
+      "expectedFields": {
+        "timestamp": 1697300002500
       }
     }
   ]

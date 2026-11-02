@@ -45,8 +45,9 @@ class ClipboardBridge(
     var lastSend: SendOutcome? = null
         private set
 
-    private val clipboardManager =
+    private val clipboardManager by lazy {
         context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    }
 
     var isConnected = false
         private set
@@ -156,11 +157,13 @@ class ClipboardBridge(
         }
     }
 
-    fun makeConnectPacket(): BridgePacket {
-        val capped = ClipboardCap.apply(getCurrentClipText() ?: "")
-        lastSend = if (capped.truncated) SendOutcome(capped.originalBytes, true) else null
-        return BridgePacket.clipboardConnect(capped.text, lastClipboardTimestamp)
-    }
+    /**
+     * Reconnecting is not the user asking for a send (BR-9, BR-16), so this carries the
+     * timestamp and no clip. The Mac still sends its own text, so Mac-to-phone convergence is
+     * unaffected; phone-to-Mac stays on the tile and the in-app control.
+     */
+    fun makeConnectPacket(): BridgePacket =
+        BridgePacket.clipboardConnect(lastClipboardTimestamp)
 
     fun onConnectionReady() {
         isConnected = true
