@@ -36,7 +36,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-17 | Media control: drive the phone's player from the Mac | ready | |
 | BR-18 | Notifications: the app list is thin and new apps are not mirrored | idea | |
 | BR-19 | Pairing and link hardening left over from BR-4+BR-5 | done | `work/br-19-pairing-and-link-hardening` |
-| BR-20 | Android: a BLE restart silently unregisters every packet handler | ready | |
+| BR-20 | Android: a BLE restart silently unregisters every packet handler | in-progress | `work/br-20-ble-restart-loses-handlers` |
 | BR-21 | Mac: the single-instance guard misses a different bundle path | ready | |
 | BR-22 | Pairing: 30 seconds is not long enough to compare six digits | ready | |
 | BR-23 | File transfer: the Tier 3 payload handshake fails before certificates | ready | |
