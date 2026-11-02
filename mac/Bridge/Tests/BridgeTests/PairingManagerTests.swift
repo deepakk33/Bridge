@@ -37,6 +37,58 @@ final class PairingManagerTests: XCTestCase {
         return false
     }
 
+    // MARK: - The confirmation does not depend on arrival order (BR-19)
+
+    /// `setLocalFingerprint` is delivered by a detached Task in BLEManager, so an
+    /// identity packet can beat it. The old code logged an error and returned, leaving
+    /// pairing silently impossible for the life of the connection.
+    func testIdentityBeforeLocalFingerprintStillRaisesTheConfirmation() {
+        let late = PairingManager()
+        late.configure(localDeviceId: "mac-1") { _ in }
+
+        late.setPeerIdentity(
+            deviceId: "phone-1", deviceName: "Galaxy S25", fingerprint: phoneFingerprint
+        )
+        XCTAssertNil(late.incomingPairRequest, "no code can be derived yet")
+
+        late.setLocalFingerprint(macFingerprint)
+
+        let request = late.incomingPairRequest
+        XCTAssertNotNil(request, "the held request must be presented once the fingerprint lands")
+        XCTAssertEqual(request?.deviceId, "phone-1")
+        XCTAssertEqual(
+            request?.verificationCode,
+            PairingCode.derive(macFingerprint, phoneFingerprint),
+            "the digits must match the ones the phone shows"
+        )
+    }
+
+    /// A peer that disconnects while its request is held must not produce a prompt for
+    /// a connection that is gone.
+    func testAHeldRequestIsDroppedOnReset() {
+        let late = PairingManager()
+        late.configure(localDeviceId: "mac-1") { _ in }
+
+        late.setPeerIdentity(
+            deviceId: "phone-1", deviceName: "Galaxy S25", fingerprint: phoneFingerprint
+        )
+        late.reset()
+        late.setLocalFingerprint(macFingerprint)
+
+        XCTAssertNil(late.incomingPairRequest, "a held request must not survive a disconnect")
+    }
+
+    /// The ordinary order keeps working.
+    func testLocalFingerprintFirstPresentsImmediately() {
+        identifyUnknownPhone()
+
+        XCTAssertNotNil(manager.incomingPairRequest)
+        XCTAssertEqual(
+            manager.incomingPairRequest?.verificationCode,
+            PairingCode.derive(macFingerprint, phoneFingerprint)
+        )
+    }
+
     // MARK: - Both decisions required, either order
 
     func testLocalThenRemoteAcceptPins() {

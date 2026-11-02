@@ -65,6 +65,11 @@ final class PairingManager: ObservableObject {
     /// synchronous UI path where the code is needed.
     private(set) var localFingerprint: String?
 
+    /// A peer confirmed before `localFingerprint` arrived. The two can land in either
+    /// order — the fingerprint comes from an actor, the identity from the wire — and
+    /// dropping the peer left pairing silently impossible for the connection.
+    private var deferredConfirmation: (deviceId: String, deviceName: String, fingerprint: String)?
+
     /// Crossed initiation: both sides sent a request at once. The lower deviceId
     /// stays the initiator, the other yields and accepts, so exactly one accept
     /// flows and both sides pin. Equal (or unknown local) ids make both yield,
@@ -80,6 +85,12 @@ final class PairingManager: ObservableObject {
 
     func setLocalFingerprint(_ fingerprint: String) {
         localFingerprint = fingerprint
+        guard let peer = deferredConfirmation else { return }
+        deferredConfirmation = nil
+        Self.logger.info("Local fingerprint arrived — presenting the held confirmation")
+        presentPairConfirmation(
+            deviceId: peer.deviceId, deviceName: peer.deviceName, fingerprint: peer.fingerprint
+        )
     }
 
     /// The six digits for the peer currently being confirmed, or nil when there is none.
@@ -169,6 +180,7 @@ final class PairingManager: ObservableObject {
         peerDeviceName = nil
         peerFingerprint = nil
         incomingPairRequest = nil
+        deferredConfirmation = nil
         resetDecisions()
         if case .paired = state {} else {
             state = .unpaired
@@ -257,7 +269,10 @@ final class PairingManager: ObservableObject {
     private func presentPairConfirmation(deviceId: String, deviceName: String, fingerprint: String) {
         guard localDecision == .pending else { return }
         guard let local = localFingerprint else {
-            Self.logger.error("Cannot derive a verification code without a local fingerprint")
+            // Held, not dropped: `setLocalFingerprint` presents it the moment the
+            // Keychain read lands. Cleared by `reset()` if the peer leaves first.
+            Self.logger.info("No local fingerprint yet — holding the confirmation for \(deviceName)")
+            deferredConfirmation = (deviceId, deviceName, fingerprint)
             return
         }
         incomingPairRequest = PairRequestInfo(

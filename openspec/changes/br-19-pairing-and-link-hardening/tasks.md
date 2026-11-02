@@ -50,10 +50,10 @@
 
 ## 6. Mac — a confirmation that waits for the fingerprint
 
-- [ ] 6.1 Write the failing test in `PairingManagerTests`: set the peer identity before
+- [x] 6.1 Write the failing test in `PairingManagerTests`: set the peer identity before
       `setLocalFingerprint`, and assert `incomingPairRequest` is non-nil with the correct six
       digits once the fingerprint arrives. Verify it fails today
-- [ ] 6.2 Add `deferredConfirmation` to `PairingManager`, replay it from `setLocalFingerprint`,
+- [x] 6.2 Add `deferredConfirmation` to `PairingManager`, replay it from `setLocalFingerprint`,
       and clear it in `reset()`; verify 6.1 passes and a test asserting no prompt appears after
       `reset()` also passes
 
