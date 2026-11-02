@@ -117,6 +117,26 @@ bytes, a reply carrying `replyTo` as 75.
   two; and it occurs symmetrically in a direction where the Mac is the client and in one where
   it is the server.
 
+  **The Local Network permission is a red herring, and the panel row that suggested it is
+  cosmetic.** `PermissionChecker.setLocalNetwork(_:)` has no callers anywhere in the source, so
+  `localNetworkStatus` keeps its initial `.notRequested` value for the life of the process and
+  the panel reports "Local Network — Not Requested" whatever the real authorization is. macOS
+  exposes no API to read that authorization, which is why the field is a stored belief rather
+  than a query. Its `settingsURL`
+  (`x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork`) also lands on
+  the Privacy root rather than the Local Network pane on macOS 26.6.2. Both belong to BR-11
+  ("Mac: Local Network status, accessibility, label stability"), already `ready` in the backlog.
+
+  What the logs do establish is that the handshake fails *before certificates are exchanged*:
+  the Mac's verify block logs on mismatch (`Payload peer fingerprint … does not match the pin`)
+  and on an absent certificate, and neither line appears in any of the four attempts. A
+  protocol-level TLS failure cannot be a pinning failure.
+
+  That is also the strongest positive evidence available for the fix short of a completed
+  transfer: **with the decoy pin sitting first in a two-entry trust store, the Mac never once
+  rejected the phone's certificate.** A lookup that returned the decoy would have logged exactly
+  that rejection.
+
   Reaching `Fetching …` does show `pairedPeerParameters(for:)` resolving the sender's `deviceId`
   against a two-entry store without throwing, but that does not discriminate the fix — the old
   code would also have found *a* pin. Only a completed handshake discriminates, and the
