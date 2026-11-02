@@ -1,5 +1,6 @@
 package com.bridge.filetransfer
 
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
@@ -9,6 +10,7 @@ import java.io.InputStream
 import java.net.ServerSocket
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLServerSocket
+import javax.net.ssl.SSLSocket
 
 /**
  * Out-of-band TCP payload server (KDE Connect payload mechanism).
@@ -38,6 +40,7 @@ class PayloadServer private constructor(
         this(file.length(), { file.inputStream() }, timeoutMs, sslContext)
 
     companion object {
+        private const val TAG = "PayloadServer"
         private const val CHUNK = 64 * 1024
     }
 
@@ -58,15 +61,17 @@ class PayloadServer private constructor(
     }
 
     /**
-     * Accept one connection, stream the payload, close. Returns bytes served.
-     * Throws [java.net.SocketTimeoutException] if no connection arrives in time.
+     * Serve the payload to the first peer that completes the pinned handshake, then close.
+     * Returns bytes served. Throws [java.net.SocketTimeoutException] if none arrives in time.
+     *
+     * A connection that fails the handshake is discarded and the next one is accepted: on a
+     * shared network a stranger reaching the port must not cost the real peer its transfer.
      */
     suspend fun serve(onProgress: (sent: Long, total: Long) -> Unit = { _, _ -> }): Long =
         withContext(Dispatchers.IO) {
             val socket = serverSocket ?: throw IllegalStateException("serve() called before bind()")
             try {
-                socket.accept().use { client ->
-                    client.soTimeout = timeoutMs
+                acceptVerified(socket as SSLServerSocket).use { client ->
                     openSource().use { input ->
                         client.getOutputStream().use { out ->
                             val buffer = ByteArray(CHUNK)
@@ -87,6 +92,26 @@ class PayloadServer private constructor(
                 close()
             }
         }
+
+    /** Accept until one peer completes the handshake, or the deadline passes. */
+    private fun acceptVerified(socket: SSLServerSocket): SSLSocket {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (true) {
+            val remaining = deadline - System.currentTimeMillis()
+            if (remaining <= 0) throw java.net.SocketTimeoutException("no verified peer connected")
+            socket.soTimeout = remaining.toInt()
+            val client = socket.accept() as SSLSocket
+            client.soTimeout = timeoutMs
+            try {
+                client.startHandshake()
+                return client
+            } catch (e: IOException) {
+                // Not the peer we are waiting for; keep the port open for the one that is.
+                Log.w(TAG, "Discarding a payload connection that failed the handshake: ${e.message}")
+                try { client.close() } catch (_: IOException) {}
+            }
+        }
+    }
 
     fun close() {
         try {

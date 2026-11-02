@@ -57,7 +57,7 @@
       traversal. Verify `./gradlew test`.
 - [x] 5.2 Apply the same `payloadSize` cap before committing resources, test first. Verify
       `./gradlew test`.
-- [ ] 5.3 Restrict `PayloadServer` to the requesting pinned peer. Verify `./gradlew test`.
+- [x] 5.3 Restrict `PayloadServer` to the requesting pinned peer. Verify `./gradlew test`.
 - [ ] 5.4 Announce before writing, with a decline, and surface a failed receive — reusing
       `TransferNotifier` rather than adding a surface. Verify `./gradlew test assembleDebug`.
 - [x] 5.5 Add a shared vector or fixture for the traversal and oversize cases so both platforms are
