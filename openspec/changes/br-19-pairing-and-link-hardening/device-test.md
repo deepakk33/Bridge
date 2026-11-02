@@ -29,6 +29,24 @@ The link was continuously open from 11:51:32.5 to past 11:54:02 — over 2.5 min
 confirmation unanswered. Before this change the Mac sent nothing in reply and the probe closed
 the socket after 3 s, every time.
 
+The sheet was still answerable after 7.5 minutes open: at 11:59:06.735 the Mac logged
+`PairingManager: Accepted locally, awaiting <peer>` for the confirmation raised at 11:51:32.499,
+and the phone raised its own prompt 84 ms later. Nothing about the long wait had staled it.
+
+## Criterion 3 (part) — the six digits agree across the two screens
+
+**PASS, by eye.** With the Mac's confirmation and the phone's confirmation both on screen at
+11:59:06, the operator confirmed the same six digits on both devices. Not readable from the
+logs, which print the fingerprint but never the derived code (by design — the code is never
+transmitted and never logged).
+
+## Observed, outside BR-19's scope — the 30-second pairing timeout is short for a human
+
+A pairing where the operator compared the digits across two physical screens before answering
+hit `Peer did not answer in time — giving up locally` at 11:59:38.743, 32 s after accepting on
+the Mac. BR-5 sets that timeout and BR-19 does not touch it, but a human cross-checking six
+digits on a second device is the normal case, not a slow one. Worth a backlog item.
+
 ## Criterion 4 (task 9.4) — ping cadence, no storm
 
 **PASS.** Four complete cycles, exactly 30 s apart, one ping and one reply in each direction:
@@ -68,6 +86,15 @@ bytes, a reply carrying `replyTo` as 75.
   It did not contaminate the evidence above: pid 8898 never had an L2CAP channel
   (`sendPacket failed: no l2capChannel`), so every packet logged came from pid 6254, and
   killing 8898 left the link and the heartbeat undisturbed (pings continued at 11:56:02).
+
+- **The two-instance hazard is real and bit this run.** After both Mac instances had been
+  quit, every subsequently launched Bridge process failed to scan: no `Bluetooth powered on`
+  line, zero `Discovered` lines, and `Link health: disconnected` ten seconds in — the initial
+  `LinkState` value, because `startScanning()` is only reached from
+  `centralManagerDidUpdateState` on `poweredOn`, which never fired. Two restarts (pids 12024 and
+  12588) behaved identically while system Bluetooth reported `State: On`. This matches the
+  `stop scan` / `updateScanParams:YES` poisoning described in CLAUDE.md, and recovery needed a
+  Bluetooth power cycle. It follows directly from the `SingleInstanceGuard` gap above.
 
 ## Not yet run
 
