@@ -9,7 +9,7 @@
       connect from the phone (`adb shell` or a scratch app), then the reverse. Verify by recording
       which directions carried bytes. This separates "macOS blocks the connection" from "the TLS
       handshake fails".
-- [ ] 1.3 If 1.1/1.2 show the network path is clean, instrument the handshake: log on the Mac when
+- [x] 1.3 If 1.1/1.2 show the network path is clean, instrument the handshake: log on the Mac when
       the listener accepts a connection and when state changes, and enable TLS diagnostics on both
       sides. Verify by capturing a logged accept (or a logged absence of one) during a real
       attempt.

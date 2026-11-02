@@ -143,37 +143,55 @@ Phone→Mac, 716800 B, both devices on one LAN, driven over adb through `ShareRe
 | 16:04:17.949 | phone | `SSLHandshakeException: Read error … I/O error during system call` |
 | 16:04:47.962 | Mac | `Payload client timed out after 30.000000s` |
 
-### The contradiction that has to be resolved next
+### Settled by packet capture, 2026-11-02 16:09
 
-Network.framework's own log for that connection:
+`sudo tcpdump -i en0`, Mac serving (`192.168.0.143:54336`), phone fetching (`192.168.0.6:43586`):
 
 ```
-nw_endpoint_handler_cancel [C3 IPv4#…:45995 waiting parent-flow
-  (satisfied (Path is satisfied), viable, interface: en0[802.11], ipv4, dns, uses wifi, LQM: good)]
-reporting state cancelled error server closed session with no notification
+16:09:31.978  phone > Mac   [S]            SYN
+16:09:31.979  Mac   > phone [S.]           SYN-ACK
+16:09:31.987  phone > Mac   [.]            ACK          — TCP established
+16:09:31.987  phone > Mac   [P.] len 138   ClientHello
+16:09:31.993  Mac   > phone [P.] len 656   server flight
+16:09:32.006  phone > Mac   [.] ack 657    phone ACKs the whole flight
+16:09:32.028  phone > Mac   [F.]           phone closes — 22 ms later, no TLS alert
+16:09:32.028  Mac   > phone [R.]           reset
 ```
 
-The Mac's connection was still in **`waiting`** when its own 30 s timeout cancelled it — it never
-reached `ready` — while the path was satisfied and viable throughout. `PayloadTLS`'s verify block
-never logged, consistent with no handshake having started.
+**Ruled out: macOS Local Network authorization.** TCP completes and 656 bytes flow from the Mac
+to the phone. Nothing is being blocked. The Privacy & Security pane lists no entry for Bridge,
+consistent with the permission never being the obstacle. The earlier `waiting`-state reading came
+from the pre-Wi-Fi run and does not describe this one.
 
-But the phone's server *accepted* a connection and then failed reading 1.5 s later. A connection
-cannot both be unestablished at the Mac and accepted at the phone, so one of these is true:
+**Localised: the phone's TLS client aborts on the Mac's first flight.** It ACKs all 656 bytes,
+then closes 22 ms later with a bare FIN and **no TLS alert**. A bare FIN is the application
+closing the socket, which is exactly what `PayloadClient.connect()`'s catch block does — so the
+phone threw during `startHandshake()` and tore the socket down. That matches the phone-side
+`SSLHandshakeException: Read error … I/O error during system call, Success`.
 
-1. the TCP connection completed and Network.framework reports `waiting` for a connection stuck
-   before TLS — in which case no ClientHello was sent, and the phone saw a silent peer; or
-2. the phone accepted something that was not this connection, and the Mac's TCP never completed —
-   which points at macOS Local Network authorization for the Bridge bundle specifically. The
-   terminal test above does not cover this: that permission is per-application, and `nc` proves
-   only that *Terminal* has it.
+The size of the flights says the two negotiated TLS 1.2: 656 bytes is a TLS 1.2
+ServerHello + Certificate + ServerKeyExchange + CertificateRequest + ServerHelloDone with a small
+EC certificate, and a 138-byte ClientHello is a restricted TLS 1.2 offer — consistent with
+`CertificateManager.createSSLContext` pinning `SSLContext.getInstance("TLSv1.2")`.
 
-A packet capture on `en0` filtered to the payload port settles this in one run: either a ClientHello
-leaves the Mac or it does not. `tcpdump` needs privileges this session does not hold.
+The Mac's verify block never logging is now explained rather than mysterious: the Mac never
+receives a client certificate, because the phone quits before sending one.
 
-**Current best hypothesis: (2), Local Network authorization for Bridge.** It explains the
-`waiting` state under a satisfied path, the absent verify-block log, the 30 s timeout rather than a
-refusal, and BR-19's symmetric failures. It is not yet established, and the fix is not started
-until it is.
+**So the fault is on the phone's side of client authentication**, in responding to the Mac's
+`CertificateRequest`. Candidates, in order of likelihood, none yet confirmed:
+
+1. The phone's `KeyManager` finds no acceptable client certificate — the Mac's `CertificateRequest`
+   carries acceptable-CA names, and the phone's self-signed certificate matches none of them, so
+   conscrypt selects nothing and the handshake fails locally.
+2. A signature-algorithm mismatch for `CertificateVerify`: the AndroidKeyStore key is EC P-256
+   restricted to `DIGEST_SHA256`, and the Mac's request may not offer a compatible algorithm.
+3. The AndroidKeyStore private key cannot sign in this context.
+
+### What settles it
+
+The phone-side exception's full cause chain, or a decoded handshake. A `tcpdump -w` capture of the
+same exchange would name the alert-free failure precisely: the `CertificateRequest`'s
+acceptable-CA list and signature algorithms are both visible in the Mac's 656-byte flight.
 
 ## Open Questions
 
