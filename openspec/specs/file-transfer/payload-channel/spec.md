@@ -119,6 +119,10 @@ self-signed certificate and SHALL verify the peer's certificate against the fing
 for that `deviceId` at pairing time. Verification SHALL be by pinned fingerprint only; no
 certificate authority, hostname check, or system trust store takes part in the decision.
 
+The `deviceId` SHALL be the identity of the peer on the control connection that requested or
+offered the transfer. It SHALL NOT be derived from the contents of the trust store, which may
+hold more than one device and holds them in no particular order.
+
 A payload connection SHALL NOT be served to, or accepted from, a peer with no pinned fingerprint.
 
 #### Scenario: Paired peers transfer over TLS
@@ -126,6 +130,13 @@ A payload connection SHALL NOT be served to, or accepted from, a peer with no pi
 - **WHEN** two paired devices transfer a file over Tier 2, Tier 3 or Tier 4
 - **THEN** the payload connection completes a mutual TLS handshake, both fingerprints match their
   pins, and the file bytes flow inside the TLS session
+
+#### Scenario: More than one device is pinned
+
+- **WHEN** the trust store holds pins for two or more devices and a transfer is requested by one
+  of them
+- **THEN** the payload handshake is verified against the pin for that requesting device's
+  `deviceId`, and a certificate matching a different pinned device is refused
 
 #### Scenario: An observer on the network sees only ciphertext
 

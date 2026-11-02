@@ -35,7 +35,11 @@ place a work item is born. One row per item, one detail block per row.
 | BR-16 | Clipboard: decide whether reconnect should push the phone's clip | ready | |
 | BR-17 | Media control: drive the phone's player from the Mac | ready | |
 | BR-18 | Notifications: the app list is thin and new apps are not mirrored | idea | |
-| BR-19 | Pairing and link hardening left over from BR-4+BR-5 | in-progress | `work/br-19-pairing-and-link-hardening` |
+| BR-19 | Pairing and link hardening left over from BR-4+BR-5 | done | `work/br-19-pairing-and-link-hardening` |
+| BR-20 | Android: a BLE restart silently unregisters every packet handler | ready | |
+| BR-21 | Mac: the single-instance guard misses a different bundle path | ready | |
+| BR-22 | Pairing: 30 seconds is not long enough to compare six digits | ready | |
+| BR-23 | File transfer: the Tier 3 payload handshake fails before certificates | ready | |
 
 All of BR-2…BR-12 come from [AUDIT-2026-10-26.md](AUDIT-2026-10-26.md), which holds the
 evidence, file:line references and reproduction for each. The audit's own ordering
@@ -647,3 +651,78 @@ that already spanned two backlog rows.
       fingerprint is ready
 **Notes**: from the `code-review` pass on BR-4+BR-5, 2026-10-30. The five other findings from
 that review were fixed in that branch.
+
+### BR-20 — Android: a BLE restart silently unregisters every packet handler
+
+**Scope**: `BridgeService.restartBlePeripheral()` rebuilds `BlePeripheral` but re-registers only
+`setPairConfirmationHandler`; every other handler is lost.
+**Why**: `onShareRequest?.invoke(packet)` on a null handler is a no-op with no log, so after any
+BLE restart the phone silently ignores Mac→phone file transfers, notification replies, clipboard
+and notification requests. Observed live during BR-19 testing (PSM 157 → 158); the Mac sent
+`bridge.share.request`, the phone logged nothing at all, and the Mac's payload server timed out
+three times before the cause was found.
+
+**Platforms**: Android
+**Done when**:
+- [ ] every handler registered at service start survives `restartBlePeripheral()`
+- [ ] a Mac→phone file transfer works after a BLE restart, verified on hardware
+- [ ] an unhandled packet type is logged rather than silently dropped
+**Notes**: from BR-19 device testing, 2026-11-02. The silent no-op is as much the bug as the
+lost registration — it cost most of an afternoon to find. Consider registering handlers inside
+`BlePeripheral.start()` or a single `configure()` both call sites share.
+
+### BR-21 — Mac: the single-instance guard misses a different bundle path
+
+**Scope**: `SingleInstanceGuard` detected a second copy of the same bundle but not
+`/Applications/Bridge.app` running beside a DerivedData build.
+**Why**: two Bridge instances is exactly what BR-14 exists to prevent. Both ran for ~2 minutes;
+when one quit it wedged `bluetoothd`, and no later Bridge process could scan at all — no
+`Bluetooth powered on`, zero discoveries, `Link health: disconnected` — until Bluetooth was
+power-cycled by hand. That is the `stop scan` / `updateScanParams:YES` failure CLAUDE.md
+describes, reached through a gap the guard was supposed to close.
+
+**Platforms**: Mac
+**Done when**:
+- [ ] a second instance from a different bundle path hands over and exits, like a same-path one
+- [ ] verified by launching a DerivedData build while `/Applications/Bridge.app` runs
+**Notes**: from BR-19 device testing, 2026-11-02. Guarding on bundle identifier rather than
+bundle path is the likely fix; check what BR-14's guard actually keys on.
+
+### BR-22 — Pairing: 30 seconds is not long enough to compare six digits
+
+**Scope**: BR-5's pairing timeout expires while a human reads six digits off one device and
+compares them against another.
+**Why**: a pairing was lost to `Peer did not answer in time — giving up locally` 32 s after
+accepting on the Mac, with the operator doing exactly what the verification code is for. Cross-
+checking on a second physical screen is the normal case, not a slow one.
+
+**Platforms**: both
+**Done when**:
+- [ ] a pairing survives a realistic digit comparison across two devices
+- [ ] the timeout is either long enough or the prompt shows time remaining
+**Notes**: from BR-19 device testing, 2026-11-02. The timeout is specified in
+`openspec/specs/protocol/pairing/spec.md` ("30-second pairing timeout"), so the spec changes too.
+
+### BR-23 — File transfer: the Tier 3 payload handshake fails before certificates
+
+**Scope**: the mutual-TLS payload connection never completes on real hardware, in either
+direction, on a working shared network.
+**Why**: four attempts during BR-19 testing (Mac→phone and phone→Mac, 900 KB, both devices on
+192.168.0.x with clean ping) all failed. Mac serving: `PayloadServer timed out after 30s` while
+the phone reported `SSLHandshakeException: Read error … I/O error during system call`. Phone
+serving: the Mac reached `Fetching … from …:39045` then `PayloadClient timed out after 30s`,
+with the phone's server reporting the same `SSLException`. The Mac's verify block never logged —
+not a mismatch, not an absent certificate — so the handshake dies **before certificates are
+exchanged**. That points at protocol-level setup (cipher/version, the `NWParameters` TLS options,
+or the Conscrypt side), not at pinning. This blocked BR-19's task 9.2 from ever running.
+
+**Platforms**: both
+**Done when**:
+- [ ] a file transfers Mac→phone over Tier 3 and the bytes match by checksum
+- [ ] a file transfers phone→Mac over Tier 3 and the bytes match by checksum
+- [ ] with two devices pinned, the handshake verifies against the connected peer's pin
+      (BR-19's untested task 9.2, folded in here)
+**Notes**: from BR-19 device testing, 2026-11-02. Note that BR-11 covers the Local Network
+permission reporting, which misdirected the first pass of this investigation —
+`PermissionChecker.setLocalNetwork` has no callers, so that row is always "Not Requested"
+whatever the real authorization is. Rule the permission in or out properly before blaming TLS.
