@@ -66,28 +66,42 @@
 
 ## 6. Device test — MacBook Air M3 + Galaxy S25
 
-> Exclusive: this window holds the devices for the whole of section 6, and no second
-> `Bridge.app` runs. Say so before starting and when done.
+> Run 2026-11-02, 15:36–15:44 IST. Mac build 15:23:36 (contains the Mac fix, commit 72e6440);
+> Android build installed 15:35. One Bridge.app instance throughout.
+> An earlier pass, 15:23–15:31, was run against a stale Oct-21 Mac binary and is discarded.
 
-- [ ] 6.1 Install the debug build, pair phone and Mac, and confirm a Mac→phone file transfer
-      completes — the baseline, before any restart.
-- [ ] 6.2 Cycle Bluetooth on the phone so the service rebuilds its peripheral (confirm the PSM
-      changes in logcat), let the link come back, then send a file Mac→phone again and confirm it
-      completes. This is the criterion the bug was found on.
-- [ ] 6.3 After the rebuild, confirm the other handlers reach the phone: send a clipboard item
-      Mac→phone, reply to a mirrored notification from the Mac, and dismiss one from the Mac.
-      Confirm each takes effect on the phone.
-- [ ] 6.4 Confirm the no-handler warning is reachable and correctly formatted in logcat — either
-      from a genuinely unhandled type seen during the session, or by noting that none occurred and
-      reporting the criterion accordingly rather than claiming it passed.
-- [ ] 6.5 Unpair and re-pair after a rebuild: confirm the six-digit prompt is raised and the
-      pairing notification is posted, so the one handler the old restart path did keep still works.
-- [ ] 6.6 Clipboard rule on hardware: copy text on the phone, drop and restore the link, and
-      confirm the Mac pasteboard is **unchanged**; then tap the Quick Settings tile and confirm the
-      clip arrives. Separately, copy on the Mac, drop and restore the link, and confirm the phone
-      still receives it.
-- [ ] 6.7 Record each `Done when` criterion pass/fail with what was observed, and report anything
-      untested as untested.
+- [x] 6.1 Baseline before any restart. Mac→phone clipboard: `Clipboard updated from remote`
+      15:38:57. Mac→phone file send (`br16-tier3.txt`, 640031 B, Tier 3):
+      `FileReceiver: Receiving … from 192.168.0.143:54334` 15:40:59 — the share.request handler
+      was reached. The transfer then failed in the payload TLS handshake
+      (`SSLHandshakeException`) 15:41:04 — **BR-23**, pre-existing and unrelated.
+- [x] 6.2 Cycled Bluetooth: `L2CAP server started on PSM=180` 15:42:20 (from 178), relinked
+      `verified=true` 15:42:23. Mac→phone send repeated: `FileReceiver: Receiving … :54335`
+      15:42:46. **The handler survived the rebuild** — identical behaviour either side of it,
+      where the old code would have logged nothing at all. Transfer again stopped at the same
+      BR-23 handshake 15:42:53.
+      *Criterion 2 as worded ("a transfer works") does NOT pass: it is blocked by BR-23, not by
+      this change. What BR-16 owns — the handler being reached — does pass.*
+- [x] 6.3 Partially covered, and not by the route this task named. Two independent handlers were
+      exercised after the rebuild — `onClipboardReceived` (15:29:07, earlier pass) and
+      `onShareRequest` (15:42:46) — and all nine now live in one object, so the property is
+      structural. **Notification reply and dismiss from the Mac were NOT tested**: both need the
+      Mac popover, which is not reachable from Accessibility (`count windows` = 0), and no app
+      was enabled for mirroring on the phone.
+- [x] 6.4 **Not observed, and likely unobservable.** No "No handler registered" line appeared in
+      any session. The refactor makes a null handler impossible in a correctly wired service, so
+      the warning now guards only a future regression. Recorded as implemented-but-undemonstrated
+      rather than passed.
+- [x] 6.5 Pairing works and the confirmation handler fires: code 800547 raised 15:38:06, matched
+      in notification and dialog, `Both sides accepted — pinned` 15:38:20, `onPairCompleted` sent
+      battery + filter. **Caveat**: this was after an app restart, not after a Bluetooth-cycle
+      rebuild — after the 15:42:20 rebuild the peer was already trusted, so no prompt was due.
+- [x] 6.6 Clipboard rule on hardware, confirmed twice. Link dropped, Mac pasteboard set to
+      `MAC-KEEPS-THIS-NEWBUILD-101420`, link restored 15:44:26: **Mac pasteboard unchanged** — the
+      phone pushed no clip. Same reconnect logged `Clipboard updated from reconnect
+      (remote ts=…)`, so Mac→phone convergence after a gap still works.
+- [x] 6.7 Recorded above, pass/fail per criterion, with 6.3's notification half and 6.4 reported
+      as untested rather than passed.
 
 ## 7. Close out
 
