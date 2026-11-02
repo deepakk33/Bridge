@@ -20,12 +20,12 @@
 
 ## 3. Android — do not answer a reply
 
-- [ ] 3.1 Write the failing test first: `PingHandler.handle` on a packet carrying `replyTo`
+- [x] 3.1 Write the failing test first: `PingHandler.handle` on a packet carrying `replyTo`
       returns nothing. Verify it fails — the current handler answers everything
-- [ ] 3.2 Change Android `PingHandler.handle` to return `BridgePacket?` with the same guard, send
+- [x] 3.2 Change Android `PingHandler.handle` to return `BridgePacket?` with the same guard, send
       only a non-null result in `L2capServer.handlePacket`, and verify via
       `(cd android/Bridge && ./gradlew test)`
-- [ ] 3.3 Add `bridge.ping` to Android `PacketGate`'s always-allowed set, with a test that an
+- [x] 3.3 Add `bridge.ping` to Android `PacketGate`'s always-allowed set, with a test that an
       unverified peer's ping is accepted while `bridge.clipboard` from the same peer is dropped
 
 ## 4. Mac — pin the payload to the connected peer

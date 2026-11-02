@@ -222,8 +222,7 @@ class L2capServer(
 
         when (packet.type) {
             "bridge.ping" -> {
-                val response = PingHandler.handle(packet)
-                send(response, outputStream)
+                PingHandler.handle(packet)?.let { send(it, outputStream) }
             }
             "bridge.identity" -> handleIdentityPacket(packet)
             "bridge.pair" -> {

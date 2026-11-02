@@ -11,11 +11,13 @@ package com.bridge.security
 object PacketGate {
 
     /**
-     * The only packets a stranger may send, because they are the packets that establish
-     * identity and trust. Everything else, `bridge.ping` included, waits: answering a
-     * ping confirms a live Bridge endpoint to a peer that has not identified itself.
+     * The only packets a stranger may send: the two that establish identity and trust,
+     * plus the heartbeat. A ping carries no body, and both sides already send one to an
+     * unverified peer, so refusing to receive one hid nothing — it only stranded the
+     * link, because the 3-second probe needs a packet back and a pair confirmation can
+     * sit unanswered for minutes with nothing else to send (BR-19).
      */
-    private val ALWAYS_ALLOWED = setOf("bridge.identity", "bridge.pair")
+    private val ALWAYS_ALLOWED = setOf("bridge.identity", "bridge.pair", "bridge.ping")
 
     fun allows(
         packetType: String,
