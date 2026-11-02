@@ -33,9 +33,19 @@ final class PacketGateTests: XCTestCase {
         }
     }
 
-    /// Answering a ping confirms a live Bridge endpoint to a peer that has not identified itself.
-    func testPingIsNotExempt() {
-        XCTAssertFalse(allows("bridge.ping", nil, nil, trusted))
+    /// Inverted by BR-19. The phone's 3-second probe needs an answer while a pair
+    /// confirmation sits open, and the Mac already sends pings to an unverified peer,
+    /// so refusing to receive one stranded the link without hiding anything.
+    func testPingPassesFromAStranger() {
+        XCTAssertTrue(allows("bridge.ping", nil, nil, trusted))
+        XCTAssertTrue(allows("bridge.ping", nil, nil, nothingTrusted))
+    }
+
+    /// Exempting ping must not exempt anything else.
+    func testPingIsTheOnlyTypeAddedToTheExemptSet() {
+        XCTAssertEqual(
+            PacketGate.alwaysAllowed, ["bridge.identity", "bridge.pair", "bridge.ping"]
+        )
     }
 
     func testIdentifiedButUnpinnedPeerIsDropped() {

@@ -204,7 +204,7 @@ On confirmation each side pins the other's fingerprint. There is no password, no
 | `bridge.clipboard.connect` | Both | Content plus timestamp, sent on connect |
 | `bridge.share.request` | Both | filename, plus payload transfer info |
 | `bridge.battery` | Phone to Mac | currentCharge, isCharging |
-| `bridge.ping` | Both | Liveness check |
+| `bridge.ping` | Both | Liveness check. A received ping is answered with a `bridge.ping` carrying `replyTo` set to its `id`; a packet carrying `replyTo` is terminal and is never answered |
 
 **Versioning.** The identity packet carries a `protocolVersion` integer. Capability arrays, not the version number, decide what a peer may send, so adding a packet type never requires a version bump on both ends at once.
 

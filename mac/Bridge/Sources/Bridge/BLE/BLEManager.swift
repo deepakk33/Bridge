@@ -379,7 +379,9 @@ final class BLEManager: NSObject, ObservableObject {
 
         switch packet.type {
         case "bridge.ping":
-            PingHandler().handle(packet)
+            if let reply = PingHandler().handle(packet) {
+                _ = sendPacket(reply)
+            }
         case "bridge.identity":
             handleIdentityPacket(packet)
         case "bridge.pair":

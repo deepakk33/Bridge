@@ -1,5 +1,5 @@
 {
-  "description": "Valid bridge.ping packets for iter-2 watchdog testing",
+  "description": "bridge.ping packets. A packet in 'valid' is a plain ping and MUST be answered; a packet in 'reply' carries replyTo, is terminal, and MUST NOT be answered (BR-19).",
   "valid": [
     {
       "name": "simple_ping",
@@ -18,6 +18,20 @@
         "body": {}
       },
       "serialized": "{\"id\":1728000021000,\"type\":\"bridge.ping\",\"body\":{}}\n"
+    }
+  ],
+  "reply": [
+    {
+      "name": "reply_to_simple_ping",
+      "replyTo": 1728000020000,
+      "packet": {
+        "id": 1728000020100,
+        "type": "bridge.ping",
+        "body": {
+          "replyTo": 1728000020000
+        }
+      },
+      "serialized": "{\"id\":1728000020100,\"type\":\"bridge.ping\",\"body\":{\"replyTo\":1728000020000}}\n"
     }
   ]
 }

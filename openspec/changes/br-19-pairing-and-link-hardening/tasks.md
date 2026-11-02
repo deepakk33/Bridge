@@ -1,20 +1,20 @@
 ## 1. Shared — the ping reply contract
 
-- [ ] 1.1 Add ping/pong vectors to `protocol/` — a ping with no `replyTo` and a reply carrying
+- [x] 1.1 Add ping/pong vectors to `protocol/` — a ping with no `replyTo` and a reply carrying
       `replyTo` — and verify both platforms' packet tests load and assert them
-- [ ] 1.2 Record the reply rule in `docs/PRD.md`'s packet table (a `bridge.ping` with `replyTo`
+- [x] 1.2 Record the reply rule in `docs/PRD.md`'s packet table (a `bridge.ping` with `replyTo`
       is terminal), and verify the table lists no new packet type
 
 ## 2. Mac — answer the ping
 
-- [ ] 2.1 Write the failing test first in `PingPacketTests`: a plain ping yields a reply with
+- [x] 2.1 Write the failing test first in `PingPacketTests`: a plain ping yields a reply with
       `replyTo` equal to the ping's `id`, and a packet already carrying `replyTo` yields nil.
       Verify both fail against the current `-> Bool` signature
-- [ ] 2.2 Change `PingHandler.handle` to return `BridgePacket?` with the `replyTo` guard, and
+- [x] 2.2 Change `PingHandler.handle` to return `BridgePacket?` with the `replyTo` guard, and
       verify 2.1's tests pass via `xcodebuild ... -scheme Bridge test`
-- [ ] 2.3 Send the reply from `BLEManager`'s `case "bridge.ping"`, and verify the build is clean
+- [x] 2.3 Send the reply from `BLEManager`'s `case "bridge.ping"`, and verify the build is clean
       under Swift 6 strict concurrency with `xcodebuild ... -scheme Bridge build`
-- [ ] 2.4 Add `bridge.ping` to `PacketGate.alwaysAllowed` and update `PacketGateTests` — the
+- [x] 2.4 Add `bridge.ping` to `PacketGate.alwaysAllowed` and update `PacketGateTests` — the
       existing assertion that an unidentified peer's ping is refused now inverts; verify the
       suite passes and that no packet type other than identity/pair/ping became allowed
 
