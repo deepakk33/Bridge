@@ -49,26 +49,58 @@ When the Mac receives a `bridge.clipboard` packet from Android, it writes the te
 ---
 
 ### Requirement: Reconnect exchanges bridge.clipboard.connect with timestamp
-On every reconnect, both sides send a `bridge.clipboard.connect` packet carrying the current clipboard text and the epoch-millisecond timestamp of when that clipboard was last set.
+On every reconnect, both sides send a `bridge.clipboard.connect` packet carrying the
+epoch-millisecond timestamp of when that side's clipboard was last set.
+
+The Mac SHALL include its current pasteboard text in that packet when it has text to offer, and
+SHALL omit `content` when it does not. The phone SHALL always omit it: its packet carries the
+timestamp alone, because a reconnect is not a user asking for a send (see "Phone-to-Mac clipboard
+sends are user-initiated").
+
+A receiver SHALL ignore a packet whose `content` is absent **or empty**, rather than treat it as an
+empty clipboard. Neither side sends an empty `content`, and a receiver that applied one would clear
+the peer's clipboard.
+
+Platform constraint: this makes the reconnect exchange one-directional in effect. Mac→phone
+convergence after a gap is unchanged; phone→Mac convergence after a gap requires the user to tap
+the tile or the in-app send control.
 
 #### Scenario: Mac reconnects and has newer clipboard
-- **WHEN** the Mac reconnects and sends `bridge.clipboard.connect` with timestamp T1, and Android's `bridge.clipboard.connect` has timestamp T2 where T2 < T1
+- **WHEN** the Mac reconnects and sends `bridge.clipboard.connect` with content and timestamp T1,
+  and Android's clipboard was last set at T2 where T2 < T1
 - **THEN** Android overwrites its clipboard with the Mac's content
 
 #### Scenario: Android reconnects and has newer clipboard
-- **WHEN** Android reconnects and sends `bridge.clipboard.connect` with timestamp T1, and Mac's `bridge.clipboard.connect` has timestamp T2 where T2 < T1
-- **THEN** the Mac overwrites its pasteboard with Android's content
+- **WHEN** Android reconnects and its clipboard is newer than the Mac's
+- **THEN** Android's `bridge.clipboard.connect` carries its timestamp and no `content`, the Mac's
+  pasteboard is left alone, and the clip reaches the Mac only when the user taps the tile or the
+  in-app send control
+
+#### Scenario: A connect packet without content is ignored, not treated as empty
+- **WHEN** a `bridge.clipboard.connect` packet arrives with a newer timestamp and no `content`
+  field
+- **THEN** the receiver leaves its clipboard unchanged, and does not clear it
+
+#### Scenario: The Mac has no text on the pasteboard
+
+- **WHEN** the Mac reconnects while its pasteboard holds no string — an image, say, leaving its
+  last-set timestamp at the earlier text's time and therefore newer than the phone's
+- **THEN** its `bridge.clipboard.connect` omits `content`, and the phone's clipboard is left alone
+  rather than cleared
 
 #### Scenario: Equal timestamps on reconnect
-- **WHEN** both sides send `bridge.clipboard.connect` with the same timestamp (or timestamps within 100ms)
+- **WHEN** both sides send `bridge.clipboard.connect` with the same timestamp (or timestamps
+  within 100ms)
 - **THEN** neither side overwrites its clipboard (tie goes to no-op)
 
 #### Scenario: Reconnect does not cause ping-pong
 - **WHEN** Mac and Android reconnect and exchange `bridge.clipboard.connect`
-- **THEN** at most one side writes to its clipboard; writing does not trigger a second `bridge.clipboard` packet because the duplicate-content suppression prevents echo
+- **THEN** at most one side writes to its clipboard; writing does not trigger a second
+  `bridge.clipboard` packet because the duplicate-content suppression prevents echo
 
 #### Scenario: Stale clipboard with zero timestamp
-- **WHEN** one side sends `bridge.clipboard.connect` with timestamp 0 (unknown when clipboard was set)
+- **WHEN** one side sends `bridge.clipboard.connect` with timestamp 0 (unknown when clipboard was
+  set)
 - **THEN** the receiver ignores that content regardless of its own timestamp
 
 ---
@@ -174,12 +206,11 @@ clipboard from a received packet needs no permission.
 ### Requirement: Phone-to-Mac clipboard sends are user-initiated
 A phone-to-Mac send SHALL occur only when the user asks for it: the in-app send control or the
 Quick Settings tile. The app SHALL NOT send the clipboard as a side effect of being opened or
-brought to the foreground, and SHALL NOT send a clip that Bridge itself wrote from a Mac packet.
+brought to the foreground, SHALL NOT send it as a side effect of the link being re-established,
+and SHALL NOT send a clip that Bridge itself wrote from a Mac packet.
 
-The one exception is the `bridge.clipboard.connect` packet required by "Reconnect exchanges
-bridge.clipboard.connect with timestamp", which carries the phone's current clip on every
-connection and is therefore not user-initiated. Whether that exchange should be gated the same
-way is an open question, tracked as BR-16; this requirement does not resolve it.
+There is no exception. The `bridge.clipboard.connect` packet the phone sends on reconnect carries
+a timestamp and no clipboard text, so re-establishing the link moves no clip phone-ward.
 
 #### Scenario: Opening the app sends nothing
 - **WHEN** the user opens or returns to the Bridge app while connected, having copied
@@ -197,16 +228,12 @@ way is an open question, tracked as BR-16; this requirement does not resolve it.
 
 #### Scenario: Reconnect still exchanges clips
 - **WHEN** the link is re-established
-- **THEN** the phone sends its current clip in a `bridge.clipboard.connect` packet as the
-  reconnect requirement specifies, capped per the 10 KB rule — this change does not alter
-  that behaviour
+- **THEN** the phone's `bridge.clipboard.connect` packet carries its timestamp and no `content`
+  field, and the Mac pasteboard is unchanged by the reconnect
 
 #### Scenario: Incoming Mac clip still lands on focus
 - **WHEN** the app regains focus and a Mac clip is pending from while it was backgrounded
-- **THEN** the pending clip is still written to the phone clipboard — removing the outbound
-  send does not disable the inbound flush
-
----
+- **THEN** that clip is written to the phone clipboard, unchanged by this requirement
 
 ### Requirement: Clipboard card reflects the current sync state
 The Android app clearly communicates the clipboard sync state. The clipboard card SHALL

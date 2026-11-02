@@ -6,6 +6,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -96,27 +97,32 @@ class ClipboardPacketTest {
     }
 
     @Test
-    fun `clipboard connect factory`() {
-        val packet = BridgePacket.clipboardConnect("test", 1697300000000)
+    fun `clipboard connect factory carries no clipboard text`() {
+        val packet = BridgePacket.clipboardConnect(1697300000000)
         assertEquals("bridge.clipboard.connect", packet.type)
-        assertEquals("test", packet.body["content"]?.jsonPrimitive?.content)
         assertEquals(1697300000000, packet.body["timestamp"]?.jsonPrimitive?.long)
+        // Absent, not empty: an empty string reads as a newer empty clip and would clear
+        // the Mac's pasteboard. A missing key is ignored by both receivers.
+        assertFalse(
+            "the phone must not put its clip in a reconnect packet",
+            packet.body.containsKey("content")
+        )
     }
 
     @Test
     fun `clipboard connect round trip`() {
-        val original = BridgePacket.clipboardConnect("reconnect text", 1697299999500)
+        val original = BridgePacket.clipboardConnect(1697299999500)
         val serialized = String(original.serialize(), Charsets.UTF_8)
         val deserialized = BridgePacket.deserialize(serialized)
 
         assertEquals("bridge.clipboard.connect", deserialized.type)
-        assertEquals("reconnect text", deserialized.body["content"]?.jsonPrimitive?.content)
         assertEquals(1697299999500, deserialized.body["timestamp"]?.jsonPrimitive?.long)
+        assertFalse(deserialized.body.containsKey("content"))
     }
 
     @Test
     fun `clipboard connect zero timestamp`() {
-        val packet = BridgePacket.clipboardConnect("unknown", 0)
+        val packet = BridgePacket.clipboardConnect(0)
         assertEquals(0L, packet.body["timestamp"]?.jsonPrimitive?.long)
 
         val rt = BridgePacket.deserialize(String(packet.serialize(), Charsets.UTF_8))

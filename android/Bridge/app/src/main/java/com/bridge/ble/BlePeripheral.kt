@@ -27,6 +27,7 @@ import java.util.UUID
 
 class BlePeripheral(
     private val context: Context,
+    private val handlers: BleHandlers,
     private val onConnectionStateChanged: (ConnectionState) -> Unit
 ) {
 
@@ -112,58 +113,10 @@ class BlePeripheral(
         l2capServer?.probeLink()
     }
 
-    fun setNotificationReplyHandler(handler: (requestReplyId: String, message: String) -> Unit) {
-        l2capServer?.onNotificationReply = handler
-    }
-
-    fun setNotificationRequestHandler(handler: (cancel: String) -> Unit) {
-        l2capServer?.onNotificationRequest = handler
-    }
-
-    fun setClipboardHandler(handler: (com.bridge.protocol.BridgePacket) -> Unit) {
-        l2capServer?.onClipboardReceived = handler
-    }
-
-    fun setClipboardConnectHandler(handler: (com.bridge.protocol.BridgePacket) -> Unit) {
-        l2capServer?.onClipboardConnectReceived = handler
-    }
-
-    fun setShareRequestHandler(handler: (com.bridge.protocol.BridgePacket) -> Unit) {
-        onShareRequestHandler = handler
-        l2capServer?.onShareRequest = handler
-    }
-
-    fun setOnConnectHandler(handler: () -> Unit) {
-        onConnectHandler = handler
-    }
-
-    fun setOnPairCompletedHandler(handler: () -> Unit) {
-        l2capServer?.onPairCompleted = handler
-        onPairCompletedHandler = handler
-    }
-
-    /** Raised when a peer needs confirming, with the six digits the Mac shows too. */
-    fun setPairConfirmationHandler(handler: (deviceName: String, code: String) -> Unit) {
-        onPairConfirmationRequiredHandler = handler
-        l2capServer?.onPairConfirmationRequired = handler
-    }
-
-    /** Raised when a pending confirmation is abandoned because the link dropped. */
-    fun setPairConfirmationClearedHandler(handler: () -> Unit) {
-        onPairConfirmationClearedHandler = handler
-        l2capServer?.onPairConfirmationCleared = handler
-    }
-
     /** The user answered the confirmation. */
     fun answerPairing(accepted: Boolean) {
         if (accepted) l2capServer?.acceptPairing() else l2capServer?.rejectPairing()
     }
-
-    private var onConnectHandler: (() -> Unit)? = null
-    private var onPairCompletedHandler: (() -> Unit)? = null
-    private var onPairConfirmationRequiredHandler: ((deviceName: String, code: String) -> Unit)? = null
-    private var onPairConfirmationClearedHandler: (() -> Unit)? = null
-    private var onShareRequestHandler: ((com.bridge.protocol.BridgePacket) -> Unit)? = null
 
     fun stop() {
         stopAdvertising()
@@ -180,7 +133,7 @@ class BlePeripheral(
     private fun startL2capServer() {
         val adapter = bluetoothAdapter ?: return
         try {
-            val server = L2capServer(adapter, deviceId) { connected ->
+            val server = L2capServer(adapter, deviceId, handlers) { connected ->
                 if (connected) {
                     stopAdvertising()
                     // Socket is up but the peer is not verified yet (identity/trust
@@ -192,11 +145,7 @@ class BlePeripheral(
                 }
             }
             l2capServer = server
-            server.onPairCompleted = onPairCompletedHandler
-            server.onPairConfirmationRequired = onPairConfirmationRequiredHandler
-            server.onPairConfirmationCleared = onPairConfirmationClearedHandler
-            server.onShareRequest = onShareRequestHandler
-            server.onLinkReady = { onConnectHandler?.invoke() }
+            server.onLinkReady = { handlers.onConnect?.invoke() }
             server.onPeerVerified = { verified, name ->
                 onConnectionStateChanged(ConnectionState.Connected(name, verified))
             }

@@ -134,6 +134,9 @@ class BridgeService : Service() {
         }
     }
 
+    // Wired once in onCreate and handed to every peripheral built after it, so a restart
+    // cannot drop a registration — there is no registration step left to forget.
+    private val bleHandlers = com.bridge.ble.BleHandlers()
     private var blePeripheral: BlePeripheral? = null
     private var batteryMonitor: BatteryMonitor? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -203,11 +206,9 @@ class BridgeService : Service() {
             RECEIVER_NOT_EXPORTED
         )
 
-        blePeripheral = BlePeripheral(this, ::onConnectionStateChanged)
-
         // Nothing is pinned without a human. The digits go in the notification too, so
         // they can be compared against the Mac without opening anything first.
-        blePeripheral?.setPairConfirmationHandler { deviceName, code ->
+        bleHandlers.onPairConfirmationRequired = { deviceName, code ->
             com.bridge.security.PairConfirmation.raise(deviceName, code) { accepted ->
                 blePeripheral?.answerPairing(accepted)
                 clearPairConfirmation()
@@ -215,22 +216,54 @@ class BridgeService : Service() {
             postPairConfirmation(deviceName, code)
         }
 
-        blePeripheral?.setPairConfirmationClearedHandler { clearPairConfirmation() }
+        bleHandlers.onPairConfirmationCleared = { clearPairConfirmation() }
 
+        bleHandlers.onNotificationReply = { requestReplyId, message ->
+            handleNotificationReply(requestReplyId, message)
+        }
+        bleHandlers.onNotificationRequest = { cancel ->
+            BridgeNotificationListener.instance?.cancelNotificationByKey(cancel)
+                ?: Log.w(TAG, "Cannot cancel notification: listener not active")
+        }
+
+        bleHandlers.onClipboardReceived = { packet ->
+            clipboardBridge?.handleClipboardPacket(packet)
+        }
+        bleHandlers.onClipboardConnectReceived = { packet ->
+            clipboardBridge?.handleClipboardConnectPacket(packet)
+        }
+
+        bleHandlers.onShareRequest = { packet ->
+            FileReceiver(
+                applicationContext,
+                TransferNotifier(applicationContext)
+            ) { blePeripheral?.peerDeviceId }.receive(serviceScope, packet)
+        }
+
+        bleHandlers.onPairCompleted = {
+            batteryMonitor?.sendInitialBattery()
+            // On a first pairing the connect handler runs before trust exists and the
+            // Mac drops the packet, leaving it on "unknown" all session.
+            sendNotificationFilterState()
+        }
+
+        bleHandlers.onConnect = {
+            Log.i(TAG, "onConnect fired, sending clipboard.connect")
+            clipboardBridge?.onConnectionReady()
+            val connectPacket = clipboardBridge?.makeConnectPacket()
+            if (connectPacket != null) {
+                blePeripheral?.sendPacket(connectPacket)
+            }
+            sendNotificationFilterState()
+        }
+
+        blePeripheral = BlePeripheral(this, bleHandlers, ::onConnectionStateChanged)
         blePeripheral?.start()
 
         com.bridge.notifications.NotificationFilterStore.init(this)
 
         BridgeNotificationListener.packetSender = { packet ->
             blePeripheral?.sendPacket(packet)
-        }
-
-        blePeripheral?.setNotificationReplyHandler { requestReplyId, message ->
-            handleNotificationReply(requestReplyId, message)
-        }
-        blePeripheral?.setNotificationRequestHandler { cancel ->
-            BridgeNotificationListener.instance?.cancelNotificationByKey(cancel)
-                ?: Log.w(TAG, "Cannot cancel notification: listener not active")
         }
 
         batteryMonitor = BatteryMonitor(this) { packet ->
@@ -242,42 +275,11 @@ class BridgeService : Service() {
             blePeripheral?.sendPacket(packet)
         }
         clipboardBridge?.start()
-
-        blePeripheral?.setClipboardHandler { packet ->
-            clipboardBridge?.handleClipboardPacket(packet)
-        }
-        blePeripheral?.setClipboardConnectHandler { packet ->
-            clipboardBridge?.handleClipboardConnectPacket(packet)
-        }
-
-        blePeripheral?.setShareRequestHandler { packet ->
-            FileReceiver(
-                applicationContext,
-                TransferNotifier(applicationContext)
-            ) { blePeripheral?.peerDeviceId }.receive(serviceScope, packet)
-        }
-
-        blePeripheral?.setOnPairCompletedHandler {
-            batteryMonitor?.sendInitialBattery()
-            // On a first pairing the connect handler runs before trust exists and the
-            // Mac drops the packet, leaving it on "unknown" all session.
-            sendNotificationFilterState()
-        }
         registerReceiver(
             clipboardTestReceiver,
             IntentFilter("com.bridge.SEND_CLIPBOARD"),
             RECEIVER_EXPORTED
         )
-
-        blePeripheral?.setOnConnectHandler {
-            Log.i(TAG, "onConnectHandler fired, sending clipboard.connect")
-            clipboardBridge?.onConnectionReady()
-            val connectPacket = clipboardBridge?.makeConnectPacket()
-            if (connectPacket != null) {
-                blePeripheral?.sendPacket(connectPacket)
-            }
-            sendNotificationFilterState()
-        }
 
         // Keep the Mac's mirroring count honest as the user toggles apps.
         serviceScope.launch {
@@ -339,18 +341,7 @@ class BridgeService : Service() {
 
     private fun restartBlePeripheral() {
         blePeripheral?.stop()
-        blePeripheral = BlePeripheral(this, ::onConnectionStateChanged)
-
-        // Nothing is pinned without a human. The digits go in the notification too, so
-        // they can be compared against the Mac without opening anything first.
-        blePeripheral?.setPairConfirmationHandler { deviceName, code ->
-            com.bridge.security.PairConfirmation.raise(deviceName, code) { accepted ->
-                blePeripheral?.answerPairing(accepted)
-                clearPairConfirmation()
-            }
-            postPairConfirmation(deviceName, code)
-        }
-
+        blePeripheral = BlePeripheral(this, bleHandlers, ::onConnectionStateChanged)
         blePeripheral?.start()
     }
 

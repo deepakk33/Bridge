@@ -57,7 +57,7 @@ actor ClipboardMonitor {
     }
 
     func handleClipboardConnectPacket(_ packet: BridgePacket) {
-        guard let content = packet.body["content"] as? String else { return }
+        guard let content = packet.body["content"] as? String, !content.isEmpty else { return }
         guard let rawTs = packet.body["timestamp"] else { return }
         let remoteTimestamp: Int64
         if let num = rawTs as? NSNumber {
@@ -84,8 +84,10 @@ actor ClipboardMonitor {
     }
 
     func makeConnectPacket() -> BridgePacket {
-        let content = NSPasteboard.general.string(forType: .string) ?? ""
-        return BridgePacket.clipboardConnect(content: content, timestamp: lastClipboardTimestamp)
+        // A non-string pasteboard (an image, say) leaves lastClipboardTimestamp at the last
+        // text's time, so sending "" here offered a newer empty clip and wiped the phone's.
+        BridgePacket.clipboardConnect(content: NSPasteboard.general.string(forType: .string),
+                                      timestamp: lastClipboardTimestamp)
     }
 
     private func pollClipboard() {
