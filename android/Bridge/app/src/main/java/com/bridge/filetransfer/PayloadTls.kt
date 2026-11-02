@@ -3,6 +3,7 @@ package com.bridge.filetransfer
 import com.bridge.security.BridgeTrustManager
 import com.bridge.security.CertificateManager
 import com.bridge.security.TrustStore
+import com.bridge.security.TrustStoreAccess
 import javax.net.ssl.SSLContext
 
 /**
@@ -22,15 +23,22 @@ object PayloadTls {
         IllegalStateException("No pinned fingerprint — refusing to transfer")
 
     /**
-     * The paired peer's context.
+     * The context for [deviceId] — the peer on the control connection that asked for this
+     * transfer, never a device read out of the trust store. The store can hold more than
+     * one Mac and holds them in no order, so "the paired device" is not a question it can
+     * answer (BR-19).
      *
-     * @throws NotPairedException when nothing is pinned, so no listener is opened and no
-     * connection is attempted — an unpaired peer gets no bytes rather than plaintext ones.
+     * @throws NotPairedException when that peer is not pinned, so no listener is opened and
+     * no connection is attempted — an unpaired peer gets no bytes rather than plaintext ones.
      */
-    fun forPairedPeer(): SSLContext {
-        val fingerprint = TrustStore.getInstance().pairedFingerprint() ?: throw NotPairedException()
-        return forFingerprint(fingerprint)
-    }
+    fun forPairedPeer(
+        deviceId: String,
+        trustStore: TrustStoreAccess = TrustStore.getInstance()
+    ): SSLContext = forFingerprint(pinFor(deviceId, trustStore))
+
+    /** Split out so the lookup can be tested without an Android Context. */
+    fun pinFor(deviceId: String, trustStore: TrustStoreAccess): String =
+        trustStore.pinnedFingerprint(deviceId) ?: throw NotPairedException()
 
     fun forFingerprint(peerFingerprint: String): SSLContext =
         CertificateManager.getInstance().createSSLContext(BridgeTrustManager(peerFingerprint))

@@ -77,7 +77,16 @@ class L2capServer(
     private var pairingManager: PairingManager? = null
     private val pingWatchdog = PingWatchdog()
 
-    private var peerDeviceId: String? = null
+    /**
+     * The peer on the live control connection, or null when nothing is connected or it
+     * has not identified itself. The payload connection is pinned to this, never to a
+     * device read out of the trust store — the store holds every Mac ever paired.
+     * Cleared in the accept loop's `finally`, so a transfer that outlives its connection
+     * fails closed rather than pinning a stale id.
+     */
+    @Volatile
+    var peerDeviceId: String? = null
+        private set
     private var peerFingerprint: String? = null
     private var peerName: String? = null
 

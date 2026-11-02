@@ -251,8 +251,10 @@ class BridgeService : Service() {
         }
 
         blePeripheral?.setShareRequestHandler { packet ->
-            FileReceiver(applicationContext, TransferNotifier(applicationContext))
-                .receive(serviceScope, packet)
+            FileReceiver(
+                applicationContext,
+                TransferNotifier(applicationContext)
+            ) { blePeripheral?.peerDeviceId }.receive(serviceScope, packet)
         }
 
         blePeripheral?.setOnPairCompletedHandler {
@@ -371,7 +373,9 @@ class BridgeService : Service() {
         Log.i(TAG, "Sending shared file $name (${file.length()} bytes)")
         val nsd = getSystemService(Context.NSD_SERVICE) as? NsdManager
         val notifier = TransferNotifier(applicationContext)
-        val coordinator = FileTransferCoordinator(nsd, notifier) { blePeripheral?.sendPacket(it) }
+        val coordinator = FileTransferCoordinator(
+            nsd, notifier, connectedPeerId = { blePeripheral?.peerDeviceId }
+        ) { blePeripheral?.sendPacket(it) }
         // Coordinator streams the file off disk and deletes it when done.
         coordinator.sendFile(serviceScope, name, file, sharedNetworkAvailable = isWifiConnected())
     }

@@ -40,11 +40,11 @@
 
 ## 5. Android — pin the payload to the connected peer
 
-- [ ] 5.1 Write the failing test: `PayloadTls.forPairedPeer(deviceId)` with two pins trusts only
+- [x] 5.1 Write the failing test: `PayloadTls.forPairedPeer(deviceId)` with two pins trusts only
       the named device's fingerprint
-- [ ] 5.2 Replace `PayloadTls.forPairedPeer()` with the `deviceId` form, delete
+- [x] 5.2 Replace `PayloadTls.forPairedPeer()` with the `deviceId` form, delete
       `TrustStore.pairedFingerprint()`, and verify `./gradlew test` passes
-- [ ] 5.3 Expose the live `peerDeviceId` through `BlePeripheral` and inject a supplier into
+- [x] 5.3 Expose the live `peerDeviceId` through `BlePeripheral` and inject a supplier into
       `FileTransferCoordinator` and `FileReceiver` from `BridgeService`; verify a transfer
       attempted with no connection throws `NotPairedException` and writes no file
 

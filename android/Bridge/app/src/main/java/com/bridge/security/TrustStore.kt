@@ -74,14 +74,6 @@ class TrustStore private constructor(context: Context) : TrustStoreAccess {
         return prefs.getString(KEY_PREFIX + deviceId, null)
     }
 
-    /**
-     * The single paired peer's fingerprint, or null when nothing is pinned. Mirrors the
-     * Mac's `pairedDeviceId()`: Bridge pairs one phone with one Mac, and the payload
-     * path needs the pin without plumbing the live peer id through the transfer stack.
-     */
-    fun pairedFingerprint(): String? =
-        prefs.all.entries.firstOrNull { it.key.startsWith(KEY_PREFIX) }?.value as? String
-
     override val isEmpty: Boolean
         get() = prefs.all.isEmpty()
 }

@@ -17,6 +17,11 @@ import java.io.File
 class FileTransferCoordinator(
     private val nsdManager: NsdManager?,
     private val notifier: TransferNotifier? = null,
+    /**
+     * Read when the transfer starts, not when this object is built: the payload is
+     * pinned to the peer on the live control connection, and null fails it closed.
+     */
+    private val connectedPeerId: () -> String?,
     private val sendPacket: (BridgePacket) -> Unit
 ) {
     companion object {
@@ -36,7 +41,8 @@ class FileTransferCoordinator(
 
         when (decision.tier) {
             TransferTier.WIFI_LAN -> {
-                val server = PayloadServer(file, PayloadTls.forPairedPeer())
+                val peerId = connectedPeerId() ?: throw PayloadTls.NotPairedException()
+                val server = PayloadServer(file, PayloadTls.forPairedPeer(peerId))
                 val port = server.bind()
                 val host = localWifiIp()
                 val nsd = nsdManager?.let { NsdTransfer(it) }
