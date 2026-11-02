@@ -46,7 +46,7 @@
       connection claimed the only slot, so a stranger cost the real peer its transfer. The slot is
       now claimed on `.ready`. The loopback test for it **skips in this environment** ("does not
       permit listening sockets"), so device task 6.6 is the real check.*
-- [ ] 4.4 Announce an incoming file with name and size before writing, with a decline that leaves
+- [x] 4.4 Announce an incoming file with name and size before writing, with a decline that leaves
       nothing behind and closes the sender's window. Verify the Mac suite and that a declined
       transfer does not hold the listener open for its full timeout.
 - [x] 4.5 Surface a failed receive to the user rather than only logging it. Verify the Mac suite.

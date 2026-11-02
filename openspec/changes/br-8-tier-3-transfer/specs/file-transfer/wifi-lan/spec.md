@@ -46,8 +46,9 @@ decline, before the file is written to disk. Declining SHALL leave nothing behin
 #### Scenario: The user declines
 
 - **WHEN** the user declines an offered file
-- **THEN** no file is written, no payload is fetched, and the sender is not left waiting on a
-  window that never closes
+- **THEN** no file is written and no payload is fetched. The sender is not told: its payload
+  window closes on its own timeout rather than at once, which is accepted deliberately so that
+  declining needs no new packet type
 
 ---
 

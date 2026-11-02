@@ -36,6 +36,21 @@ final class FileReceiveController {
         return ext.isEmpty ? stem : "\(stem).\(ext)"
     }
 
+    /// Offers awaiting an answer, keyed by the id carried in the notification. An incoming file
+    /// is announced before anything is written, so the fetch waits here until the user answers.
+    private static var pendingOffers: [String: () -> Void] = [:]
+
+    /// Called from the notification delegate. An unknown id is an offer already answered or
+    /// expired, and is ignored.
+    static func answerOffer(_ id: String, accepted: Bool) {
+        guard let start = pendingOffers.removeValue(forKey: id) else { return }
+        if accepted {
+            start()
+        } else {
+            logger.info("Incoming file declined; nothing fetched and nothing written")
+        }
+    }
+
     private var browser: MdnsBrowser?
     private var client: PayloadClient?
 
@@ -68,30 +83,39 @@ final class FileReceiveController {
             }
 
             if let host, let port {
-                Self.logger.info("Fetching '\(filename)' (\(payloadSize) bytes) from \(host):\(port)")
-                let client = PayloadClient(
-                    host: host, port: port, expectedBytes: payloadSize, parameters: parameters
-                )
-                run(client, filename: filename)
+                let safe = Self.safeName(filename)
+                self.offer(filename: safe, payloadSize: payloadSize) { [weak self] in
+                    Self.logger.info("Fetching '\(safe)' (\(payloadSize) bytes) from \(host):\(port)")
+                    let client = PayloadClient(
+                        host: host, port: port, expectedBytes: payloadSize, parameters: parameters
+                    )
+                    self?.run(client, filename: safe)
+                }
                 return
             }
 
-            Self.logger.info("Fetching '\(filename)' (\(payloadSize) bytes) via mDNS")
-            let browser = MdnsBrowser()
-            self.browser = browser
-            browser.discover(timeout: 8, onFound: { [weak self] endpoint in
-                Task { @MainActor in
-                    self?.download(
-                        from: endpoint, filename: filename,
-                        payloadSize: payloadSize, parameters: parameters
-                    )
-                }
-            }, onTimeout: { [weak self] in
-                Task { @MainActor in
-                    Self.logger.error("mDNS discovery timed out; cannot fetch '\(filename)'")
-                    self?.browser = nil
-                }
-            })
+            // The discovery path is announced too: an offer the user never saw is not an offer.
+            let safe = Self.safeName(filename)
+            self.offer(filename: safe, payloadSize: payloadSize) { [weak self] in
+                guard let self else { return }
+                Self.logger.info("Fetching '\(safe)' (\(payloadSize) bytes) via mDNS")
+                let browser = MdnsBrowser()
+                self.browser = browser
+                browser.discover(timeout: 8, onFound: { [weak self] endpoint in
+                    Task { @MainActor in
+                        self?.download(
+                            from: endpoint, filename: safe,
+                            payloadSize: payloadSize, parameters: parameters
+                        )
+                    }
+                }, onTimeout: { [weak self] in
+                    Task { @MainActor in
+                        Self.logger.error("mDNS discovery timed out; cannot fetch '\(safe)'")
+                        self?.postFailure(filename: safe, reason: "The sender could not be found.")
+                        self?.browser = nil
+                    }
+                })
+            }
         }
     }
 
@@ -100,6 +124,33 @@ final class FileReceiveController {
     ) {
         let client = PayloadClient(endpoint: endpoint, expectedBytes: payloadSize, parameters: parameters)
         run(client, filename: filename)
+    }
+
+    /// Announce the file and wait for an answer. Nothing is fetched or written until Accept.
+    private func offer(filename: String, payloadSize: Int, start: @escaping () -> Void) {
+        let id = UUID().uuidString
+        Self.pendingOffers[id] = start
+
+        let content = UNMutableNotificationContent()
+        content.title = "Incoming file"
+        content.body = "\(filename) — \(Self.describe(bytes: payloadSize))"
+        content.categoryIdentifier = "BRIDGE_INCOMING_FILE"
+        content.userInfo = ["bridgeFileOfferId": id]
+        UNUserNotificationCenter.current().add(
+            UNNotificationRequest(identifier: id, content: content, trigger: nil)
+        )
+        Self.logger.info("Offered '\(filename)' (\(payloadSize) bytes), awaiting an answer")
+    }
+
+    nonisolated static func describe(bytes: Int) -> String {
+        let units = ["bytes", "KB", "MB", "GB"]
+        var value = Double(bytes)
+        var unit = 0
+        while value >= 1024, unit < units.count - 1 {
+            value /= 1024
+            unit += 1
+        }
+        return unit == 0 ? "\(bytes) bytes" : String(format: "%.1f %@", value, units[unit])
     }
 
     private func run(_ client: PayloadClient, filename: String) {
