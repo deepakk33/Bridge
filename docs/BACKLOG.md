@@ -42,6 +42,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-21 | Mac: the single-instance guard misses a different bundle path | merged | BR-11 |
 | BR-22 | Pairing: 30 seconds is not long enough to compare six digits | merged | BR-7 |
 | BR-23 | File transfer: the Tier 3 payload handshake fails before certificates | merged | BR-8 |
+| BR-24 | Phone call relay: take the call on the Mac | idea | |
 
 All of BR-2…BR-12 come from [AUDIT-2026-10-26.md](AUDIT-2026-10-26.md), which holds the
 evidence, file:line references and reproduction for each. The audit's own ordering
@@ -754,3 +755,93 @@ Filed 2026-11-02 from BR-19's device testing; the ID stays so it is never reused
 and a device test. The full scope, reasoning and criteria live in BR-8's detail block.
 Filed 2026-11-02 from BR-19's device testing; the ID stays so it is never reused.
 
+### BR-24 — Phone call relay: take the call on the Mac
+
+**Scope**: when the phone rings, the Mac shows who is calling and lets the user answer, speak,
+mute and hang up without touching the phone — call audio full duplex, call control from the Mac.
+**Why**: the phone sits a metre away and is the one thing that still forces a reach. Bridge
+already carries notifications, clipboard and files; a ringing phone is the remaining interrupt
+that only the phone can service. Requirements captured by the user 2026-11-02.
+**Platforms**: both
+**Status**: `idea` — not `ready`. One question decides whether the item exists at all; see
+*First question* below.
+
+**First question (gate — answer before anything else is built).** Can a MacBook Air M3 present
+itself to the S25 as a Bluetooth Hands-Free unit — i.e. a headset — and carry SCO audio?
+Everything in the recommended design hangs off this, and it is the one part nothing in the repo
+already proves. The known shape of the problem:
+
+- macOS natively plays the *Audio Gateway* role (it drives headsets); the Bridge Mac app would
+  need the *Hands-Free* role (it is the headset). `IOBluetooth` exposes SDP service records and
+  RFCOMM channels — enough for the HFP control channel — but it publishes no supported API for
+  opening or reading an **SCO audio link**. If SCO audio is not reachable from a locally signed,
+  sandboxed, non-notarised app, Approach 1 is dead and the whole item becomes "stream call audio
+  over the existing Wi-Fi path", which runs straight into the Android capture problem below.
+- Timebox this as a spike on real hardware. The output is a yes/no plus the codec actually
+  negotiated (mSBC 16 kHz, or CVSD 8 kHz fallback). No production code.
+
+**The Android audio problem, stated once.** Since Android 11 `MediaRecorder.AudioSource.VOICE_CALL`
+is refused to every non-system app, so the phone cannot hand Bridge the call audio as a stream.
+Three paths exist and only one survives:
+
+1. **Bluetooth HFP/SCO** — Android routes call audio to a connected headset itself. No audio
+   permission is involved; the Mac simply *is* the headset. Full duplex, 20–40 ms, ~10 m range
+   (fine at 1 m, no remote relay ever). Needs `BLUETOOTH_CONNECT`, `BLUETOOTH_SCAN`,
+   `BluetoothHeadset` profile proxy, `AudioManager.startBluetoothSco()`. This is the path, if the
+   Mac side is possible.
+2. **Telecom `ConnectionService`** — gives per-call lifecycle objects and `setAudioRoute()` /
+   `requestBluetoothAudio()`. It selects *which device* gets the audio; it never exposes the audio
+   itself. Needs `MANAGE_OWN_CALLS` and a `PhoneAccount` registered via
+   `TelecomManager.registerPhoneAccount()`, plus a service guarded by
+   `BIND_TELECOM_CONNECTION_SERVICE`. Useful only alongside path 1, to force the route to the Mac
+   instead of asking the user to pick it each call.
+3. **`AudioPlaybackCapture` + an Accessibility Service** — captures the far end only, never the
+   user's own mic; call streams commonly set `ALLOW_CAPTURE_BY_NONE`; needs a MediaProjection
+   consent dialog every session. Rejected. Recorded here so it is not re-proposed.
+
+**Call detection** is the easy half and is independent of the audio question:
+`TelephonyManager.registerTelephonyCallback()` (API 31+, not the deprecated `PhoneStateListener`)
+for `CALL_STATE_RINGING` / `OFFHOOK` / `IDLE`, `READ_PHONE_STATE` for the states and
+`READ_CALL_LOG` for the number, kept alive by a foreground service of type `phoneCall`
+(`FOREGROUND_SERVICE_PHONE_CALL`). Caller name/number travels to the Mac as a new `bridge.call`
+packet on the existing BLE control channel — small, single-line JSON, same as every other type.
+
+**Mac side**, assuming the gate passes: `AVAudioEngine` for playback and
+`inputNode.installTap()` for the mic, 16 kHz mono float32, 320-sample (20 ms) buffers, resampled
+from whatever the hardware runs at; `kAudioUnitSubType_VoiceProcessingIO` for echo cancellation,
+noise suppression and AGC — not optional, the Mac's speaker feeds its own mic. UI: a floating
+always-on-top `NSPanel` with caller, answer, decline, mute, end, and Space / M / Esc; the existing
+`NSStatusItem` grows an in-call indicator; incoming calls also post through the notification path
+Bridge already owns.
+
+**What already exists in Bridge — do not rebuild it.** The requirements document describes
+discovery, pairing and signing as if from scratch; three of its four sections are already shipped:
+
+- *mDNS discovery* — `mac/.../FileTransfer/MdnsBrowser.swift` and
+  `android/.../filetransfer/NsdTransfer.kt` already advertise and resolve over `NsdManager` /
+  `NWBrowser`. A call channel reuses them; it does not get its own service type unless there is a
+  reason.
+- *Pairing and identity* — `PairingManager`, `TrustStore`, `CertificateManager` and the six-digit
+  confirmation from BR-4+BR-5 already establish a shared trusted identity with pinned certs.
+  There is no second pairing flow, no SRP, no separate AES-256-GCM layer to write.
+- *Signing and distribution* — locally signed, no Developer Program, right-click-open on first
+  launch. Unchanged. The new entitlements are the Bluetooth and `audio-input` ones plus
+  `NSMicrophoneUsageDescription`.
+
+What is genuinely new: the HFP/SCO link, the audio engine, the call packets, and the call UI.
+
+**Done when**:
+- [ ] the spike above has a written yes/no on Mac-side HFP/SCO, with the negotiated codec named
+- [ ] an incoming call on the S25 raises a panel on the Mac naming the caller, within ~1 s of ring
+- [ ] answering from the Mac connects the call: both parties hear each other, no echo loop
+- [ ] mute and end from the Mac take effect on the phone, and the phone's own UI agrees
+- [ ] ending on the phone closes the Mac panel and releases the audio route
+- [ ] declining a call from the Mac stops the ring on the phone
+- [ ] with Bridge not running, or the Mac out of range, calls behave exactly as before — no
+      swallowed rings, no stuck audio route
+**Notes**: min SDK stays 31 (`TelephonyCallback` needs it); the new packet types must be added to
+the allow-lists at `android/.../ble/L2capServer.kt` and `mac/.../BLE/BLEManager.swift` and to the
+trust gate, same as BR-17 flags. Internet relay is explicitly out — the PRD's "same room, no
+cloud" rule stands, and HFP's 10 m is a hard ceiling anyway. Split this into at least two items
+(detection + metadata; audio) once the gate is answered; as one ticket it is too large to run
+through `/work`.

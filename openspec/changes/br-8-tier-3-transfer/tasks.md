@@ -18,15 +18,15 @@
 
 ## 2. Gate — confirm scope before fixing
 
-- [ ] 2.1 If the cause lies outside this item (for example, the Local Network permission needs
+- [x] 2.1 If the cause lies outside this item (for example, the Local Network permission needs
       requesting and reporting, which is BR-11), stop and surface it rather than absorbing it.
       Verify by stating the boundary decision and who owns each part.
 
 ## 3. Make Tier 3 complete
 
-- [ ] 3.1 Write a failing test at the level the cause allows — a unit test if the cause is
+- [x] 3.1 Write a failing test at the level the cause allows — a unit test if the cause is
       configuration, otherwise a documented device repro in `design.md`. Verify it fails first.
-- [ ] 3.2 Apply the fix the evidence names, on whichever side owns it. Verify
+- [x] 3.2 Apply the fix the evidence names, on whichever side owns it. Verify
       `(cd android/Bridge && ./gradlew test assembleDebug)` and
       `xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge test` are green.
 - [ ] 3.3 If the Mac cannot use the local network, make that failure say so instead of surfacing as

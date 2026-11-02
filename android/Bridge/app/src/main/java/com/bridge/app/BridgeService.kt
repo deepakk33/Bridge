@@ -44,6 +44,7 @@ class BridgeService : Service() {
         const val EXTRA_FILE_NAME = "com.bridge.EXTRA_FILE_NAME"
         private const val PERMISSION_WARNING_NOTIFICATION_ID = 2
         private const val PAIR_CONFIRMATION_NOTIFICATION_ID = 3
+        private const val KEY_REPLACED_NOTIFICATION_ID = 4
         var clipboardBridge: ClipboardBridge? = null
             private set
 
@@ -195,7 +196,11 @@ class BridgeService : Service() {
         TrustStore.init(this)
 
         try {
-            CertificateManager.getInstance().ensureCertificate()
+            if (CertificateManager.getInstance().ensureCertificate()) {
+                // The old key could not sign a TLS handshake, so file transfer never worked.
+                // Replacing it changes this device's fingerprint and voids existing pairings.
+                postKeyReplaced()
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to init certificate", e)
         }
@@ -383,6 +388,17 @@ class BridgeService : Service() {
         if (checker.notificationAccess() != com.bridge.permissions.PermissionStatus.GRANTED) {
             postPermissionWarning()
         }
+    }
+
+    private fun postKeyReplaced() {
+        val notification = Notification.Builder(this, BridgeConstants.NOTIFICATION_CHANNEL_ID)
+            .setContentTitle("Pair this phone with your Mac again")
+            .setContentText("Bridge replaced a security key that could not be used for file transfer.")
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setAutoCancel(true)
+            .build()
+        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+            .notify(KEY_REPLACED_NOTIFICATION_ID, notification)
     }
 
     private fun postPairConfirmation(deviceName: String, code: String) {
