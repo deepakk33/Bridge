@@ -13,7 +13,7 @@
       the listener accepts a connection and when state changes, and enable TLS diagnostics on both
       sides. Verify by capturing a logged accept (or a logged absence of one) during a real
       attempt.
-- [ ] 1.4 Write the cause into `design.md` under a new "Finding" section, with the evidence that
+- [x] 1.4 Write the cause into `design.md` under a new "Finding" section, with the evidence that
       establishes it. Verify the section exists and names evidence, not a guess.
 
 ## 2. Gate — confirm scope before fixing

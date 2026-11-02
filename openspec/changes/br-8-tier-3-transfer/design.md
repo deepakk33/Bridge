@@ -187,13 +187,57 @@ receives a client certificate, because the phone quits before sending one.
    restricted to `DIGEST_SHA256`, and the Mac's request may not offer a compatible algorithm.
 3. The AndroidKeyStore private key cannot sign in this context.
 
-### What settles it
+### Root cause — confirmed 2026-11-02 16:28
 
-The phone-side exception's full cause chain, or a decoded handshake. A `tcpdump -w` capture of the
-same exchange would name the alert-free failure precisely: the `CertificateRequest`'s
-acceptable-CA list and signature algorithms are both visible in the Mac's 656-byte flight.
+The phone's AndroidKeyStore private key **cannot sign during a TLS handshake**:
+
+```
+java.security.InvalidKeyException: Keystore operation failed
+  at android.security.keystore2.AndroidKeyStoreSignatureSpiBase.engineInitSign
+  at com.android.org.conscrypt.CryptoUpcalls.signDigestWithPrivateKey
+  at com.android.org.conscrypt.CryptoUpcalls.ecSignDigestWithPrivateKey
+  at com.android.org.conscrypt.NativeCrypto.ENGINE_SSL_read_direct
+```
+
+`CertificateManager.generateCertificate()` authorises the key for SHA-256 only:
+
+```kotlin
+.setDigests(KeyProperties.DIGEST_SHA256)
+```
+
+Conscrypt does not ask the key to hash-and-sign. It hashes the handshake transcript itself and
+asks the key to sign the **raw digest** — `NONEwithECDSA`, via `ecSignDigestWithPrivateKey`.
+AndroidKeyStore enforces the authorised digest list and refuses the operation, because
+`KeyProperties.DIGEST_NONE` is not among them. The key's authorisations are fixed at generation
+and cannot be amended afterwards.
+
+### How this explains every observation
+
+- **Phone as TLS server sends zero bytes** (openssl: "read 0 bytes and written 196 bytes"): it
+  fails signing its ServerKeyExchange, so no ServerHello flight is ever produced.
+- **Phone as TLS client aborts right after the Mac's `CertificateRequest`** (the packet capture:
+  ACKs 656 bytes, then a bare FIN 22 ms later, no alert): it fails signing `CertificateVerify`.
+- **The Mac's verify block never logs**: it never receives a client certificate, because the phone
+  cannot produce the signature that accompanies one.
+- **Both directions fail**, as BR-19 recorded, because both require the phone to sign something.
+- **Disabling `needClientAuth` on the phone changed nothing** (it failed in 72 ms rather than
+  1.5 s): the phone still has to sign its own ServerKeyExchange, so removing the client-certificate
+  demand cannot help.
+- **The BLE control channel is unaffected**: it is unencrypted, and pairing compares certificate
+  *fingerprints* — reading and hashing a certificate never exercises the private key.
+
+### The fix, and the thing it breaks
+
+Add `KeyProperties.DIGEST_NONE` to the generated key's authorised digests, keeping
+`DIGEST_SHA256`. That is a one-line change, but it only takes effect for a **newly generated**
+key: existing keys keep their original authorisations for life.
+
+So the fix requires regenerating the phone's key pair, which changes its certificate fingerprint,
+which **invalidates every existing pairing**. Both devices must re-pair once after upgrading.
+That is a user-visible migration and is decided with the user, not assumed — see the tasks.
 
 ## Open Questions
 
-None that change the specs, the approach or the task breakdown. The cause of the handshake failure
-is unknown, but the first three tasks exist to determine it, and the order they run in is decided.
+**How the key regeneration is rolled out.** The fix invalidates existing pairings. Whether the app
+detects an old key and regenerates automatically, or tells the user to unpair and re-pair, is a
+product decision taken with the user before the fix lands.
