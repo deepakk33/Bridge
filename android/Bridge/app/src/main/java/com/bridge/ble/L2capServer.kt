@@ -26,26 +26,11 @@ import java.io.OutputStream
 class L2capServer(
     adapter: BluetoothAdapter,
     private val deviceId: String,
+    private val handlers: BleHandlers,
     private val onConnectionChanged: (connected: Boolean) -> Unit
 ) {
-    var onNotificationReply: ((requestReplyId: String, message: String) -> Unit)? = null
-    var onNotificationRequest: ((cancel: String) -> Unit)? = null
     var onBatteryReceived: ((currentCharge: Int, isCharging: Boolean) -> Unit)? = null
-    var onPairCompleted: (() -> Unit)? = null
-    var onClipboardReceived: ((BridgePacket) -> Unit)? = null
-    var onClipboardConnectReceived: ((BridgePacket) -> Unit)? = null
-    var onShareRequest: ((BridgePacket) -> Unit)? = null
     var onLinkReady: (() -> Unit)? = null
-
-    /**
-     * Raised when a peer must be confirmed by the user, carrying the six digits that
-     * the other screen shows at the same moment. Nothing is pinned until the answer
-     * comes back through [acceptPairing] or [rejectPairing].
-     */
-    var onPairConfirmationRequired: ((deviceName: String, code: String) -> Unit)? = null
-
-    /** The link dropped with a confirmation outstanding; drop its notification too. */
-    var onPairConfirmationCleared: (() -> Unit)? = null
 
     /**
      * Fired once the peer's identity is known (and again when pairing completes),
@@ -124,7 +109,7 @@ class L2capServer(
                 // stays pending behind an ongoing (undismissable) notification whose
                 // Accept is a silent no-op.
                 com.bridge.security.PairConfirmation.clear()
-                onPairConfirmationCleared?.invoke()
+                handlers.onPairConfirmationCleared?.invoke()
                 pingWatchdog.stop()
                 onConnectionChanged(false)
             }
@@ -146,10 +131,10 @@ class L2capServer(
                 // the answer comes back through acceptPair()/rejectPair().
                 pm.onPairRequest = { deviceName, fingerprint, code ->
                     Log.i(TAG, "Pair confirmation needed for $deviceName (fp: $fingerprint)")
-                    onPairConfirmationRequired?.invoke(deviceName, code)
+                    handlers.onPairConfirmationRequired?.invoke(deviceName, code)
                 }
                 pm.onPairCompleted = {
-                    onPairCompleted?.invoke()
+                    handlers.onPairCompleted?.invoke()
                     // Pairing just pinned the peer → the link is now verified.
                     onPeerVerified?.invoke(true, peerName)
                 }
@@ -204,7 +189,7 @@ class L2capServer(
         pairingManager?.requestPair()
     }
 
-    /** The user accepted the confirmation raised by [onPairConfirmationRequired]. */
+    /** The user accepted the confirmation raised by [BleHandlers.onPairConfirmationRequired]. */
     fun acceptPairing() {
         pairingManager?.acceptPair()
     }
@@ -250,7 +235,7 @@ class L2capServer(
                 val replyId = packet.body["requestReplyId"]?.jsonPrimitive?.content
                 val message = packet.body["message"]?.jsonPrimitive?.content
                 if (replyId != null && message != null) {
-                    onNotificationReply?.invoke(replyId, message)
+                    handlers.onNotificationReply?.invoke(replyId, message)
                 } else {
                     Log.w(TAG, "Invalid notification.reply packet")
                 }
@@ -258,19 +243,19 @@ class L2capServer(
             "bridge.notification.request" -> {
                 val cancel = packet.body["cancel"]?.jsonPrimitive?.content
                 if (cancel != null) {
-                    onNotificationRequest?.invoke(cancel)
+                    handlers.onNotificationRequest?.invoke(cancel)
                 } else {
                     Log.w(TAG, "Invalid notification.request packet")
                 }
             }
             "bridge.clipboard" -> {
-                onClipboardReceived?.invoke(packet)
+                handlers.onClipboardReceived?.invoke(packet)
             }
             "bridge.clipboard.connect" -> {
-                onClipboardConnectReceived?.invoke(packet)
+                handlers.onClipboardConnectReceived?.invoke(packet)
             }
             "bridge.share.request" -> {
-                onShareRequest?.invoke(packet)
+                handlers.onShareRequest?.invoke(packet)
             }
             "bridge.notification" -> {
                 Log.d(TAG, "Received bridge.notification — not applicable on phone side")

@@ -1,10 +1,10 @@
 ## 1. Android — the handler holder
 
-- [ ] 1.1 Write `BleHandlersTest` first: wire every handler on one `BleHandlers`, hand the same
+- [x] 1.1 Write `BleHandlersTest` first: wire every handler on one `BleHandlers`, hand the same
       instance to a second "generation" the way a peripheral rebuild does, and assert each handler
       still fires; assert a fresh holder's handlers are all null. Verify it fails to compile
       (no `BleHandlers` yet).
-- [ ] 1.2 Add `com.bridge.ble.BleHandlers` — nullable function properties for
+- [x] 1.2 Add `com.bridge.ble.BleHandlers` — nullable function properties for
       `onNotificationReply`, `onNotificationRequest`, `onClipboardReceived`,
       `onClipboardConnectReceived`, `onShareRequest`, `onPairCompleted`,
       `onPairConfirmationRequired`, `onPairConfirmationCleared`, `onConnect`. No Android types.
@@ -12,17 +12,17 @@
 
 ## 2. Android — wire the holder through the BLE stack
 
-- [ ] 2.1 Take `BleHandlers` in `L2capServer`'s constructor; delete its own
+- [x] 2.1 Take `BleHandlers` in `L2capServer`'s constructor; delete its own
       `onNotificationReply`, `onNotificationRequest`, `onClipboardReceived`,
       `onClipboardConnectReceived`, `onShareRequest`, `onPairCompleted`,
       `onPairConfirmationRequired`, `onPairConfirmationCleared` properties and read them from the
       holder at each dispatch site. Leave `onLinkReady` and `onPeerVerified` as they are. Verify
       `./gradlew assembleDebug` compiles.
-- [ ] 2.2 Take `BleHandlers` in `BlePeripheral`'s constructor and pass it to each `L2capServer` it
+- [x] 2.2 Take `BleHandlers` in `BlePeripheral`'s constructor and pass it to each `L2capServer` it
       builds; delete the nine `setXHandler` functions and the five mirror fields, and wire
       `server.onLinkReady` to `handlers.onConnect`. Verify `./gradlew assembleDebug` compiles and
       no `setXHandler` reference remains (`grep -rn 'setNotificationReplyHandler\|setShareRequestHandler\|setClipboardHandler\|setClipboardConnectHandler\|setNotificationRequestHandler\|setOnConnectHandler\|setOnPairCompletedHandler\|setPairConfirmationHandler\|setPairConfirmationClearedHandler' android/`).
-- [ ] 2.3 In `BridgeService`, build one `BleHandlers` in `onCreate()`, assign every handler body
+- [x] 2.3 In `BridgeService`, build one `BleHandlers` in `onCreate()`, assign every handler body
       onto it, and pass it to both `BlePeripheral(...)` constructions; strip the duplicated
       pair-confirmation wiring out of `restartBlePeripheral()` so that function only stops, builds
       and starts. Verify `./gradlew test assembleDebug` is green and `restartBlePeripheral()`
