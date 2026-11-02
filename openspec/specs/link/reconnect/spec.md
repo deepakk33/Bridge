@@ -17,7 +17,7 @@ The Mac (BLE central) uses `CBCentralManager.connect()` which has no timeout. Wh
 #### Scenario: Phone returns to range
 
 - **WHEN** the phone returns to BLE range after being out of range
-- **THEN** Core Bluetooth re-establishes the connection automatically, the L2CAP channel is reopened, identity is re-exchanged, mutual TLS re-handshake occurs, and the Mac transitions to "connected" state
+- **THEN** Core Bluetooth re-establishes the connection automatically, the L2CAP channel is reopened, identity is re-exchanged, the peer's fingerprint is checked against the pinned value, and the Mac transitions to "connected" state
 
 #### Scenario: No user intervention required
 
@@ -88,14 +88,21 @@ A `bridge.ping` packet is sent at a configurable interval (default: 30 seconds) 
 - **WHEN** any valid packet (not just ping) is received
 - **THEN** the watchdog timer resets
 
-### Requirement: TLS re-handshake on reconnect
+### Requirement: Trust is re-established on every reconnect
 
-Every reconnection performs a full mutual TLS handshake, verifying pinned certificate fingerprints. There is no session resumption or cached TLS state across disconnects.
+Every reconnection re-exchanges identity and re-checks the peer's certificate fingerprint against the pinned value. Nothing about a previous session is carried over: there is no cached verification and no session resumption.
 
-#### Scenario: Reconnect performs fresh TLS handshake
+The control channel is not wrapped in TLS — see `security/certificate-pinning`, which places mutual TLS on the out-of-band payload connection and leaves the L2CAP channel to proximity. A reconnect therefore re-establishes *trust*, not a TLS session.
+
+#### Scenario: Reconnect re-verifies the peer
 
 - **WHEN** the BLE link re-establishes after a disconnect
-- **THEN** both devices perform a new mutual TLS handshake over the L2CAP channel, verifying the peer's certificate fingerprint against the pinned value
+- **THEN** identity is exchanged again and the peer's fingerprint is compared to the pinned value before any other packet type is processed
+
+#### Scenario: A reconnecting peer with a changed fingerprint is refused
+
+- **WHEN** a previously pinned peer reconnects presenting a different certificate
+- **THEN** the connection is closed and the pin is left intact, so returning that device to service needs a deliberate re-pair
 
 ### Requirement: Kitchen test validation
 

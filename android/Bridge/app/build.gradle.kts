@@ -18,6 +18,13 @@ android {
     namespace = "com.bridge.app"
     compileSdk = 36
 
+    testOptions {
+        // Trust and pairing decisions log through android.util.Log, which is a stub in
+        // JVM unit tests and throws on call. Default values let those decisions be
+        // tested here rather than only on a device.
+        unitTests.isReturnDefaultValues = true
+    }
+
     defaultConfig {
         applicationId = "com.bridge.app"
         minSdk = 31

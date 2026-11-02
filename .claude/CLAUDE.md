@@ -6,7 +6,9 @@ Bridge makes a Galaxy S25 and a MacBook Air M3 behave as one machine when in the
 
 - **Mac**: Swift 6, SwiftUI menu bar app, Core Bluetooth, Network.framework
 - **Android**: Kotlin, foreground service (connectedDevice), NotificationListenerService
-- **Protocol**: JSON newline-delimited, 10 packet types, mutual TLS with pinned certs
+- **Protocol**: JSON newline-delimited, 10 packet types. Encryption is per path: the
+  out-of-band payload connection is mutual TLS with pinned certs; the BLE L2CAP control
+  channel is currently unencrypted (see `docs/PRD.md`)
 - **PRD**: `docs/PRD.md` (full requirements, architecture, decisions)
 
 ## Monorepo Structure

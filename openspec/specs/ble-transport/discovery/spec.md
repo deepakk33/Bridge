@@ -23,7 +23,9 @@ The Android foreground service advertises a BLE service with UUID `a]76e1a0-b]5d
 ---
 
 ### Requirement: Mac scans for Bridge service
-The Mac app scans for the Bridge service UUID using Core Bluetooth's CBCentralManager.
+The Mac app scans for the Bridge service UUID using Core Bluetooth's CBCentralManager. A
+discovered peripheral SHALL be connected to automatically only when it is the paired device;
+otherwise it SHALL be offered to the user through the device picker.
 
 A scan SHALL be treated as a claim that can fail silently, not as a fact. While the link is down
 and the Mac believes a scan is running, a bounded period during which no peripheral is
@@ -39,8 +41,15 @@ discovery is the only available signal.
 - **THEN** scanning begins for the Bridge service UUID
 
 #### Scenario: Bridge peripheral found
-- **WHEN** a peripheral advertising the Bridge UUID is discovered
+- **WHEN** a peripheral advertising the Bridge UUID is discovered and its `deviceId` is the
+  paired device
 - **THEN** the Mac initiates a connection to it
+
+#### Scenario: Bridge peripheral found while unpaired
+- **WHEN** a peripheral advertising the Bridge UUID is discovered and the Mac has no paired
+  device
+- **THEN** the Mac adds it to the device picker and waits for the user to choose, rather than
+  connecting to it
 
 #### Scenario: Bluetooth off
 - **WHEN** Bluetooth is powered off on the Mac
@@ -89,3 +98,43 @@ an app to recover a link the system is already maintaining.
 #### Scenario: Nothing held means an ordinary scan
 - **WHEN** no peripheral for the Bridge service is connected at the system level
 - **THEN** the Mac scans as normal and no connection is attempted
+
+### Requirement: An unpaired Mac presents a device picker
+
+Every Bridge installation advertises the same service UUID, so a scan can return several phones.
+While the Mac has no paired device, it SHALL NOT connect to an advertiser automatically. It
+SHALL present the discovered devices by `deviceName` and signal strength and wait for the user
+to choose one.
+
+Once a device is paired, the Mac SHALL reconnect to that `deviceId` automatically and SHALL
+ignore every other advertiser, so the picker is a first-run step rather than a recurring prompt.
+
+#### Scenario: Unpaired Mac lists what it found
+
+- **WHEN** the Mac is unpaired and discovers one or more peripherals advertising the Bridge UUID
+- **THEN** it displays each one's device name and signal strength, and connects to none of them
+  until the user picks one
+
+#### Scenario: The list reflects what is actually in range
+
+- **WHEN** a listed device stops advertising, or its signal strength changes while the picker is
+  open
+- **THEN** the displayed list updates, so the user is choosing from devices that are currently
+  reachable
+
+#### Scenario: Picking a device starts the pairing flow
+
+- **WHEN** the user picks a device from the list
+- **THEN** the Mac connects to that peripheral and the identity exchange and six-digit
+  confirmation proceed for that device only
+
+#### Scenario: Paired Mac does not show the picker
+
+- **WHEN** the Mac already has a paired device and discovers that device
+- **THEN** it reconnects automatically with no picker and no prompt
+
+#### Scenario: Other advertisers are ignored once paired
+
+- **WHEN** the Mac is paired to one phone and a different phone advertising the Bridge UUID comes
+  into range
+- **THEN** the Mac does not connect to it and does not prompt the user about it

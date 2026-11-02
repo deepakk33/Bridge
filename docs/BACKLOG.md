@@ -20,8 +20,8 @@ place a work item is born. One row per item, one detail block per row.
 | BR-1 | Grey out the app list while mirroring is paused | done | `work/br-1-mute-greys-app-list` |
 | BR-2 | Render the Mac panel as a window, not an NSMenu | done | `work/br-2-render-the-mac-panel-as-a-window` |
 | BR-3 | Make the link state tell the truth | done | `work/br-3-make-the-link-state-tell-the-truth` |
-| BR-4 | Transport security: decide, then close the gap | idea | |
-| BR-5 | Pairing: six-digit confirmation and a device picker | idea | |
+| BR-4 | Transport security: decide, then close the gap | done | `work/br-4-transport-security-and-pairing` |
+| BR-5 | Pairing: six-digit confirmation and a device picker | done | `work/br-4-transport-security-and-pairing` |
 | BR-6 | Notification mirroring: dismissal, replies, app names | done | `work/br-6-notification-mirroring` |
 | BR-7 | Add a Disconnect control to both apps | ready | |
 | BR-8 | File transfer: sanitise, cap, authenticate, confirm | ready | |
@@ -34,6 +34,8 @@ place a work item is born. One row per item, one detail block per row.
 | BR-15 | Clipboard: the ADB grant path is dead, decide what replaces it | done | `work/br-15-adb-grant` |
 | BR-16 | Clipboard: decide whether reconnect should push the phone's clip | ready | |
 | BR-17 | Media control: drive the phone's player from the Mac | ready | |
+| BR-18 | Notifications: the app list is thin and new apps are not mirrored | idea | |
+| BR-19 | Pairing and link hardening left over from BR-4+BR-5 | ready | |
 
 All of BR-2…BR-12 come from [AUDIT-2026-10-26.md](AUDIT-2026-10-26.md), which holds the
 evidence, file:line references and reproduction for each. The audit's own ordering
@@ -122,8 +124,41 @@ packet type is processed from an unidentified peer — the spec says the opposit
 - [ ] an uninitialised trust store drops packets rather than passing them
 - [ ] a line over the cap closes the connection
 - [ ] docs and specs match the shipped transport, whichever way the decision lands
-**Notes**: `AUD-C`. Status is `idea`, not `ready`, because the TLS-or-amend-docs call is
-yours. Land with BR-5 as one change — they compound.
+**Notes**: `AUD-C`. Land with BR-5 as one change — they compound.
+
+**Decision (2026-10-29, confirmed by the user): split encryption by path.** The TLS-or-amend-docs
+call was framed as all-or-nothing; reading the code shows exposure and cost run opposite ways:
+
+- **File payloads** are plaintext TCP over Wi-Fi — a plain `java.net.ServerSocket`
+  (`PayloadServer.kt:44`) to a Mac `PayloadServer` with no TLS — so anyone on the LAN can read a
+  transferred file. This path gets **real mutual TLS with pinned fingerprints**, and it is the
+  cheap one: `CertificateManager.createSSLContext()` layers straight onto a `java.net.Socket` and
+  finally gets its caller; the Mac side uses `NWProtocolTLS` with a verify block.
+- **The BLE control channel** needs physical proximity plus sniffer hardware to attack, and TLS
+  over it is the expensive option — `BluetoothSocket` is not a `java.net.Socket`, so
+  `SSLSocketFactory` cannot wrap it and mutual TLS would mean hand-driving `SSLEngine`. Instead
+  switch `listenUsingInsecureL2capChannel()` to `listenUsingL2capChannel()` for LE link-layer
+  encryption. Needs a device spike: the Mac must bond with the phone for the secure variant to
+  accept it. If the spike fails, this channel stays plaintext and the docs say so.
+- **`TLSWrapper.swift` is deleted.** It is built on Secure Transport (deprecated since macOS
+  10.15), has never had a caller, and its handshake busy-spins —
+  `while result == errSSLWouldBlock { result = SSLHandshake(ctx) }` against a non-blocking stream
+  whose `tlsRead` returns `errSSLWouldBlock` on every empty read.
+
+**Found during implementation (2026-10-29), in scope by the user's call:** the Mac has never had
+a device certificate. `CertificateManager.loadExistingIdentity()` queries `kSecClassIdentity`
+filtered by `kSecAttrLabel`, and macOS ignores that filter — the keychain holds exactly one
+identity and queries by label *and* by application tag both return it: the **"Bridge Dev"
+code-signing certificate** (RSA 2048, `extendedKeyUsage = Code Signing`). So
+`generateAndStoreIdentity()` has never run, and the fingerprint the Mac pins and derives the
+six-digit code from is its code-signing certificate's. It is stable, which is why pairing
+appeared to work, but it cannot serve TLS (a listener built on it fails with `EINVAL` before any
+handshake — almost certainly why mutual TLS was specced and never wired) and it changes silently
+if the app is rebuilt with a different signing identity. Fixed here; forces a re-pair.
+
+A third fail-open the Scope above does not name, found while verifying: `BridgeTrustManager`
+constructed with a null `expectedFingerprint` logs the peer fingerprint and **accepts it**
+(`BridgeTrustManager.kt:47`). It is in scope for the default-deny work.
 
 ### BR-5 — Pairing: six-digit confirmation and a device picker
 
@@ -141,8 +176,20 @@ itself and inject packets with no human touching either screen.
 - [ ] declining on either side leaves both trust stores unchanged
 - [ ] a fingerprint that does not match the pin closes the connection and needs a deliberate re-pair
 - [ ] an unpaired Mac lists discovered phones by name and RSSI and waits for a choice
-**Notes**: `AUD-D`. Needs BR-2 first for a presentable confirmation UI. Status is `idea`
-pending the BR-4 decision, since the two land together.
+**Notes**: `AUD-D`. Needs BR-2 first for a presentable confirmation UI — shipped. Lands with
+BR-4 as one change on one branch; see the BR-4 decision block above for the transport shape.
+
+Auto-accept lives in three places, all confirmed on disk, and all three must go:
+- `L2capServer.kt` — `pm.onPairRequest` logs "Auto-accepting pair request" and calls
+  `pm.acceptPair()` unconditionally.
+- `PairingManager.swift` `setPeerIdentity` — auto-pairs whenever the trust store is empty.
+- `PairingManager.swift` `handlePairAcceptOrRequest` — the `.unpaired` branch stages the
+  confirmation sheet and then calls `acceptIncomingPair()` on the next line anyway, and the
+  `.paired` branch re-accepts a changed fingerprint ("peer may have lost trust store"), which is
+  the re-pair hole in the Why above.
+
+The six-digit code exists nowhere on either side (grep returns nothing), so it is new work, not
+wiring. Derive it from both fingerprints so both ends compute the same digits independently.
 
 ### BR-6 — Notification mirroring: dismissal, replies, app names
 
@@ -543,3 +590,60 @@ during implementation.
 **Notes**: links to PRD sections, prior iterations, known constraints.
 
 -->
+
+### BR-18 — Notifications: the app list is thin and new apps are not mirrored
+
+**Scope**: decide what the per-app notification list should show and when a newly seen app
+should be mirrored, then make the list reflect that.
+**Why**: reported 2026-10-30 — the filter screen shows only 6 apps. The list is built from a
+"seen" set that `BridgeNotificationListener` fills on the first notification from each package
+(`BridgeNotificationListener.kt:83`), so it only ever contains apps that have posted since
+Bridge gained notification access. Clearing app data empties it and it refills slowly, which is
+how this surfaced. Two separate questions fall out:
+
+- Should the list be seeded from installed apps that can post notifications, rather than waiting
+  for each one to post? A list that starts empty reads as broken.
+- Newly seen apps are inconsistent. On 2026-10-30 `seen_packages` held 7 entries and
+  `allowed_packages` 6: every app was auto-allowed except `com.android.shell`, which was
+  recorded as seen and refused in the same call (`Filtered out com.android.shell (muted=false,
+  allowed=false)`). That looks like a first-sight race between `recordSeen` and `shouldForward`,
+  so the very first notification from a new app may be dropped.
+
+**Platforms**: android
+**Done when**:
+- [ ] opening the filter screen on a fresh install shows a useful list, not an empty one
+- [ ] the first notification from a newly seen app behaves the same way as the second
+- [ ] a decision is recorded on whether new apps default to mirrored or muted, and the UI says so
+**Notes**: raised by the user during BR-4+BR-5 device testing. Not caused by that change — the
+behaviour predates it; it only became visible because app data was cleared during the test.
+
+### BR-19 — Pairing and link hardening left over from BR-4+BR-5
+
+**Scope**: three defects found by review of `work/br-4-transport-security-and-pairing` that were
+deliberately not fixed there, plus the ping behaviour that made one of them visible.
+**Why**: each is real but none blocked that item, and folding them in would have widened a change
+that already spanned two backlog rows.
+
+- **The Mac never answers a ping.** `PingHandler.handle()` logs and returns; it sends nothing,
+  identically on `main`. Android's `probeLink()` sends a ping and closes the link if no packet
+  arrives within 3 s, so the probe always fails. It was invisible while pairing was automatic;
+  now that a confirmation can sit for minutes, the link drops repeatedly during pairing and
+  reconnects. Decide whether the Mac should answer, or whether `probeLink` should not expect a
+  reply the protocol never defined.
+- **`TrustStore.pairedDeviceId()` returns an arbitrary key.** Mac `TrustStore.swift:55` and
+  Android `pairedFingerprint()` both take the first entry of an unordered map. With two pins —
+  reachable, because a non-empty trust store connects to any advertiser — `PayloadTLS` pins the
+  payload connection to the wrong peer.
+- **The Mac's local fingerprint arrives asynchronously.** `setLocalFingerprint` is delivered by a
+  detached `Task`; an identity packet that beats it makes `presentPairConfirmation` return with
+  no prompt and no retry, so pairing silently cannot start. Android's lazy `localFingerprint`
+  fails the same way.
+
+**Platforms**: both
+**Done when**:
+- [ ] the link is not dropped by `probeLink` during a pairing that waits on a human
+- [ ] the payload connection pins to the peer actually connected, with more than one device pinned
+- [ ] a pair confirmation still appears when the identity packet arrives before the local
+      fingerprint is ready
+**Notes**: from the `code-review` pass on BR-4+BR-5, 2026-10-30. The five other findings from
+that review were fixed in that branch.

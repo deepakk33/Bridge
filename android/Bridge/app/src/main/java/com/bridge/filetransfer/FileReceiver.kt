@@ -53,7 +53,7 @@ class FileReceiver(
             }
             try {
                 resolver.openOutputStream(uri)?.use { out ->
-                    val client = PayloadClient(host, port, size)
+                    val client = PayloadClient(host, port, size, PayloadTls.forPairedPeer())
                     var lastPct = -1L
                     client.fetchTo(out) { received, total ->
                         val pct = if (total > 0) received * 100 / total else 0

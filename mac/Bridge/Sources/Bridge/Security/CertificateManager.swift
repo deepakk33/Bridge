@@ -7,8 +7,16 @@ actor CertificateManager {
     static let shared = CertificateManager()
 
     private static let logger = Logger(subsystem: "com.bridge.mac", category: "CertificateManager")
-    private static let keychainLabel = "com.bridge.mac.certificate"
-    private static let keychainTag = "com.bridge.mac.key".data(using: .utf8)!
+    // v2: the original certificate carried no X.509 extensions, which Network.framework
+    // rejects outright — a TLS listener built on it fails to start with EINVAL before any
+    // handshake. Bumping the label generates a conforming certificate instead of reusing
+    // the unusable one. The fingerprint changes, so paired devices must pair again.
+    /// The certificate's common name, and the only reliable way to find it again:
+    /// macOS derives a certificate's `kSecAttrLabel` from its subject and ignores the
+    /// label passed to `SecItemAdd`.
+    static let certificateCommonName = "Bridge Device"
+    private static let keychainLabel = "com.bridge.mac.certificate.v2"
+    private static let keychainTag = "com.bridge.mac.key.v2".data(using: .utf8)!
 
     private var cachedIdentity: SecIdentity?
     private var cachedFingerprint: String?
@@ -55,17 +63,40 @@ actor CertificateManager {
 
     // MARK: - Private
 
+    /// Finds the Bridge device identity, or nil when it has not been generated yet.
+    ///
+    /// Deliberately not a `kSecClassIdentity` query: on macOS that class ignores both
+    /// `kSecAttrLabel` and `kSecAttrApplicationTag`, so it returns whichever identity the
+    /// keychain happens to hold — on a development machine, the app's own "Bridge Dev"
+    /// code-signing identity. That made this function always succeed, so the device
+    /// certificate was never generated and the fingerprint Bridge pinned was the
+    /// code-signing certificate's. Certificate-class queries do respect the label, so
+    /// look the certificate up and let Security pair it with its private key.
     private func loadExistingIdentity() -> SecIdentity? {
         let query: [String: Any] = [
-            kSecClass as String: kSecClassIdentity,
-            kSecAttrLabel as String: Self.keychainLabel,
+            kSecClass as String: kSecClassCertificate,
             kSecReturnRef as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
+            kSecMatchLimit as String: kSecMatchLimitAll
         ]
         var result: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess else { return nil }
-        return (result as! SecIdentity)
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let certificates = result as? [SecCertificate] else {
+            return nil
+        }
+
+        // Matching on the subject, and then on whether the private key is actually
+        // present, is the only dependable test. A stale certificate from an earlier run
+        // has no key left, so it fails the second step and is skipped.
+        for certificate in certificates {
+            guard (SecCertificateCopySubjectSummary(certificate) as String?) == Self.certificateCommonName
+            else { continue }
+            var identity: SecIdentity?
+            if SecIdentityCreateWithCertificate(nil, certificate, &identity) == errSecSuccess,
+               let identity {
+                return identity
+            }
+        }
+        return nil
     }
 
     private func generateAndStoreIdentity() throws -> SecIdentity {
@@ -90,8 +121,28 @@ actor CertificateManager {
         guard certStatus == errSecSuccess || certStatus == errSecDuplicateItem else {
             throw CertificateError.keychainStoreFailed(certStatus)
         }
+        Self.logger.info("Stored Bridge certificate (status \(certStatus))")
 
         guard let identity = loadExistingIdentity() else {
+            // Both halves are in the keychain but Security would not pair them. Say which
+            // half is missing rather than leaving a bare "not found".
+            var certRes: CFTypeRef?
+            let certFind = SecItemCopyMatching([
+                kSecClass as String: kSecClassCertificate,
+                kSecAttrLabel as String: Self.keychainLabel,
+                kSecReturnRef as String: true,
+                kSecMatchLimit as String: kSecMatchLimitOne
+            ] as CFDictionary, &certRes)
+            var keyRes: CFTypeRef?
+            let keyFind = SecItemCopyMatching([
+                kSecClass as String: kSecClassKey,
+                kSecAttrApplicationTag as String: Self.keychainTag,
+                kSecReturnRef as String: true,
+                kSecMatchLimit as String: kSecMatchLimitOne
+            ] as CFDictionary, &keyRes)
+            Self.logger.error(
+                "Identity pairing failed — certificate lookup \(certFind), key lookup \(keyFind)"
+            )
             throw CertificateError.identityNotFoundAfterCreation
         }
         return identity
@@ -138,16 +189,17 @@ actor CertificateManager {
         // Build TBSCertificate
         var tbs = Data()
         tbs.append(contentsOf: derExplicit(tag: 0, content: derInteger(Data([0x02])))) // version v3
-        tbs.append(contentsOf: derInteger(Data([0x01]))) // serial number
+        tbs.append(contentsOf: derInteger(randomSerialNumber())) // serial number
         tbs.append(contentsOf: ecdsaWithSHA256AlgorithmIdentifier()) // signature algorithm
         tbs.append(contentsOf: derSequence(content: derSet(content: derSequence(content:
-            derOID([0x55, 0x04, 0x03]) + derUTF8String("Bridge Device")
+            derOID([0x55, 0x04, 0x03]) + derUTF8String(Self.certificateCommonName)
         )))) // issuer: CN=Bridge Device
         tbs.append(contentsOf: validity()) // validity: now to +10 years
         tbs.append(contentsOf: derSequence(content: derSet(content: derSequence(content:
-            derOID([0x55, 0x04, 0x03]) + derUTF8String("Bridge Device")
+            derOID([0x55, 0x04, 0x03]) + derUTF8String(Self.certificateCommonName)
         )))) // subject = issuer (self-signed)
         tbs.append(contentsOf: subjectPublicKeyInfo(pubKeyData: pubKeyData))
+        tbs.append(contentsOf: v3Extensions())
 
         let tbsSequence = derSequence(content: tbs)
 
@@ -194,6 +246,63 @@ actor CertificateManager {
     private func derBitString(_ data: Data) -> Data { derTag(0x03, Data([0x00]) + data) }
     private func derOctetString(_ data: Data) -> Data { derTag(0x04, data) }
     private func derUTF8String(_ str: String) -> Data { derTag(0x0C, Data(str.utf8)) }
+
+    /// macOS keys certificate uniqueness on issuer + serial, and both are ours. A fixed
+    /// serial meant every regenerated certificate collided with the first one ever made:
+    /// `SecItemAdd` returned `errSecDuplicateItem`, the new certificate was silently not
+    /// stored, and the lookup that followed found nothing.
+    private func randomSerialNumber() -> Data {
+        var bytes = [UInt8](repeating: 0, count: 16)
+        if SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) != errSecSuccess {
+            bytes = (0..<16).map { _ in UInt8.random(in: 0...255) }
+        }
+        // Keep it positive: derInteger pads a leading high bit, but a leading zero byte
+        // would then be a non-minimal encoding.
+        bytes[0] &= 0x7F
+        if bytes[0] == 0 { bytes[0] = 1 }
+        return Data(bytes)
+    }
+
+    private func derBoolean(_ value: Bool) -> Data { derTag(0x01, Data([value ? 0xFF : 0x00])) }
+
+    /// The v3 extensions a modern TLS stack requires before it will use a certificate.
+    /// Without these the identity is valid as a certificate and useless as a TLS peer.
+    private func v3Extensions() -> Data {
+        // basicConstraints (2.5.29.19), critical: an empty SEQUENCE means CA:FALSE.
+        let basicConstraints = derSequence(content:
+            derOID([0x55, 0x1D, 0x13]) + derBoolean(true) +
+            derOctetString(derSequence(content: Data()))
+        )
+
+        // keyUsage (2.5.29.15), critical: digitalSignature only — the long-term key signs
+        // the ephemeral ECDHE parameters, it never encrypts or agrees directly.
+        // BIT STRING with 7 unused bits and bit 0 set.
+        let keyUsage = derSequence(content:
+            derOID([0x55, 0x1D, 0x0F]) + derBoolean(true) +
+            derOctetString(derTag(0x03, Data([0x07, 0x80])))
+        )
+
+        // extendedKeyUsage (2.5.29.37): both, because each device is the payload server
+        // for files it sends and the client for files it receives.
+        let serverAuth: [UInt8] = [0x2B, 0x06, 0x01, 0x05, 0x05, 0x07, 0x03, 0x01]
+        let clientAuth: [UInt8] = [0x2B, 0x06, 0x01, 0x05, 0x05, 0x07, 0x03, 0x02]
+        let extendedKeyUsage = derSequence(content:
+            derOID([0x55, 0x1D, 0x25]) +
+            derOctetString(derSequence(content: derOID(serverAuth) + derOID(clientAuth)))
+        )
+
+        // subjectAltName (2.5.29.17): dNSName [2]. The pinned-fingerprint verify block
+        // replaces hostname checking, but a certificate with no SAN is malformed to some
+        // stacks and costs nothing to supply.
+        let subjectAltName = derSequence(content:
+            derOID([0x55, 0x1D, 0x11]) +
+            derOctetString(derSequence(content: derTag(0x82, Data("bridge.local".utf8))))
+        )
+
+        return derExplicit(tag: 3, content: derSequence(
+            content: basicConstraints + keyUsage + extendedKeyUsage + subjectAltName
+        ))
+    }
 
     private func derInteger(_ data: Data) -> Data {
         var padded = data

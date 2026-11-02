@@ -6,9 +6,11 @@ import android.bluetooth.BluetoothSocket
 import android.os.Build
 import android.util.Log
 import com.bridge.protocol.BridgePacket
+import com.bridge.protocol.CappedLineReader
 import com.bridge.protocol.PingHandler
 import com.bridge.protocol.PingWatchdog
 import com.bridge.security.CertificateManager
+import com.bridge.security.PacketGate
 import com.bridge.security.PairingManager
 import com.bridge.security.TrustStore
 import kotlinx.coroutines.CoroutineScope
@@ -18,9 +20,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.jsonPrimitive
-import java.io.BufferedReader
 import java.io.IOException
-import java.io.InputStreamReader
 import java.io.OutputStream
 
 class L2capServer(
@@ -38,6 +38,16 @@ class L2capServer(
     var onLinkReady: (() -> Unit)? = null
 
     /**
+     * Raised when a peer must be confirmed by the user, carrying the six digits that
+     * the other screen shows at the same moment. Nothing is pinned until the answer
+     * comes back through [acceptPairing] or [rejectPairing].
+     */
+    var onPairConfirmationRequired: ((deviceName: String, code: String) -> Unit)? = null
+
+    /** The link dropped with a confirmation outstanding; drop its notification too. */
+    var onPairConfirmationCleared: (() -> Unit)? = null
+
+    /**
      * Fired once the peer's identity is known (and again when pairing completes),
      * reporting whether the connected peer is trusted and its display name.
      * A socket connection alone is not a usable link — only a verified peer is.
@@ -52,6 +62,16 @@ class L2capServer(
         adapter.listenUsingInsecureL2capChannel()
 
     val psm: Int = serverSocket.psm
+
+    /** This device's own fingerprint — half of the verification code's input. */
+    private val localFingerprint: String? by lazy {
+        try {
+            CertificateManager.getInstance().getFingerprint()
+        } catch (e: Exception) {
+            Log.e(TAG, "No local fingerprint — pairing cannot be confirmed", e)
+            null
+        }
+    }
 
     private var activeSocket: BluetoothSocket? = null
     private var pairingManager: PairingManager? = null
@@ -82,6 +102,11 @@ class L2capServer(
                 peerName = null
                 pairingManager?.reset()
                 pairingManager = null
+                // The peer is gone, so no answer is owed. Without this the confirmation
+                // stays pending behind an ongoing (undismissable) notification whose
+                // Accept is a silent no-op.
+                com.bridge.security.PairConfirmation.clear()
+                onPairConfirmationCleared?.invoke()
                 pingWatchdog.stop()
                 onConnectionChanged(false)
             }
@@ -90,19 +115,29 @@ class L2capServer(
 
     private fun handleConnection(socket: BluetoothSocket) {
         try {
-            val reader = BufferedReader(InputStreamReader(socket.inputStream, Charsets.UTF_8))
+            val reader = CappedLineReader(socket.inputStream)
             val outputStream = socket.outputStream
             currentOutputStream = outputStream
 
-            pairingManager = PairingManager(deviceId) { packet -> send(packet, outputStream) }.also { pm ->
-                pm.onPairRequest = { deviceName, fingerprint ->
-                    Log.i(TAG, "Auto-accepting pair request from $deviceName (fp: $fingerprint)")
-                    pm.acceptPair()
+            pairingManager = PairingManager(
+                localDeviceId = deviceId,
+                localFingerprint = localFingerprint,
+                sendPacket = { packet -> send(packet, outputStream) }
+            ).also { pm ->
+                // Nothing is pinned without a human. The confirmation goes to the UI and
+                // the answer comes back through acceptPair()/rejectPair().
+                pm.onPairRequest = { deviceName, fingerprint, code ->
+                    Log.i(TAG, "Pair confirmation needed for $deviceName (fp: $fingerprint)")
+                    onPairConfirmationRequired?.invoke(deviceName, code)
                 }
                 pm.onPairCompleted = {
                     onPairCompleted?.invoke()
                     // Pairing just pinned the peer → the link is now verified.
                     onPeerVerified?.invoke(true, peerName)
+                }
+                pm.onFingerprintMismatch = { deviceName ->
+                    Log.e(TAG, "Closing link to $deviceName: certificate does not match the pin")
+                    try { socket.close() } catch (_: IOException) {}
                 }
             }
 
@@ -133,6 +168,10 @@ class L2capServer(
             }
 
             Log.i(TAG, "Connection closed")
+        } catch (e: CappedLineReader.LineTooLongException) {
+            // Broken or hostile. Resynchronising a stream from an attacker-chosen offset
+            // is a parsing problem nobody needs; the link reconnects on its own.
+            Log.e(TAG, "Oversized line from peer — closing connection", e)
         } catch (e: IOException) {
             Log.e(TAG, "Connection error", e)
         } finally {
@@ -145,6 +184,16 @@ class L2capServer(
     /** Trigger phone-initiated pairing on the active connection, if any. */
     fun requestPairing() {
         pairingManager?.requestPair()
+    }
+
+    /** The user accepted the confirmation raised by [onPairConfirmationRequired]. */
+    fun acceptPairing() {
+        pairingManager?.acceptPair()
+    }
+
+    /** The user declined. Neither trust store changes. */
+    fun rejectPairing() {
+        pairingManager?.rejectPair()
     }
 
     /**
@@ -166,14 +215,9 @@ class L2capServer(
     }
 
     private fun handlePacket(packet: BridgePacket, outputStream: OutputStream) {
-        if (peerDeviceId != null && peerFingerprint != null) {
-            try {
-                val trusted = TrustStore.getInstance().isTrusted(peerDeviceId!!, peerFingerprint!!)
-                if (!trusted && packet.type != "bridge.identity" && packet.type != "bridge.pair") {
-                    Log.w(TAG, "Dropping packet from untrusted device: ${packet.type}")
-                    return
-                }
-            } catch (_: IllegalStateException) {}
+        if (!PacketGate.allows(packet.type, peerDeviceId, peerFingerprint) { TrustStore.getInstance() }) {
+            Log.w(TAG, "Dropping ${packet.type} from an untrusted or unidentified peer")
+            return
         }
 
         when (packet.type) {

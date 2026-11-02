@@ -78,6 +78,13 @@
             android:label="Notification Filter"
             android:parentActivityName=".MainActivity" />
 
+        <activity
+            android:name="com.bridge.security.PairConfirmationActivity"
+            android:exported="false"
+            android:label="Pair Request"
+            android:launchMode="singleTop"
+            android:parentActivityName=".MainActivity" />
+
         <service
             android:name=".BridgeService"
             android:exported="false"

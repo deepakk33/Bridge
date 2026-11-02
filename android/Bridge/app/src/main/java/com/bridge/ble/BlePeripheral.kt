@@ -138,8 +138,27 @@ class BlePeripheral(
         onPairCompletedHandler = handler
     }
 
+    /** Raised when a peer needs confirming, with the six digits the Mac shows too. */
+    fun setPairConfirmationHandler(handler: (deviceName: String, code: String) -> Unit) {
+        onPairConfirmationRequiredHandler = handler
+        l2capServer?.onPairConfirmationRequired = handler
+    }
+
+    /** Raised when a pending confirmation is abandoned because the link dropped. */
+    fun setPairConfirmationClearedHandler(handler: () -> Unit) {
+        onPairConfirmationClearedHandler = handler
+        l2capServer?.onPairConfirmationCleared = handler
+    }
+
+    /** The user answered the confirmation. */
+    fun answerPairing(accepted: Boolean) {
+        if (accepted) l2capServer?.acceptPairing() else l2capServer?.rejectPairing()
+    }
+
     private var onConnectHandler: (() -> Unit)? = null
     private var onPairCompletedHandler: (() -> Unit)? = null
+    private var onPairConfirmationRequiredHandler: ((deviceName: String, code: String) -> Unit)? = null
+    private var onPairConfirmationClearedHandler: (() -> Unit)? = null
     private var onShareRequestHandler: ((com.bridge.protocol.BridgePacket) -> Unit)? = null
 
     fun stop() {
@@ -170,6 +189,8 @@ class BlePeripheral(
             }
             l2capServer = server
             server.onPairCompleted = onPairCompletedHandler
+            server.onPairConfirmationRequired = onPairConfirmationRequiredHandler
+            server.onPairConfirmationCleared = onPairConfirmationClearedHandler
             server.onShareRequest = onShareRequestHandler
             server.onLinkReady = { onConnectHandler?.invoke() }
             server.onPeerVerified = { verified, name ->
@@ -287,8 +308,16 @@ class BlePeripheral(
             .addServiceUuid(BridgeConstants.SERVICE_PARCEL_UUID)
             .build()
 
+        // The name goes in the scan response, not the advertisement: the advertisement's
+        // 31 bytes are nearly spent on the 128-bit service UUID, and a device name long
+        // enough to overflow it would make advertising fail outright. The scan response
+        // has its own 31 bytes, and an unpaired Mac needs the name to show a picker.
+        val scanResponse = AdvertiseData.Builder()
+            .setIncludeDeviceName(true)
+            .build()
+
         try {
-            advertiser?.startAdvertising(settings, data, advertiseCallback)
+            advertiser?.startAdvertising(settings, data, scanResponse, advertiseCallback)
             Log.i(TAG, "BLE advertising started")
         } catch (e: SecurityException) {
             Log.e(TAG, "SecurityException starting advertising", e)

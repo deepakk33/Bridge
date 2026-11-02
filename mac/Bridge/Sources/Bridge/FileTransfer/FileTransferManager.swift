@@ -1,4 +1,5 @@
 import Foundation
+import Network
 import os
 
 /// Orchestrates an outbound file transfer: selects the tier, opens the payload
@@ -60,8 +61,22 @@ final class FileTransferManager: ObservableObject {
     }
 
     private func startWifiTransfer(filename: String, data: Data, size: Int64) {
+        Task { @MainActor in
+            // No pin, no transfer. Nothing is listened on for an unpaired peer.
+            guard let parameters = try? await PayloadTLS.pairedPeerParameters() else {
+                Self.logger.error("Refusing to send '\(filename)': no pinned peer")
+                self.state = .failed(filename: filename, reason: "Not paired")
+                return
+            }
+            self.startWifiTransfer(filename: filename, data: data, size: size, parameters: parameters)
+        }
+    }
+
+    private func startWifiTransfer(
+        filename: String, data: Data, size: Int64, parameters: NWParameters
+    ) {
         do {
-            let server = try PayloadServer(payload: data, advertiseBonjour: true)
+            let server = try PayloadServer(payload: data, parameters: parameters, advertiseBonjour: true)
             activeServer = server
             server.start(onReady: { [weak self] port in
                 Task { @MainActor in

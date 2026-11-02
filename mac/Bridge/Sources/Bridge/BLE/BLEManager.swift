@@ -15,6 +15,10 @@ final class BLEManager: NSObject, ObservableObject {
     /// nil until the phone reports it this connection — the Mac never invents a count.
     @Published var mirroringState: MirroringState?
 
+    /// Phones an unpaired Mac has seen and is waiting for the user to choose between.
+    /// Empty once a device is paired — the picker is a first-run step, not a prompt.
+    @Published private(set) var discoveredDevices: [DiscoveredDevice] = []
+
     let pairingManager = PairingManager()
     let pingWatchdog = PingWatchdog()
     let notificationManager = NotificationManager.shared
@@ -32,6 +36,8 @@ final class BLEManager: NSObject, ObservableObject {
     private var isVerified = false
     private var lastDisconnect: DisconnectReason?
     private var healthTimer: Timer?
+    private var deviceDirectory = DeviceDirectory()
+    private var peripheralsByID: [UUID: CBPeripheral] = [:]
     private var loggedHealth: LinkHealth?
     /// Our own record that a scan was requested. `CBCentralManager.isScanning` reports this
     /// app's request, not the daemon's behaviour — it stayed true throughout the 2026-10-27
@@ -66,7 +72,25 @@ final class BLEManager: NSObject, ObservableObject {
         centralManager = CBCentralManager(delegate: self, queue: .main)
 
         pairingManager.onPairConfirmationPending = { [weak self] deviceName in
-            self?.notificationManager.postPairConfirmationPending(deviceName: deviceName)
+            self?.notificationManager.postPairConfirmationPending(
+                deviceName: deviceName,
+                verificationCode: self?.pairingManager.incomingPairRequest?.verificationCode
+            )
+        }
+
+        // A pinned device presenting a different certificate is a reinstall or an
+        // impostor. The link is not usable either way, and the pin stays put so
+        // returning that device to service needs a deliberate unpair.
+        // A decline is not a dead end: drop the link so the scan restarts and the
+        // picker repopulates, ready for another choice.
+        pairingManager.onPairDeclined = { [weak self] in
+            Self.logger.info("Pairing declined — returning to the device picker")
+            self?.disconnect()
+        }
+
+        pairingManager.onFingerprintMismatch = { [weak self] deviceName in
+            Self.logger.error("Closing link to \(deviceName): certificate does not match the pin")
+            self?.disconnect()
         }
 
         pairingManager.configure(localDeviceId: deviceId) { [weak self] packet in
@@ -74,6 +98,14 @@ final class BLEManager: NSObject, ObservableObject {
         }
         notificationManager.configure { [weak self] packet in
             self?.sendPacket(packet) ?? false
+        }
+
+        Task { @MainActor [weak self] in
+            // The verification code needs this device's own fingerprint, and
+            // CertificateManager is an actor — fetch it off the synchronous init path.
+            if let fingerprint = try? await CertificateManager.shared.getFingerprint() {
+                self?.pairingManager.setLocalFingerprint(fingerprint)
+            }
         }
 
         Task {
@@ -84,7 +116,11 @@ final class BLEManager: NSObject, ObservableObject {
         }
 
         healthTimer = Timer.scheduledTimer(withTimeInterval: Self.healthTick, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refreshHealth() }
+            Task { @MainActor in
+                self?.refreshHealth()
+                // Ages out phones that walked away while the picker is open.
+                self?.publishDiscoveredDevices()
+            }
         }
     }
 
@@ -261,9 +297,35 @@ final class BLEManager: NSObject, ObservableObject {
         }
     }
 
+    // MARK: - Device picker
+
+    /// The user picked a phone from the list. Scanning keeps running until the link is
+    /// up, so BR-13's scan watchdog is unaffected by the picker being open.
+    func connectToDiscovered(_ id: UUID) {
+        guard let peripheral = peripheralsByID[id] else {
+            Self.logger.warning("Picked a device that is no longer in range")
+            return
+        }
+        Self.logger.info("User picked \(peripheral.name ?? "unnamed")")
+        connectToPeripheral(peripheral)
+    }
+
+    private func publishDiscoveredDevices() {
+        deviceDirectory.prune()
+        let devices = deviceDirectory.devices
+        peripheralsByID = peripheralsByID.filter { id, _ in devices.contains { $0.id == id } }
+        if discoveredDevices != devices {
+            discoveredDevices = devices
+        }
+    }
+
     // MARK: - Connection flow
 
     private func connectToPeripheral(_ peripheral: CBPeripheral) {
+        // The choice is made; the list is no longer something to look at.
+        deviceDirectory.removeAll()
+        peripheralsByID.removeAll()
+        discoveredDevices = []
         centralManager.stopScan()
         stopScanWatchdog()
         if let old = discoveredPeripheral, old !== peripheral {
@@ -305,9 +367,13 @@ final class BLEManager: NSObject, ObservableObject {
         pingWatchdog.packetReceived()
         refreshHealth()
 
-        if peerDeviceId != nil, peerFingerprint != nil, !isVerified,
-           !Self.preVerificationPacketTypes.contains(packet.type) {
-            Self.logger.warning("Dropping packet from untrusted device: \(packet.type)")
+        guard PacketGate.allows(
+            packetType: packet.type,
+            peerDeviceId: peerDeviceId,
+            peerFingerprint: peerFingerprint,
+            isTrusted: { TrustStore.shared.isTrusted(deviceId: $0, fingerprint: $1) }
+        ) else {
+            Self.logger.warning("Dropping \(packet.type) from an untrusted or unidentified peer")
             return
         }
 
@@ -487,7 +553,24 @@ extension BLEManager: CBCentralManagerDelegate {
     ) {
         MainActor.assumeIsolated {
             Self.logger.info("Discovered \(peripheral.name ?? "unnamed") RSSI: \(RSSI)")
-            connectToPeripheral(peripheral)
+
+            // Every Bridge install advertises the same UUID, so an unpaired Mac must not
+            // connect to whichever phone it happened to see first — it offers the choice.
+            guard TrustStore.shared.isEmpty else {
+                connectToPeripheral(peripheral)
+                return
+            }
+
+            peripheralsByID[peripheral.identifier] = peripheral
+            // CBPeripheral.name is usually nil before connecting; the advertised local
+            // name arrives in the scan response, which is where the phone puts it.
+            let advertisedName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
+            deviceDirectory.record(
+                id: peripheral.identifier,
+                name: advertisedName ?? peripheral.name ?? "Unnamed device",
+                rssi: RSSI.intValue
+            )
+            publishDiscoveredDevices()
         }
     }
 
@@ -655,6 +738,14 @@ extension BLEManager: CBPeripheralDelegate {
             }
             Self.logger.info("L2CAP channel opened")
             let wrapper = L2CAPChannel(channel: channel)
+            // Without this the channel closes silently and the link reads as connected
+            // until the ping watchdog trips.
+            wrapper.onOversizedLine = { [weak self] bytes in
+                Task { @MainActor in
+                    Self.logger.error("Peer sent an oversized line (\(bytes) bytes) — dropping the link")
+                    self?.disconnect()
+                }
+            }
             wrapper.onPacketReceived = { [weak self] packet in
                 Task { @MainActor in
                     self?.handleReceivedPacket(packet)

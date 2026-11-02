@@ -1,0 +1,65 @@
+{
+  "description": "Six-digit pairing verification code (protocol/pairing). derive(a,b) = lowercase both, sort the two hex strings lexicographically, concatenate with no separator, SHA-256 the UTF-8 bytes, read the first 4 bytes as a big-endian unsigned integer, reduce modulo 1000000, render zero-padded to 6 digits. The code is never transmitted; each side derives it from the two certificate fingerprints it already holds. Deliberately not keyed 'valid' so the all-vectors packet sweeps skip it.",
+  "vectors": [
+    {
+      "name": "mac and phone",
+      "fingerprintA": "ca3819e10f8bcc03c1c2ddc1db6e1156b646f3b1a671f12ac636d3d7a85e5f0f",
+      "fingerprintB": "aa4a27af8b9751db653f2aea54d4c2af5dbe6526c7ad01ef0f9f91f18da7d39a",
+      "expected": "885398"
+    },
+    {
+      "name": "same pair, order reversed",
+      "fingerprintA": "aa4a27af8b9751db653f2aea54d4c2af5dbe6526c7ad01ef0f9f91f18da7d39a",
+      "fingerprintB": "ca3819e10f8bcc03c1c2ddc1db6e1156b646f3b1a671f12ac636d3d7a85e5f0f",
+      "expected": "885398"
+    },
+    {
+      "name": "uppercase input is lowercased first",
+      "fingerprintA": "CA3819E10F8BCC03C1C2DDC1DB6E1156B646F3B1A671F12AC636D3D7A85E5F0F",
+      "fingerprintB": "aa4a27af8b9751db653f2aea54d4c2af5dbe6526c7ad01ef0f9f91f18da7d39a",
+      "expected": "885398"
+    },
+    {
+      "name": "impostor in the middle gives different digits",
+      "fingerprintA": "ca3819e10f8bcc03c1c2ddc1db6e1156b646f3b1a671f12ac636d3d7a85e5f0f",
+      "fingerprintB": "aa77a43d7dc3b141edd4fe9eae38b5fbbcdd99fae2769426f2396854e2ff7b75",
+      "expected": "017688"
+    },
+    {
+      "name": "identical fingerprints",
+      "fingerprintA": "ca3819e10f8bcc03c1c2ddc1db6e1156b646f3b1a671f12ac636d3d7a85e5f0f",
+      "fingerprintB": "ca3819e10f8bcc03c1c2ddc1db6e1156b646f3b1a671f12ac636d3d7a85e5f0f",
+      "expected": "776235"
+    },
+    {
+      "name": "all-zero fingerprints",
+      "fingerprintA": "0000000000000000000000000000000000000000000000000000000000000000",
+      "fingerprintB": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected": "121425"
+    },
+    {
+      "name": "all-f fingerprints",
+      "fingerprintA": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "fingerprintB": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "expected": "496463"
+    },
+    {
+      "name": "min and max fingerprints",
+      "fingerprintA": "0000000000000000000000000000000000000000000000000000000000000000",
+      "fingerprintB": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "expected": "048846"
+    },
+    {
+      "name": "max and min, order reversed",
+      "fingerprintA": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "fingerprintB": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected": "048846"
+    },
+    {
+      "name": "code with a leading zero",
+      "fingerprintA": "b430b94e01a4297a593cabd548bf7dbc07dba7a4cd66ffacb4bbaa0711331d7a",
+      "fingerprintB": "b72f453b741cddc3e80c7245cf708cfe8f316ddeea062a6c8873529b2ba1f0b6",
+      "expected": "002200"
+    }
+  ]
+}
