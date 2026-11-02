@@ -34,7 +34,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-13 | Mac: notice a scan that never returns anything | done | `work/br-13-notice-a-scan-that-never-returns` |
 | BR-14 | Mac: refuse to run twice | done | `work/br-14-refuse-to-run-twice` |
 | BR-15 | Clipboard: the ADB grant path is dead, decide what replaces it | done | `work/br-15-adb-grant` |
-| BR-16 | Android: BridgeService connection lifecycle | in-progress | `work/br-16-bridgeservice-connection-lifecycle` |
+| BR-16 | Android: BridgeService connection lifecycle | done | `work/br-16-bridgeservice-connection-lifecycle` |
 | BR-17 | Media control: drive the phone's player from the Mac | ready | |
 | BR-18 | Notifications: the app list is thin and new apps are not mirrored | done | |
 | BR-19 | Pairing and link hardening left over from BR-4+BR-5 | done | `work/br-19-pairing-and-link-hardening` |
@@ -540,12 +540,17 @@ stop, arriving through a different door.
 
 **Platforms**: Android
 **Done when**:
-- [ ] every handler registered at service start survives `restartBlePeripheral()`
-- [ ] a Mac→phone file transfer works after a BLE restart, verified on hardware
-- [ ] an unhandled packet type is logged rather than silently dropped
-- [ ] a reconnect either does not push the phone's clip, or does so under a rule the user controls
-- [ ] clipboard convergence after a gap still works, or the degradation is recorded
-- [ ] `clipboard/sync` states the rule without an exception clause pointing at this item
+- [x] every handler registered at service start survives `restartBlePeripheral()`
+- [ ] a Mac→phone file transfer works after a BLE restart, verified on hardware — **blocked by
+      BR-23, not by this item.** Device-tested 2026-11-02: the share.request reaches `FileReceiver`
+      identically before and after a rebuild (PSM 178 → 180), then the payload fails its TLS
+      handshake both times. BR-16 owns the handler, BR-23 owns the handshake.
+- [x] an unhandled packet type is logged rather than silently dropped — implemented (`orWarn`),
+      but never observed: the refactor makes a null handler impossible in a correctly wired
+      service, so it guards a future regression only
+- [x] a reconnect either does not push the phone's clip, or does so under a rule the user controls
+- [x] clipboard convergence after a gap still works, or the degradation is recorded
+- [x] `clipboard/sync` states the rule without an exception clause pointing at this item
 **Notes**: BR-20 merged in 2026-11-02. **Ship this before BR-8** — the lost handler is what
 makes a Mac→phone transfer untestable. The silent no-op is as much the bug as the lost
 registration; it cost most of an afternoon to find. Consider registering handlers inside

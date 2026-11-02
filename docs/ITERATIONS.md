@@ -1481,3 +1481,85 @@ The control channel is still unencrypted; that bullet from BR-4+BR-5 is untouche
 remains open. BR-20 carries the lost-handler bug, which silently breaks file transfer after any
 BLE restart and is the most consequential of the four above. BR-11 already covers the Local
 Network reporting.
+
+---
+
+## BR-16 — Android: BridgeService connection lifecycle (2026-11-02)
+
+Absorbs BR-20. Two faults in the same few lines of the service's connect/restart wiring.
+
+### In plain words
+
+The phone used to forget how to listen. Whenever Bluetooth was cycled — or anything else made
+the app rebuild its Bluetooth machinery — it remembered only one of the nine things it was
+supposed to react to. Files sent from the Mac, replies typed on the Mac, clipboard items, notification
+dismissals: the phone received all of them, understood all of them, and then threw them away
+without a word. No error, no log line, nothing to find. That silence cost most of an afternoon
+during BR-19.
+
+Separately, every time the two devices re-met — a Mac restart, a Bluetooth blip, walking out of
+the room and back — the phone handed over whatever was on its clipboard, unasked. BR-9 had
+removed the same behaviour through a different door; this door was still open.
+
+Both are shut. The phone now keeps its list of reactions for as long as the app is running
+instead of rebuilding it, and a reconnect hands over a timestamp rather than your clipboard.
+
+### Technically
+
+`BridgeService.onCreate()` registered nine handlers; `restartBlePeripheral()` built a fresh
+`BlePeripheral` and re-registered one. `BlePeripheral` mirrored five of the nine into private
+fields and re-applied them in `startL2capServer()`; the other four wrote straight through to
+`l2capServer?.onX`, which is also why `onCreate()` had to call those four *after* `start()` and
+the rest before — an ordering constraint nothing stated and nothing enforced.
+
+The fix removes re-registration rather than duplicating it. A `BleHandlers` holder is created once
+by the service, wired once, and passed to every `BlePeripheral` and `L2capServer` built
+afterwards. A rebuild is a new *reader* of the same object, so there is no registration step left
+to forget, and the ordering trap goes with it. Net deletion: nine `setXHandler` functions, five
+mirror fields, and a dead `onBatteryReceived`.
+
+Each dispatch site that invokes an optional handler now logs the packet type when the handler is
+absent, via one `orWarn` helper.
+
+On the clipboard side, `makeConnectPacket()` sends a timestamp with no `content` key. Absent, not
+empty — both receivers already ignore an absent `content`, whereas `""` reads as a newer empty
+clip and clears the peer's clipboard. Review found the Mac doing exactly that: it sent
+`content: ""` whenever its pasteboard held no string, and since `pollClipboard` returns early on a
+non-string, the stale-but-newer timestamp made the phone apply it. Scope was widened deliberately
+to fix it — the Mac now omits `content` when it has no text, and both sides ignore an empty one.
+
+### Known issues and degradations
+
+- **Phone→Mac clipboard no longer converges after a gap.** Deliberate, and the point of the
+  change: the clip reaches the Mac via the Quick Settings tile or the in-app control, nothing
+  else. Mac→phone is unaffected.
+- **A Mac→phone file transfer still does not complete.** Device-tested 2026-11-02: the
+  share.request now reaches `FileReceiver` both before and after a peripheral rebuild
+  (PSM 178 → 180), which is what BR-16 owns, but the payload then fails its TLS handshake
+  (`SSLHandshakeException`) identically in both cases. That is **BR-23**, pre-existing. BR-16
+  unblocks its diagnosis exactly as BR-23's note predicted — the phone logs now instead of going
+  silent.
+- **The no-handler warning was never observed and probably cannot be.** The refactor makes a null
+  handler impossible in a correctly wired service, so the warning guards only a future regression.
+  Implemented, not demonstrated.
+- **Notification reply and dismiss from the Mac were not device-tested.** Both need the Mac's
+  `MenuBarExtra` popover, which is not reachable from Accessibility (`count windows` returns 0).
+  Handler survival rests on the two handlers that could be driven: clipboard and share.request.
+- **Pairing after a Bluetooth-cycle rebuild specifically was not exercised** — after the rebuild
+  the peer was already trusted, so no prompt was due. Pairing after an app restart works (code
+  800547, both sides accepted, pinned).
+
+### Worth knowing for next time
+
+Each DerivedData build of the Mac app carries its own self-signed certificate. Switching between
+build directories makes the phone reject the link on a pin mismatch — `presented d1ad8fb3… but
+0dc984e0… is pinned — closing` — and no pairing prompt is ever raised, which reads like a hang.
+Clearing `shared_prefs/bridge_trust_store.xml` via `run-as` fixes it without `pm clear`, so the
+runtime permissions survive.
+
+### What the next item builds on
+
+BR-23 is now diagnosable and is the direct successor: the Tier 3 payload handshake is the only
+thing between here and a working Mac→phone transfer. `TierRouter` sends anything under 512 KB over
+Tier 2 with `port: nil`, which the receiver rejects as "missing payload info" — worth a look while
+in there. The BLE control channel remains unencrypted, untouched since BR-4+BR-5.
