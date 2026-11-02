@@ -35,7 +35,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-16 | Clipboard: decide whether reconnect should push the phone's clip | ready | |
 | BR-17 | Media control: drive the phone's player from the Mac | ready | |
 | BR-18 | Notifications: the app list is thin and new apps are not mirrored | idea | |
-| BR-19 | Pairing and link hardening left over from BR-4+BR-5 | ready | |
+| BR-19 | Pairing and link hardening left over from BR-4+BR-5 | in-progress | `work/br-19-pairing-and-link-hardening` |
 
 All of BR-2…BR-12 come from [AUDIT-2026-10-26.md](AUDIT-2026-10-26.md), which holds the
 evidence, file:line references and reproduction for each. The audit's own ordering
