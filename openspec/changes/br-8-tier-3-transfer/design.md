@@ -226,6 +226,37 @@ and cannot be amended afterwards.
 - **The BLE control channel is unaffected**: it is unencrypted, and pairing compares certificate
   *fingerprints* — reading and hashing a certificate never exercises the private key.
 
+### There are two bugs, not one — confirmed 2026-11-02 17:36
+
+With the signing fix installed and the devices freshly paired, phone→Mac was retried. The
+`InvalidKeyException` is gone, and the failure changed:
+
+- phone: `SocketTimeoutException: Poll timed out` at `socketAccept`, exactly 30 s after binding —
+  **no TCP connection ever arrived**.
+- Mac: `Payload client timed out after 30.000000s`.
+
+So the two directions fail for different reasons:
+
+| direction | who dials out | status |
+|---|---|---|
+| Mac serves, phone fetches | phone dials out | TCP connects (proved by packet capture); **was** killed by the signing bug, now fixed |
+| phone serves, Mac fetches | Mac dials out | TCP never establishes at all |
+
+**Bug 1 — the phone could not sign (fixed).** Covered above.
+
+**Bug 2 — the Mac's outbound connection to a LAN address never establishes (open).** This is what
+the earlier Network.framework log described: `waiting` under a satisfied path, cancelled at the
+30 s timeout. It is confined to the direction where the Mac dials out, which is exactly what
+macOS Local Network authorization gates. The terminal `nc` test does not contradict this: that
+permission is per-application, and it proved only that Terminal holds it.
+
+The user reports no `Bridge` entry under Privacy & Security → Local Network, which is consistent
+with the request never being raised rather than with it being granted.
+
+**Next test, and it is cheap:** Mac→phone. With bug 1 fixed, the phone dials out (unaffected by
+the Mac's permission) and can now sign, so that direction should complete end to end. If it does,
+bug 2 is isolated to the Mac's outbound path and nothing else remains in doubt.
+
 ### The fix, and the thing it breaks
 
 Add `KeyProperties.DIGEST_NONE` to the generated key's authorised digests, keeping
