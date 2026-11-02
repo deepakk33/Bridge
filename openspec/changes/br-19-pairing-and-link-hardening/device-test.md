@@ -98,15 +98,32 @@ bytes, a reply carrying `replyTo` as 75.
 
 ## Not run — reported as untested, not as passed
 
-- **Task 9.2 — two devices pinned, a file each way. UNTESTED.** Blocked twice over. The phone
-  had no Wi-Fi (only `rmnet_data0`, 192.0.0.2, against the Mac's 192.168.0.143), and with no
-  shared network `TierRouter` routes every payload to Tier 2, whose serving path reports
-  "Small-file Bluetooth path not available yet" and never constructs `PayloadTls` — so the
-  pinning fix cannot be exercised at all. Bluetooth then wedged (above) before Wi-Fi could be
-  arranged. Setup was staged and has since been torn down: a decoy pin
-  `00000000-dead-beef-0000-decoy0000001` was briefly added to the Mac trust store, chosen
-  because it sorts ahead of the real device id, and a 900 KB payload was pushed to the phone.
-  Both were removed afterwards; the Mac trust store holds only the real phone pin.
+- **Task 9.2 — two devices pinned, a file each way. UNTESTED.** Both devices were eventually
+  put on one subnet (phone 192.168.0.6, Mac 192.168.0.143, ping clean) and a decoy pin
+  `00000000-dead-beef-0000-decoy0000001` was added to the Mac trust store — chosen because it
+  sorts ahead of the real device id, so the old `keys.first` behaviour would have picked it.
+  Four Tier 3 attempts were made, Mac→phone and phone→Mac, with a 900 KB payload.
+
+  **Every attempt failed at the TLS layer, in both directions, with macOS Local Network
+  permission ungranted.** Mac→phone: the Mac's `PayloadServer` timed out after 30 s three times
+  while the phone reported `SSLHandshakeException: Read error … I/O error during system call`.
+  Phone→Mac: the Mac reached `FileReceiveController: Fetching … from …:39045`, then its
+  `PayloadClient` timed out after 30 s while the phone's server reported the same `SSLException`.
+  macOS gates both inbound and outbound local-network traffic on that permission.
+
+  The failure is independent of the pinning change, on three counts: the Mac's verify block
+  never ran (a wrong pin would have logged `Payload peer fingerprint … does not match the pin`,
+  and that line never appeared in any attempt); the failure was identical with one pin and with
+  two; and it occurs symmetrically in a direction where the Mac is the client and in one where
+  it is the server.
+
+  Reaching `Fetching …` does show `pairedPeerParameters(for:)` resolving the sender's `deviceId`
+  against a two-entry store without throwing, but that does not discriminate the fix — the old
+  code would also have found *a* pin. Only a completed handshake discriminates, and the
+  permission prevents one. The fix stays covered by unit tests on both platforms
+  (`testTwoPinnedDevicesPinToTheConnectedPeer`, `testAnUnpinnedPeerIsRefusedWhileOthersArePinned`,
+  `PayloadTlsTest`), which assert the named peer's pin is used and an unpinned peer refused while
+  another device is pinned.
 
   The fix is covered by unit tests on both platforms (`testTwoPinnedDevicesPinToTheConnectedPeer`,
   `PayloadTlsTest`), which assert the named peer's pin is used and that an unpinned peer is
