@@ -26,7 +26,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-5 | Pairing: six-digit confirmation and a device picker | done | `work/br-4-transport-security-and-pairing` |
 | BR-6 | Notification mirroring: dismissal, replies, app names | done | `work/br-6-notification-mirroring` |
 | BR-7 | Link control: Disconnect, Unpair, and a pairing timeout that fits a human | ready | |
-| BR-8 | File transfer: make Tier 3 work, then make it safe | ready | |
+| BR-8 | File transfer: make Tier 3 work, then make it safe | in-progress | `work/br-8-tier-3-transfer` |
 | BR-9 | Clipboard: stop the dead poll, stop the silent send | done | `work/br-9-clipboard` |
 | BR-10 | Android: permission rows, resume modal, denied-path recovery | done | `work/br-10-permission-rows-and-denied-path-recovery` |
 | BR-11 | Mac app shell: permission truth, labels, and the instance guard | ready | |
