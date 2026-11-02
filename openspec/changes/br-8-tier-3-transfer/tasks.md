@@ -53,14 +53,14 @@
 
 ## 5. Close the security holes — Android
 
-- [ ] 5.1 Apply the same basename reduction in `FileReceiver`, test first, including `../`
+- [x] 5.1 Apply the same basename reduction in `FileReceiver`, test first, including `../`
       traversal. Verify `./gradlew test`.
-- [ ] 5.2 Apply the same `payloadSize` cap before committing resources, test first. Verify
+- [x] 5.2 Apply the same `payloadSize` cap before committing resources, test first. Verify
       `./gradlew test`.
 - [ ] 5.3 Restrict `PayloadServer` to the requesting pinned peer. Verify `./gradlew test`.
 - [ ] 5.4 Announce before writing, with a decline, and surface a failed receive — reusing
       `TransferNotifier` rather than adding a surface. Verify `./gradlew test assembleDebug`.
-- [ ] 5.5 Add a shared vector or fixture for the traversal and oversize cases so both platforms are
+- [x] 5.5 Add a shared vector or fixture for the traversal and oversize cases so both platforms are
       checked against the same inputs. Verify both suites consume it.
 
 ## 6. Device test — MacBook Air M3 + Galaxy S25

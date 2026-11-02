@@ -5,6 +5,46 @@ import XCTest
 /// or how much is committed before anything is checked.
 final class IncomingFileGuardTests: XCTestCase {
 
+    // MARK: - shared vectors
+
+    private static var vectorFile: URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("protocol/test-vectors/incoming-file-guard.json")
+    }
+
+    private func vectors() throws -> [String: Any] {
+        let data = try Data(contentsOf: Self.vectorFile)
+        return try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+    }
+
+    func testSharedVectorsEveryNameReducesAsAndroidReducesIt() throws {
+        let names = try XCTUnwrap(try vectors()["names"] as? [[String: Any]])
+        for v in names {
+            let caseName = v["name"] as? String ?? "?"
+            let raw = try XCTUnwrap(v["raw"] as? String)
+            let safe = try XCTUnwrap(v["safe"] as? String)
+            XCTAssertEqual(FileReceiveController.safeName(raw), safe, "name vector '\(caseName)'")
+        }
+    }
+
+    func testSharedVectorsBothPlatformsAgreeOnAcceptableSizes() throws {
+        let root = try vectors()
+        let cap = try XCTUnwrap((root["maxPayloadBytes"] as? NSNumber)?.intValue)
+        XCTAssertEqual(cap, FileReceiveController.maxPayloadBytes,
+                       "the cap itself must match Android's")
+        let sizes = try XCTUnwrap(root["sizes"] as? [[String: Any]])
+        for v in sizes {
+            let caseName = v["name"] as? String ?? "?"
+            let size = try XCTUnwrap((v["size"] as? NSNumber)?.intValue)
+            let acceptable = try XCTUnwrap(v["acceptable"] as? Bool)
+            XCTAssertEqual(FileReceiveController.isAcceptableSize(size), acceptable,
+                           "size vector '\(caseName)'")
+        }
+    }
+
     // MARK: - filename
 
     func testParentReferenceCannotEscapeTheDownloadDirectory() {

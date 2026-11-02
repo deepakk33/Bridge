@@ -36,10 +36,19 @@ class FileReceiver(
         val size = packet.payloadSize
         val host = packet.payloadHost
         val port = packet.payloadPort
-        val filename = packet.body["filename"]?.jsonPrimitive?.content ?: "BridgeFile"
+        // The peer picks this name; reduce it before it reaches MediaStore.
+        val filename = IncomingFileGuard.safeName(
+            packet.body["filename"]?.jsonPrimitive?.content ?: ""
+        )
 
         if (size <= 0 || host == null || port == null) {
             Log.w(TAG, "share.request missing payload info (size=$size host=$host port=$port)")
+            return
+        }
+        // A declared size is a claim, not a fact: refuse it before opening anything.
+        if (!IncomingFileGuard.isAcceptableSize(size)) {
+            Log.w(TAG, "Refusing $filename: declared $size bytes exceeds the cap")
+            notifier.failure(notifier.startReceive(filename, size), filename, "file is too large")
             return
         }
         Log.i(TAG, "Receiving $filename ($size bytes) from $host:$port")

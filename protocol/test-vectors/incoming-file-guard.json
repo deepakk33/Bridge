@@ -1,0 +1,26 @@
+{
+  "description": "BR-8: bounds on what a peer may assert about an incoming file. Both platforms must reduce these names identically and agree on which declared sizes are acceptable, so a traversal refused on one side is not accepted on the other.",
+  "maxPayloadBytes": 2147483648,
+  "names": [
+    { "name": "parent_reference", "raw": "../../.zshenv", "safe": ".zshenv" },
+    { "name": "deep_traversal", "raw": "../../../etc/passwd", "safe": "passwd" },
+    { "name": "absolute_path", "raw": "/etc/passwd", "safe": "passwd" },
+    { "name": "backslash_separator", "raw": "dir\\file.txt", "safe": "file.txt" },
+    { "name": "empty", "raw": "", "safe": "BridgeFile" },
+    { "name": "root_only", "raw": "/", "safe": "BridgeFile" },
+    { "name": "separators_only", "raw": "///", "safe": "BridgeFile" },
+    { "name": "dot", "raw": ".", "safe": "BridgeFile" },
+    { "name": "dotdot", "raw": "..", "safe": "BridgeFile" },
+    { "name": "whitespace_only", "raw": "   ", "safe": "BridgeFile" },
+    { "name": "ordinary", "raw": "report.pdf", "safe": "report.pdf" },
+    { "name": "spaces_kept", "raw": "holiday photo.jpeg", "safe": "holiday photo.jpeg" }
+  ],
+  "sizes": [
+    { "name": "zero", "size": 0, "acceptable": false },
+    { "name": "negative", "size": -1, "acceptable": false },
+    { "name": "one_byte", "size": 1, "acceptable": true },
+    { "name": "typical", "size": 716800, "acceptable": true },
+    { "name": "at_the_cap", "size": 2147483648, "acceptable": true },
+    { "name": "over_the_cap", "size": 2147483649, "acceptable": false }
+  ]
+}
