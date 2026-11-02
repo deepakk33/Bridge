@@ -94,6 +94,10 @@ class BlePeripheral(
         startAdvertising()
     }
 
+    /** The peer on the live control connection, or null when nothing is connected. */
+    val peerDeviceId: String?
+        get() = l2capServer?.peerDeviceId
+
     fun sendPacket(packet: com.bridge.protocol.BridgePacket) {
         l2capServer?.sendPacket(packet)
     }

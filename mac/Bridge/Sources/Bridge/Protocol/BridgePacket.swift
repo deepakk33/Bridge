@@ -15,6 +15,17 @@ struct BridgePacket: @unchecked Sendable {
         )
     }
 
+    /// The answer to a received ping. `replyTo` makes the reply terminal: a packet
+    /// carrying it is never answered, or the two sides ping-pong for the life of
+    /// the connection now that both of them answer.
+    static func pingReply(to pingId: Int64) -> BridgePacket {
+        BridgePacket(
+            id: Int64(Date().timeIntervalSince1970 * 1000),
+            type: "bridge.ping",
+            body: ["replyTo": pingId]
+        )
+    }
+
     static func identity(
         deviceId: String,
         deviceName: String,

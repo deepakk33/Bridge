@@ -189,19 +189,67 @@ final class PayloadChannelTests: XCTestCase {
     /// With nothing pinned, no parameters are produced at all — so no listener is
     /// opened and no connection is attempted.
     func testNoPinnedPeerMeansNoTransfer() async {
-        let saved = TrustStore.shared.pairedDeviceId().map {
-            ($0, TrustStore.shared.pinnedFingerprint(for: $0))
-        }
+        let saved = snapshotTrustStore()
         TrustStore.shared.unpinAll()
-        defer {
-            if let (id, fp) = saved, let fp { TrustStore.shared.pin(deviceId: id, fingerprint: fp) }
-        }
+        defer { restoreTrustStore(saved) }
 
         do {
-            _ = try await PayloadTLS.pairedPeerParameters()
+            _ = try await PayloadTLS.pairedPeerParameters(for: "phone-1")
             XCTFail("an unpaired peer must be refused")
         } catch {
             XCTAssertTrue(error is PayloadTLS.Error)
         }
+    }
+
+    /// The bug this replaces: `pairedDeviceId()` returned the first key of an unordered
+    /// dictionary, so with two devices pinned the payload connection could be pinned to
+    /// whichever one the map happened to yield.
+    func testTwoPinnedDevicesPinToTheConnectedPeer() async throws {
+        let saved = snapshotTrustStore()
+        TrustStore.shared.unpinAll()
+        defer { restoreTrustStore(saved) }
+
+        let fingerprintA = String(repeating: "aa", count: 32)
+        let fingerprintB = String(repeating: "bb", count: 32)
+        TrustStore.shared.pin(deviceId: "phone-a", fingerprint: fingerprintA)
+        TrustStore.shared.pin(deviceId: "phone-b", fingerprint: fingerprintB)
+
+        // Repeated, because the old code failed by picking an arbitrary key: a single
+        // pass could pick the right one by luck.
+        for _ in 0..<20 {
+            XCTAssertEqual(TrustStore.shared.pinnedFingerprint(for: "phone-a"), fingerprintA)
+            XCTAssertEqual(TrustStore.shared.pinnedFingerprint(for: "phone-b"), fingerprintB)
+            _ = try await PayloadTLS.pairedPeerParameters(for: "phone-a")
+            _ = try await PayloadTLS.pairedPeerParameters(for: "phone-b")
+        }
+    }
+
+    /// A peer id that is not pinned is refused even when the trust store is non-empty.
+    func testAnUnpinnedPeerIsRefusedWhileOthersArePinned() async {
+        let saved = snapshotTrustStore()
+        TrustStore.shared.unpinAll()
+        defer { restoreTrustStore(saved) }
+
+        TrustStore.shared.pin(deviceId: "phone-a", fingerprint: String(repeating: "aa", count: 32))
+
+        do {
+            _ = try await PayloadTLS.pairedPeerParameters(for: "phone-stranger")
+            XCTFail("an unpinned peer must be refused even with another device pinned")
+        } catch {
+            XCTAssertTrue(error is PayloadTLS.Error)
+        }
+    }
+
+    private func snapshotTrustStore() -> [String: String] {
+        var pins: [String: String] = [:]
+        for id in ["phone-a", "phone-b", "phone-stranger", "phone-1"] {
+            if let fp = TrustStore.shared.pinnedFingerprint(for: id) { pins[id] = fp }
+        }
+        return pins
+    }
+
+    private func restoreTrustStore(_ pins: [String: String]) {
+        TrustStore.shared.unpinAll()
+        for (id, fp) in pins { TrustStore.shared.pin(deviceId: id, fingerprint: fp) }
     }
 }

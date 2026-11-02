@@ -24,10 +24,18 @@ final class FileTransferManager: ObservableObject {
     @Published private(set) var state: TransferState = .idle
 
     private let sendPacket: (BridgePacket) -> Void
+    /// Read at transfer time, not at construction: this object outlives any one
+    /// connection, and pinning a peer that has since disconnected is the bug this
+    /// replaces. Nil means nothing is connected, which fails the transfer closed.
+    private let connectedPeerId: () -> String?
     private var activeServer: PayloadServer?
 
-    init(sendPacket: @escaping (BridgePacket) -> Void) {
+    init(
+        sendPacket: @escaping (BridgePacket) -> Void,
+        connectedPeerId: @escaping () -> String?
+    ) {
         self.sendPacket = sendPacket
+        self.connectedPeerId = connectedPeerId
     }
 
     /// Send a file to the phone. `sharedNetworkAvailable` gates Tier 3.
@@ -63,7 +71,8 @@ final class FileTransferManager: ObservableObject {
     private func startWifiTransfer(filename: String, data: Data, size: Int64) {
         Task { @MainActor in
             // No pin, no transfer. Nothing is listened on for an unpaired peer.
-            guard let parameters = try? await PayloadTLS.pairedPeerParameters() else {
+            guard let peerId = self.connectedPeerId(),
+                  let parameters = try? await PayloadTLS.pairedPeerParameters(for: peerId) else {
                 Self.logger.error("Refusing to send '\(filename)': no pinned peer")
                 self.state = .failed(filename: filename, reason: "Not paired")
                 return

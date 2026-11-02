@@ -47,7 +47,7 @@ class PairingManagerTest {
         mismatches = mutableListOf()
         manager = PairingManager(
             localDeviceId = "phone-1",
-            localFingerprint = phoneFingerprint,
+            localFingerprint = { phoneFingerprint },
             trustStore = { store },
             scope = CoroutineScope(Dispatchers.Unconfined),
             sendPacket = { sent.add(it) }
@@ -221,7 +221,7 @@ class PairingManagerTest {
     fun `no confirmation without a local fingerprint`() {
         val bare = PairingManager(
             localDeviceId = "phone-1",
-            localFingerprint = null,
+            localFingerprint = { null },
             trustStore = { store },
             scope = CoroutineScope(Dispatchers.Unconfined),
             sendPacket = { sent.add(it) }
@@ -233,6 +233,90 @@ class PairingManagerTest {
         assertFalse("no code means no confirmation, so no pairing", asked)
         assertTrue(store.isEmpty)
         assertNull(bare.verificationCode)
+    }
+
+    /**
+     * BR-19. The keystore read can fail while the service is still starting, and `by
+     * lazy` used to memoise that null for the life of the process — pairing was dead
+     * until a restart. The read is retried, and the held peer presented when it lands.
+     */
+    @Test
+    fun `a transient fingerprint failure is retried on the next pair request`() {
+        var reads = 0
+        val flaky = PairingManager(
+            localDeviceId = "phone-1",
+            localFingerprint = { if (reads++ == 0) null else phoneFingerprint },
+            trustStore = { store },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+            sendPacket = { sent.add(it) }
+        )
+        val asked = mutableListOf<Pair<String, String>>()
+        flaky.onPairRequest = { name, _, code -> asked.add(name to code) }
+
+        flaky.setPeerIdentity("mac-1", "MacBook Air", macFingerprint)
+        assertTrue("the first read failed, so nothing can be shown yet", asked.isEmpty())
+
+        flaky.handlePairPacket(BridgePacket.pairRequest())
+
+        assertEquals(1, asked.size)
+        assertEquals("MacBook Air", asked.single().first)
+        assertEquals(
+            PairingCode.derive(phoneFingerprint, macFingerprint),
+            asked.single().second
+        )
+        assertTrue("nothing is pinned without a human", store.isEmpty)
+    }
+
+    /** A peer that leaves while its request is held must raise no prompt afterwards. */
+    @Test
+    fun `a held confirmation is dropped on reset`() {
+        var reads = 0
+        val flaky = PairingManager(
+            localDeviceId = "phone-1",
+            localFingerprint = { if (reads++ == 0) null else phoneFingerprint },
+            trustStore = { store },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+            sendPacket = { sent.add(it) }
+        )
+        var asked = false
+        flaky.onPairRequest = { _, _, _ -> asked = true }
+
+        flaky.setPeerIdentity("mac-1", "MacBook Air", macFingerprint)
+        flaky.reset()
+        flaky.handlePairPacket(BridgePacket.pairRequest())
+
+        assertFalse("a held request must not survive a disconnect", asked)
+    }
+
+    /**
+     * Nothing is pinned for a user who was shown no digits. The in-app Pair button
+     * reaches acceptPair() directly, and with the peer already accepted
+     * pinIfBothAccepted() would otherwise pin on a confirmation that never appeared.
+     */
+    @Test
+    fun `accepting with no verification code does not pin`() {
+        val bare = PairingManager(
+            localDeviceId = "phone-1",
+            localFingerprint = { null },
+            trustStore = { store },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+            sendPacket = { sent.add(it) }
+        )
+        bare.setPeerIdentity("mac-1", "MacBook Air", macFingerprint)
+        bare.handlePairPacket(BridgePacket.pairRequest())
+        bare.acceptPair()
+
+        assertTrue("nothing may be pinned without digits to compare", store.isEmpty)
+    }
+
+    /** The same acceptance succeeds once the digits can actually be derived. */
+    @Test
+    fun `accepting pins once the code exists`() {
+        identifyUnknownMac()
+        manager.handlePairPacket(BridgePacket.pairRequest())
+        manager.acceptPair()
+
+        assertFalse("the peer must be pinned", store.isEmpty)
     }
 
     @Test

@@ -8,13 +8,15 @@ import Foundation
 /// one case that skipped it.
 enum PacketGate {
 
-    /// The only packets a stranger may send, because they are the packets that establish
-    /// identity and trust. Everything else, `bridge.ping` included, waits: answering a
-    /// ping confirms a live Bridge endpoint to a peer that has not identified itself.
+    /// The only packets a stranger may send: the two that establish identity and trust,
+    /// plus the heartbeat. A ping carries no body, and refusing it bought nothing — the
+    /// Mac already *sends* pings to an unverified peer (`preVerificationPacketTypes`),
+    /// so a stranger holding a channel open learns a Bridge endpoint is live either way.
     ///
-    /// Gating ping does not strand the link — both sides feed their watchdog when a
-    /// packet *arrives*, before this gate runs, so unanswered pings still count as life.
-    static let alwaysAllowed: Set<String> = ["bridge.identity", "bridge.pair"]
+    /// Refusing it did cost something: the phone's 3-second link probe needs a packet
+    /// back, and a pair confirmation can sit unanswered for minutes with nothing else
+    /// to send. The 90-second watchdog feeds on arrival and never noticed; the probe did.
+    static let alwaysAllowed: Set<String> = ["bridge.identity", "bridge.pair", "bridge.ping"]
 
     static func allows(
         packetType: String,

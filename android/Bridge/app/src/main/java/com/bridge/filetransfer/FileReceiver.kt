@@ -21,7 +21,12 @@ import kotlinx.serialization.json.jsonPrimitive
  */
 class FileReceiver(
     private val context: Context,
-    private val notifier: TransferNotifier
+    private val notifier: TransferNotifier,
+    /**
+     * Read when the transfer starts, not when this object is built: the payload is
+     * pinned to the peer that sent the request, and null fails the transfer closed.
+     */
+    private val connectedPeerId: () -> String?
 ) {
     companion object {
         private const val TAG = "FileReceiver"
@@ -53,7 +58,8 @@ class FileReceiver(
             }
             try {
                 resolver.openOutputStream(uri)?.use { out ->
-                    val client = PayloadClient(host, port, size, PayloadTls.forPairedPeer())
+                    val peerId = connectedPeerId() ?: throw PayloadTls.NotPairedException()
+                    val client = PayloadClient(host, port, size, PayloadTls.forPairedPeer(peerId))
                     var lastPct = -1L
                     client.fetchTo(out) { received, total ->
                         val pct = if (total > 0) received * 100 / total else 0

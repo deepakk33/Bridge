@@ -32,6 +32,22 @@ final class BLEManager: NSObject, ObservableObject {
 
     private var peerDeviceId: String?
     private var peerFingerprint: String?
+
+    private func loadLocalFingerprint() {
+        guard pairingManager.localFingerprint == nil else { return }
+        Task { @MainActor [weak self] in
+            guard let fingerprint = try? await CertificateManager.shared.getFingerprint() else {
+                Self.logger.error("Could not read the local fingerprint — pairing cannot be confirmed yet")
+                return
+            }
+            self?.pairingManager.setLocalFingerprint(fingerprint)
+        }
+    }
+
+    /// The peer on the live control connection, or nil when nothing is connected or it
+    /// has not identified itself. The payload connection is pinned to this, never to a
+    /// device read out of the trust store — the store holds every phone ever paired.
+    var connectedPeerId: String? { peerDeviceId }
     private var peripheralConnected = false
     private var isVerified = false
     private var lastDisconnect: DisconnectReason?
@@ -100,13 +116,15 @@ final class BLEManager: NSObject, ObservableObject {
             self?.sendPacket(packet) ?? false
         }
 
-        Task { @MainActor [weak self] in
-            // The verification code needs this device's own fingerprint, and
-            // CertificateManager is an actor — fetch it off the synchronous init path.
-            if let fingerprint = try? await CertificateManager.shared.getFingerprint() {
-                self?.pairingManager.setLocalFingerprint(fingerprint)
-            }
+        // The verification code needs this device's own fingerprint, and
+        // CertificateManager is an actor — fetch it off the synchronous init path.
+        // A single `try?` cached a transient Keychain failure for the life of the
+        // process, which silently disables pairing, so the read is retried whenever
+        // a confirmation is actually waiting on it.
+        pairingManager.onLocalFingerprintNeeded = { [weak self] in
+            self?.loadLocalFingerprint()
         }
+        loadLocalFingerprint()
 
         Task {
             await clipboardMonitor.configure { [weak self] packet in
@@ -379,7 +397,9 @@ final class BLEManager: NSObject, ObservableObject {
 
         switch packet.type {
         case "bridge.ping":
-            PingHandler().handle(packet)
+            if let reply = PingHandler().handle(packet) {
+                _ = sendPacket(reply)
+            }
         case "bridge.identity":
             handleIdentityPacket(packet)
         case "bridge.pair":
@@ -424,12 +444,18 @@ final class BLEManager: NSObject, ObservableObject {
                 "port": packet.payloadPort ?? -1
             ]
         )
-        // Fetch the payload over the out-of-band channel (mDNS + TCP) and save it.
+        // Fetch the payload over the out-of-band channel (mDNS + TCP) and save it,
+        // pinned to the peer that sent this request.
+        guard let senderId = peerDeviceId else {
+            Self.logger.error("Refusing '\(filename)': the sender has not identified itself")
+            return
+        }
         fileReceiver.receive(
             filename: filename,
             payloadSize: Int(packet.payloadSize),
             port: packet.payloadPort,
-            host: packet.payloadHost
+            host: packet.payloadHost,
+            peerDeviceId: senderId
         )
     }
 

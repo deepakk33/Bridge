@@ -46,10 +46,22 @@ class PacketGateTest {
         }
     }
 
-    /** Answering a ping confirms a live Bridge endpoint to a peer that has not identified itself. */
+    /**
+     * Inverted by BR-19. The phone's 3-second probe needs an answer while a pair
+     * confirmation sits open, and both sides already send pings to an unverified
+     * peer, so refusing to receive one stranded the link without hiding anything.
+     */
     @Test
-    fun `ping is not exempt`() {
-        assertFalse(allows("bridge.ping", null, null, trusted))
+    fun `ping passes from a stranger`() {
+        assertTrue(allows("bridge.ping", null, null, trusted))
+        assertTrue(allows("bridge.ping", null, null, empty))
+    }
+
+    /** Exempting ping must not exempt anything else. */
+    @Test
+    fun `an unverified peer gets ping and nothing else`() {
+        assertFalse(allows("bridge.clipboard", null, null, trusted))
+        assertFalse(allows("bridge.share.request", null, null, trusted))
     }
 
     @Test

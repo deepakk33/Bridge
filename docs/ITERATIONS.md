@@ -1399,3 +1399,85 @@ certificate bug above. Worth remembering the next time a plan says unit tests ar
 BR-19 carries the three review findings left out of here. BR-18 carries the notification app
 list, raised during this testing and not caused by it. Anything that assumes the control channel
 is confidential is wrong until BR-19's first bullet lands.
+
+## BR-19 — Pairing and link hardening left over from BR-4+BR-5
+
+Shipped 2026-11-02. Branch `work/br-19-pairing-and-link-hardening`.
+
+### In plain terms
+
+Three things were quietly broken after the last round of pairing work. The Mac never answered
+the phone's "are you still there?" message, so the phone kept deciding the link was dead and
+hanging up — most visibly in the middle of pairing, where the Mac now sits waiting for a person
+to read six digits and has nothing else to say. The Mac also picked which phone to encrypt a
+file transfer for by grabbing whichever entry came first out of an unordered list, so with two
+phones ever paired it could encrypt for the wrong one. And a pairing could silently fail to
+start: the Mac reads its own certificate fingerprint in the background, and if the phone
+introduced itself first, the confirmation was thrown away with no prompt and no retry.
+
+All three are fixed. A ping is now answered by both sides, the file transfer is encrypted for
+the phone actually on the other end of the connection, and a confirmation waits for the
+fingerprint instead of being dropped.
+
+### Technically
+
+- `PingHandler` returns `BridgePacket?` on both platforms. A reply carries `replyTo` and is
+  **terminal** — the guard that stops the two sides ping-ponging at line rate now that both
+  answer. Android previously answered every ping including replies, safe only while the Mac was
+  mute, so the guard had to land on both sides in one change.
+- `bridge.ping` joins `bridge.identity` and `bridge.pair` in `PacketGate.alwaysAllowed`. The Mac
+  already *sent* pings to unverified peers (`preVerificationPacketTypes`) for exactly this
+  reason, so refusing to receive one disclosed nothing and only stranded the link.
+- `TrustStore.pairedDeviceId()` and Android's `pairedFingerprint()` are **deleted**, not
+  deprecated. `PayloadTLS.pairedPeerParameters(for:)` and `PayloadTls.forPairedPeer(deviceId)`
+  take the peer from the live control connection, supplied as a closure so it is read at
+  transfer time rather than captured at construction.
+- Mac `PairingManager` holds a confirmation in `deferredConfirmation` when the local fingerprint
+  is missing and replays it from `setLocalFingerprint`; `reset()` drops it. `BLEManager` re-reads
+  the Keychain via `onLocalFingerprintNeeded` instead of a one-shot `try?`. Android stopped
+  caching a failed keystore read (`by lazy` → function) and takes a `() -> String?` supplier.
+- Both platforms now refuse to accept a pairing when no verification code can be derived — the
+  in-app Pair button could otherwise pin a peer through `pinIfBothAccepted()` with no digits
+  ever shown.
+- `FileTransferCoordinator` no longer throws `NotPairedException` into `Service.onStartCommand`;
+  sharing a file with the Mac out of range crashed the app.
+
+Mac 195 tests, Android 202, both green. `openspec validate --strict` clean.
+
+### Known issues and degradations
+
+- **Task 9.2 (two pinned devices, a real payload handshake) is untested.** Four Tier 3 attempts
+  in both directions all failed at TLS *before certificates were exchanged* — the Mac's verify
+  block logs on mismatch and on an absent certificate, and neither line ever appeared. That is a
+  protocol-level failure, not a pinning one, and it reproduces identically with one pin and with
+  two. The strongest evidence available short of a completed transfer: with a decoy pin sitting
+  first in a two-entry trust store, the Mac never once rejected the phone's certificate.
+- **Task 9.3's race was never reproduced.** The digit match was confirmed on both screens, but
+  the Keychain read won every time, so the deferred-confirmation path never fired on hardware.
+  Unit-tested only.
+- Ungating `bridge.ping` lets an unpaired peer in BLE range confirm a live Bridge endpoint on
+  demand rather than waiting up to 30 s for the Mac's unsolicited heartbeat. Accepted
+  deliberately; the gate admits no other packet type.
+
+### Pre-existing defects this testing surfaced (none caused by BR-19)
+
+- `BridgeService.restartBlePeripheral()` rebuilds `BlePeripheral` and re-registers **only**
+  `setPairConfirmationHandler`. Every other handler — including `setShareRequestHandler` — is
+  lost, and `onShareRequest?.invoke()` on null is a silent no-op, so after any BLE restart the
+  phone ignores Mac→phone file transfers with no log at all. Observed live as PSM 157 → 158.
+- `SingleInstanceGuard` catches a second copy of the same bundle but missed
+  `/Applications/Bridge.app` running beside a DerivedData build. Two centrals then coexisted and,
+  on quitting, wedged `bluetoothd` so no later process could scan until Bluetooth was power-cycled
+  — the exact hazard the guard exists to prevent.
+- `PermissionChecker.setLocalNetwork(_:)` has no callers, so the Local Network row reports
+  "Not Requested" permanently regardless of the real authorization, and its `settingsURL` lands
+  on the Privacy root on macOS 26.6.2. Belongs to BR-11.
+- BR-5's 30-second pairing timeout expires while a human compares six digits across two physical
+  screens — the normal case, not a slow one.
+
+### What the next item builds on
+
+The control channel is still unencrypted; that bullet from BR-4+BR-5 is untouched here and
+remains open. BR-20 carries the lost-handler bug, which silently breaks file transfer after any
+BLE restart and is the most consequential of the four above. BR-11 already covers the Local
+Network reporting.

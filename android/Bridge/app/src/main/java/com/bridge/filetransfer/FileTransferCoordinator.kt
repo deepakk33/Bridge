@@ -17,6 +17,11 @@ import java.io.File
 class FileTransferCoordinator(
     private val nsdManager: NsdManager?,
     private val notifier: TransferNotifier? = null,
+    /**
+     * Read when the transfer starts, not when this object is built: the payload is
+     * pinned to the peer on the live control connection, and null fails it closed.
+     */
+    private val connectedPeerId: () -> String?,
     private val sendPacket: (BridgePacket) -> Unit
 ) {
     companion object {
@@ -36,7 +41,20 @@ class FileTransferCoordinator(
 
         when (decision.tier) {
             TransferTier.WIFI_LAN -> {
-                val server = PayloadServer(file, PayloadTls.forPairedPeer())
+                // No pin, no transfer — and no crash. This runs on onStartCommand's
+                // thread, where an escaping exception takes the whole service down;
+                // sharing a file with the Mac out of range is an ordinary failure.
+                val tls = runCatching {
+                    PayloadTls.forPairedPeer(
+                        connectedPeerId() ?: throw PayloadTls.NotPairedException()
+                    )
+                }.getOrElse {
+                    Log.w(TAG, "Refusing to send $filename: no pinned peer on the live link", it)
+                    if (notifId != null) notifier.failure(notifId, filename, "Not paired")
+                    file.delete()
+                    return
+                }
+                val server = PayloadServer(file, tls)
                 val port = server.bind()
                 val host = localWifiIp()
                 val nsd = nsdManager?.let { NsdTransfer(it) }

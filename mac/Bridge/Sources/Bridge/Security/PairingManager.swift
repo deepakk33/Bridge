@@ -65,6 +65,16 @@ final class PairingManager: ObservableObject {
     /// synchronous UI path where the code is needed.
     private(set) var localFingerprint: String?
 
+    /// A peer confirmed before `localFingerprint` arrived. The two can land in either
+    /// order — the fingerprint comes from an actor, the identity from the wire — and
+    /// dropping the peer left pairing silently impossible for the connection.
+    private var deferredConfirmation: (deviceId: String, deviceName: String, fingerprint: String)?
+
+    /// Raised when a confirmation is held for want of the local fingerprint. The owner
+    /// re-reads the Keychain: a read that failed once must not stay failed, or holding
+    /// the confirmation is just a quieter version of dropping it.
+    var onLocalFingerprintNeeded: (() -> Void)?
+
     /// Crossed initiation: both sides sent a request at once. The lower deviceId
     /// stays the initiator, the other yields and accepts, so exactly one accept
     /// flows and both sides pin. Equal (or unknown local) ids make both yield,
@@ -80,6 +90,12 @@ final class PairingManager: ObservableObject {
 
     func setLocalFingerprint(_ fingerprint: String) {
         localFingerprint = fingerprint
+        guard let peer = deferredConfirmation else { return }
+        deferredConfirmation = nil
+        Self.logger.info("Local fingerprint arrived — presenting the held confirmation")
+        presentPairConfirmation(
+            deviceId: peer.deviceId, deviceName: peer.deviceName, fingerprint: peer.fingerprint
+        )
     }
 
     /// The six digits for the peer currently being confirmed, or nil when there is none.
@@ -169,6 +185,7 @@ final class PairingManager: ObservableObject {
         peerDeviceName = nil
         peerFingerprint = nil
         incomingPairRequest = nil
+        deferredConfirmation = nil
         resetDecisions()
         if case .paired = state {} else {
             state = .unpaired
@@ -192,6 +209,13 @@ final class PairingManager: ObservableObject {
         }
         guard localDecision != .accepted else {
             Self.logger.info("Already accepted pairing with \(deviceName)")
+            return
+        }
+        // Nil means no digits could ever have been shown, so this user has compared
+        // nothing — and if the peer has already accepted, pinIfBothAccepted() below
+        // would pin on that empty confirmation.
+        guard verificationCode != nil else {
+            Self.logger.error("Refusing to accept \(deviceName): no verification code to compare")
             return
         }
 
@@ -257,7 +281,11 @@ final class PairingManager: ObservableObject {
     private func presentPairConfirmation(deviceId: String, deviceName: String, fingerprint: String) {
         guard localDecision == .pending else { return }
         guard let local = localFingerprint else {
-            Self.logger.error("Cannot derive a verification code without a local fingerprint")
+            // Held, not dropped: `setLocalFingerprint` presents it the moment the
+            // Keychain read lands. Cleared by `reset()` if the peer leaves first.
+            Self.logger.info("No local fingerprint yet — holding the confirmation for \(deviceName)")
+            deferredConfirmation = (deviceId, deviceName, fingerprint)
+            onLocalFingerprintNeeded?()
             return
         }
         incomingPairRequest = PairRequestInfo(
