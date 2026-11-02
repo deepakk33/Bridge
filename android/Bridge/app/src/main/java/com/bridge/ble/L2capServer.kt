@@ -63,12 +63,21 @@ class L2capServer(
 
     val psm: Int = serverSocket.psm
 
-    /** This device's own fingerprint — half of the verification code's input. */
-    private val localFingerprint: String? by lazy {
-        try {
-            CertificateManager.getInstance().getFingerprint()
+    @Volatile
+    private var cachedFingerprint: String? = null
+
+    /**
+     * This device's own fingerprint — half of the verification code's input. Only a
+     * successful read is cached: `by lazy` memoised a failure too, so one keystore
+     * error while the service was starting disabled pairing until the process
+     * restarted (BR-19).
+     */
+    private fun localFingerprint(): String? {
+        cachedFingerprint?.let { return it }
+        return try {
+            CertificateManager.getInstance().getFingerprint().also { cachedFingerprint = it }
         } catch (e: Exception) {
-            Log.e(TAG, "No local fingerprint — pairing cannot be confirmed", e)
+            Log.e(TAG, "No local fingerprint — pairing cannot be confirmed yet", e)
             null
         }
     }
@@ -130,7 +139,7 @@ class L2capServer(
 
             pairingManager = PairingManager(
                 localDeviceId = deviceId,
-                localFingerprint = localFingerprint,
+                localFingerprint = ::localFingerprint,
                 sendPacket = { packet -> send(packet, outputStream) }
             ).also { pm ->
                 // Nothing is pinned without a human. The confirmation goes to the UI and

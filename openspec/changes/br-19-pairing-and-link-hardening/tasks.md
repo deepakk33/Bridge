@@ -59,9 +59,9 @@
 
 ## 7. Android — a fingerprint read that retries
 
-- [ ] 7.1 Write the failing test: a `PairingManager` whose `localFingerprint` supplier returns
+- [x] 7.1 Write the failing test: a `PairingManager` whose `localFingerprint` supplier returns
       null on the first call and a value on the second still raises the confirmation
-- [ ] 7.2 Change `L2capServer.localFingerprint` from `by lazy` to a function caching only a
+- [x] 7.2 Change `L2capServer.localFingerprint` from `by lazy` to a function caching only a
       successful read, change `PairingManager`'s parameter to `() -> String?`, and apply
       defer-and-replay; verify 7.1 passes and the held request is dropped in the accept loop's
       `finally`

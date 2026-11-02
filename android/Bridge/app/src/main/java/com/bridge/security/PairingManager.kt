@@ -13,7 +13,11 @@ import kotlinx.serialization.json.jsonPrimitive
 
 class PairingManager(
     private val localDeviceId: String,
-    private val localFingerprint: String? = null,
+    /**
+     * Read on each use, never captured: the keystore read can fail while the service is
+     * still starting, and a captured null disabled pairing for the connection (BR-19).
+     */
+    private val localFingerprint: () -> String? = { null },
     private val trustStore: () -> TrustStoreAccess = { TrustStore.getInstance() },
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main),
     private val sendPacket: (BridgePacket) -> Unit
@@ -83,7 +87,7 @@ class PairingManager(
     val verificationCode: String?
         get() {
             val peer = peerFingerprint ?: return null
-            val local = localFingerprint ?: return null
+            val local = localFingerprint() ?: return null
             return PairingCode.derive(local, peer)
         }
 
@@ -244,9 +248,11 @@ class PairingManager(
     private fun presentPairConfirmation(deviceName: String, fingerprint: String) {
         if (localDecision != Decision.PENDING) return
         val code = verificationCode ?: run {
-            // No code means no way for the user to tell this peer from an impostor,
-            // so there is nothing safe to show and nothing to pin.
-            Log.e(TAG, "Cannot derive a verification code without a local fingerprint")
+            // No code means no way for the user to tell this peer from an impostor, so
+            // there is nothing safe to show and nothing to pin. Not a dead end: the peer
+            // stays in peerDeviceName/peerFingerprint, and the next pair packet re-reads
+            // the fingerprint and presents it. reset() drops it with the connection.
+            Log.w(TAG, "No local fingerprint yet — holding the confirmation for $deviceName")
             return
         }
         onPairRequest?.invoke(deviceName, fingerprint, code)
