@@ -57,8 +57,17 @@ bytes, a reply carrying `replyTo` as 75.
   watchdog still logged `Scan found nothing in 20s — restarting` and `Link health: outOfRange`
   while 109 `Discovered` lines for that same phone were in the log. The Mac reports "Out of
   range" about a phone it can see and is listing. Pre-existing; BR-19 does not touch discovery.
-- A second Bridge instance (pid 8898) briefly logged `Link health: outOfRange` at 11:53:51
-  before exiting. BR-14's guard handled it, but the instance got far enough to evaluate health.
+- **`SingleInstanceGuard` does not hold across two bundle paths.** `/Applications/Bridge.app`
+  (pid 8898) started at 11:53:48 and ran alongside the DerivedData build (pid 6254) until killed
+  by hand at 11:55:40 — no handover was logged for it, where pid 6304 at 11:48:02 did log
+  `Bridge is already running (pid 6254); handing over and exiting`. So the guard caught a second
+  copy of the *same* bundle and missed a different one. Two instances is precisely what BR-14
+  exists to prevent, and what breaks BLE scanning for the survivor. BR-19 does not touch
+  `SingleInstanceGuard`; this is a BR-14 gap this test setup exposed. Worth a backlog item.
+
+  It did not contaminate the evidence above: pid 8898 never had an L2CAP channel
+  (`sendPacket failed: no l2capChannel`), so every packet logged came from pid 6254, and
+  killing 8898 left the link and the heartbeat undisturbed (pings continued at 11:56:02).
 
 ## Not yet run
 
