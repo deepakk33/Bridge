@@ -58,7 +58,7 @@
 - [x] 5.2 Apply the same `payloadSize` cap before committing resources, test first. Verify
       `./gradlew test`.
 - [x] 5.3 Restrict `PayloadServer` to the requesting pinned peer. Verify `./gradlew test`.
-- [ ] 5.4 Announce before writing, with a decline, and surface a failed receive — reusing
+- [x] 5.4 Announce before writing, with a decline, and surface a failed receive — reusing
       `TransferNotifier` rather than adding a surface. Verify `./gradlew test assembleDebug`.
 - [x] 5.5 Add a shared vector or fixture for the traversal and oversize cases so both platforms are
       checked against the same inputs. Verify both suites consume it.
@@ -95,6 +95,6 @@
 
 ## 7. Close out
 
-- [ ] 7.1 Run `(cd android/Bridge && ./gradlew test assembleDebug)`,
+- [x] 7.1 Run `(cd android/Bridge && ./gradlew test assembleDebug)`,
       `xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge test` and
       `openspec validate br-8-tier-3-transfer`, and read all three outputs.

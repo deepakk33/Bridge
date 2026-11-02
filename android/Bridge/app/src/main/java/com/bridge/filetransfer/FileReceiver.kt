@@ -30,6 +30,19 @@ class FileReceiver(
 ) {
     companion object {
         private const val TAG = "FileReceiver"
+
+        /** Offers awaiting an answer, keyed by the id carried in the notification. */
+        private val pendingOffers = java.util.concurrent.ConcurrentHashMap<String, () -> Unit>()
+
+        /** An unknown id is an offer already answered; ignore it rather than act twice. */
+        fun answerOffer(id: String, accepted: Boolean) {
+            val start = pendingOffers.remove(id) ?: return
+            if (accepted) {
+                start()
+            } else {
+                Log.i(TAG, "Incoming file declined; nothing fetched and nothing written")
+            }
+        }
     }
 
     fun receive(scope: CoroutineScope, packet: BridgePacket) {
@@ -51,7 +64,19 @@ class FileReceiver(
             notifier.failure(notifier.startReceive(filename, size), filename, "file is too large")
             return
         }
-        Log.i(TAG, "Receiving $filename ($size bytes) from $host:$port")
+        // Announce before anything is written; the fetch waits for the answer.
+        val offerId = java.util.UUID.randomUUID().toString()
+        val offerNotifId = notifier.offerReceive(filename, size, offerId)
+        pendingOffers[offerId] = {
+            notifier.cancel(offerNotifId)
+            Log.i(TAG, "Receiving $filename ($size bytes) from $host:$port")
+            startFetch(scope, filename, size, host, port)
+        }
+    }
+
+    private fun startFetch(
+        scope: CoroutineScope, filename: String, size: Long, host: String, port: Int
+    ) {
         val notifId = notifier.startReceive(filename, size)
 
         scope.launch(Dispatchers.IO) {

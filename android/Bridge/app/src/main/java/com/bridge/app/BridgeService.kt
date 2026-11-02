@@ -142,6 +142,20 @@ class BridgeService : Service() {
     private var batteryMonitor: BatteryMonitor? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+    /** Carries the user's answer to an incoming-file offer back from the notification. */
+    private val fileOfferReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val offerId = intent.getStringExtra(TransferNotifier.EXTRA_OFFER_ID) ?: return
+            val accepted = intent.getBooleanExtra(TransferNotifier.EXTRA_ACCEPTED, false)
+            val notifId = intent.getIntExtra(TransferNotifier.EXTRA_NOTIF_ID, -1)
+            if (notifId >= 0) {
+                (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(notifId)
+            }
+            Log.i(TAG, "Incoming file offer answered: accepted=$accepted")
+            FileReceiver.answerOffer(offerId, accepted)
+        }
+    }
+
     private val clipboardTestReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val testText = intent.getStringExtra("text")
@@ -280,6 +294,12 @@ class BridgeService : Service() {
             blePeripheral?.sendPacket(packet)
         }
         clipboardBridge?.start()
+        registerReceiver(
+            fileOfferReceiver,
+            IntentFilter(TransferNotifier.ACTION_ANSWER_OFFER),
+            RECEIVER_NOT_EXPORTED
+        )
+
         registerReceiver(
             clipboardTestReceiver,
             IntentFilter("com.bridge.SEND_CLIPBOARD"),
@@ -451,6 +471,7 @@ class BridgeService : Service() {
         com.bridge.security.PairConfirmation.clear()
         clearPairConfirmation()
         try { unregisterReceiver(clipboardTestReceiver) } catch (_: Exception) {}
+        try { unregisterReceiver(fileOfferReceiver) } catch (_: Exception) {}
         clipboardBridge?.stop()
         clipboardBridge = null
         batteryMonitor?.stop()
