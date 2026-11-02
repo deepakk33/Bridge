@@ -85,7 +85,7 @@
 - [ ] 9.3 Cold-start the Mac app with the phone already advertising so the identity packet races
       the Keychain read; verify the pair confirmation appears with matching six digits on both
       screens (Done-when 3). Repeat five times — it is a race, one pass is not evidence
-- [ ] 9.4 Leave the paired link idle for five minutes and read the Mac's log: verify one ping per
+- [x] 9.4 Leave the paired link idle for five minutes and read the Mac's log: verify one ping per
       30 s with one reply each, and no ping storm
 - [ ] 9.5 Record each criterion pass/fail with what was observed in the change folder's device
       test notes
