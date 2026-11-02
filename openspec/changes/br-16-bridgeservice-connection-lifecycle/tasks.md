@@ -91,5 +91,5 @@
 
 ## 7. Close out
 
-- [ ] 7.1 Run `(cd android/Bridge && ./gradlew test assembleDebug)` and
+- [x] 7.1 Run `(cd android/Bridge && ./gradlew test assembleDebug)` and
       `xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge test`, and read both outputs.
