@@ -257,6 +257,45 @@ with the request never being raised rather than with it being granted.
 the Mac's permission) and can now sign, so that direction should complete end to end. If it does,
 bug 2 is isolated to the Mac's outbound path and nothing else remains in doubt.
 
+### Bug 2 was a second Bridge instance, not Local Network — 2026-11-02 17:39
+
+The Local Network hypothesis above is **wrong**, and the record should say so rather than read as
+if it led anywhere. Two Mac instances had been running throughout the whole diagnosis:
+
+```
+75040  …/DerivedData/…/Debug/Bridge.app     the build under test
+81710  /Applications/Bridge.app             a second, installed copy
+```
+
+That is BR-21 exactly — the single-instance guard catches a second copy of the same bundle but
+misses `/Applications/Bridge.app` beside a DerivedData build — and it is the hazard `CLAUDE.md`
+warns about. Killing the `/Applications` copy and changing nothing else made phone→Mac work on
+the next attempt:
+
+```
+Mac: Payload client connected
+Mac: Receiving …: 4%
+Mac: Saved file to …
+```
+
+So the Mac's outbound connection was never gated by macOS. It was being broken by the other
+instance. Every symptom attributed to Local Network authorization — the `waiting` state under a
+satisfied path, the 30 s timeouts, the absent Privacy pane entry — is explained by this instead,
+and the pane was empty because the permission was never the obstacle.
+
+**Testing note worth keeping**: this contaminated hours of diagnosis. Check the instance count
+before trusting any Mac-side transport result: `pgrep -fc "Bridge.app/Contents/MacOS/Bridge"`.
+
+### Both directions now transfer, verified by checksum
+
+| direction | result |
+|---|---|
+| Mac→phone, 716800 B | `Served 716800 bytes` / `Saved br8-tier3.bin to Downloads`, sha256 `8b04913d…` on both sides |
+| phone→Mac, 716800 B | `Payload client connected` / `Saved file`, sha256 `8b04913d…` on both sides |
+
+Tier 3 works. It needed one code fix (the signing authorisation) and one operational condition
+(a single Mac instance), and the second is BR-11's to fix properly.
+
 ### The fix, and the thing it breaks
 
 Add `KeyProperties.DIGEST_NONE` to the generated key's authorised digests, keeping

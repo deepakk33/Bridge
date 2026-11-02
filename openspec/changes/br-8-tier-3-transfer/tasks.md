@@ -29,7 +29,7 @@
 - [x] 3.2 Apply the fix the evidence names, on whichever side owns it. Verify
       `(cd android/Bridge && ./gradlew test assembleDebug)` and
       `xcodebuild -project mac/Bridge/Bridge.xcodeproj -scheme Bridge test` are green.
-- [ ] 3.3 If the Mac cannot use the local network, make that failure say so instead of surfacing as
+- [x] 3.3 If the Mac cannot use the local network, make that failure say so instead of surfacing as
       a timeout. Verify with a Mac unit test over the error mapping.
 
 ## 4. Close the security holes — Mac
@@ -66,9 +66,15 @@
 > `shared_prefs/bridge_trust_store.xml` via `run-as` — not `pm clear`, which drops the runtime
 > permissions.
 
-- [ ] 6.1 Mac→phone over Tier 3 (>512 KB): confirm arrival and that `shasum` on the Mac equals
+- [x] 6.1 Mac→phone over Tier 3 (>512 KB): confirm arrival and that `shasum` on the Mac equals
       `sha256sum` on the phone. Record both digests.
-- [ ] 6.2 Phone→Mac over Tier 3: same, both digests recorded.
+      *PASS 17:37 — `br8-tier3.bin`, 716800 B. Mac `Served 716800 bytes`, phone
+      `Saved br8-tier3.bin to Downloads`. sha256 `8b04913dc904fa561f1e0d05ba9c1e401906c7820dc7ac742d707c573c3ba79d`
+      on both sides.*
+- [x] 6.2 Phone→Mac over Tier 3: same, both digests recorded.
+      *PASS 17:39, after killing a second Mac instance. 716800 B, Mac `Payload client connected`
+      → `Saved file`. sha256 `8b04913dc904fa561f1e0d05ba9c1e401906c7820dc7ac742d707c573c3ba79d`
+      on both sides. Failed at 17:36 with two instances running.*
 - [ ] 6.3 With two devices pinned in the trust store, repeat one direction and confirm the
       handshake verified against the connected peer's pin (BR-19's untested task 9.2).
 - [ ] 6.4 Send a file named with a `../` traversal and confirm it lands inside the download
