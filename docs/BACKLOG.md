@@ -26,7 +26,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-5 | Pairing: six-digit confirmation and a device picker | done | `work/br-4-transport-security-and-pairing` |
 | BR-6 | Notification mirroring: dismissal, replies, app names | done | `work/br-6-notification-mirroring` |
 | BR-7 | Link control: Disconnect, Unpair, and a pairing timeout that fits a human | ready | |
-| BR-8 | File transfer: make Tier 3 work, then make it safe | in-progress | `work/br-8-tier-3-transfer` |
+| BR-8 | File transfer: make Tier 3 work, then make it safe | done | `work/br-8-tier-3-transfer` |
 | BR-9 | Clipboard: stop the dead poll, stop the silent send | done | `work/br-9-clipboard` |
 | BR-10 | Android: permission rows, resume modal, denied-path recovery | done | `work/br-10-permission-rows-and-denied-path-recovery` |
 | BR-11 | Mac app shell: permission truth, labels, and the instance guard | ready | |
@@ -43,6 +43,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-22 | Pairing: 30 seconds is not long enough to compare six digits | merged | BR-7 |
 | BR-23 | File transfer: the Tier 3 payload handshake fails before certificates | merged | BR-8 |
 | BR-24 | Phone call relay: take the call on the Mac | idea | |
+| BR-25 | File transfer: verify the Tier 3 hardening on hardware | ready | |
 
 All of BR-2…BR-12 come from [AUDIT-2026-10-26.md](AUDIT-2026-10-26.md), which holds the
 evidence, file:line references and reproduction for each. The audit's own ordering
@@ -292,15 +293,21 @@ the file. Both sides write silently; receive failures on the Mac are logged only
 
 **Platforms**: both
 **Done when**:
-- [ ] a file transfers Mac→phone over Tier 3 and the bytes match by checksum
-- [ ] a file transfers phone→Mac over Tier 3 and the bytes match by checksum
+- [x] a file transfers Mac→phone over Tier 3 and the bytes match by checksum — 2026-11-02,
+      716800 B, sha256 `8b04913d…` both sides
+- [x] a file transfers phone→Mac over Tier 3 and the bytes match by checksum — 2026-11-02,
+      same digest both sides
 - [ ] with two devices pinned, the handshake verifies against the connected peer's pin
-      (BR-19's untested task 9.2, folded in here)
-- [ ] a `../` filename lands inside Downloads with a flattened name, or is refused
-- [ ] a payload declaring an absurd size is refused before any bytes are written
-- [ ] a connection to the payload port from an unrelated LAN host gets nothing
-- [ ] an incoming file is announced before it is written, with a way to decline
-- [ ] a failed receive tells the user
+      (BR-19's untested task 9.2, folded in here) → **carried to BR-25, never run**
+- [ ] a `../` filename lands inside Downloads with a flattened name, or is refused →
+      **implemented and unit-tested on both platforms, not run on hardware; BR-25**
+- [ ] a payload declaring an absurd size is refused before any bytes are written →
+      **implemented and unit-tested, not run on hardware; BR-25**
+- [ ] a connection to the payload port from an unrelated LAN host gets nothing →
+      **implemented; the loopback test skips in this environment, so never observed; BR-25**
+- [ ] an incoming file is announced before it is written, with a way to decline →
+      **implemented on both platforms, never seen on a real screen; BR-25**
+- [ ] a failed receive tells the user → **implemented, not observed on hardware; BR-25**
 **Notes**: `AUD-E`, plus BR-23 merged in 2026-11-02. **Depends on BR-16**: until a BLE restart
 stops unregistering `setShareRequestHandler`, a Mac→phone transfer cannot be device-tested at
 all. BR-11 matters too — `PermissionChecker.setLocalNetwork` has no callers, so the Local
@@ -845,3 +852,35 @@ trust gate, same as BR-17 flags. Internet relay is explicitly out — the PRD's 
 cloud" rule stands, and HFP's 10 m is a hard ceiling anyway. Split this into at least two items
 (detection + metadata; audio) once the gate is answered; as one ticket it is too large to run
 through `/work`.
+
+
+### BR-25 — File transfer: verify the Tier 3 hardening on hardware
+
+**Scope**: run BR-8's seven device checks against the shipped build — the four security guards,
+the announce/decline flow, a forced failure, and a second pinned device — and record each result.
+**Why**: BR-8 shipped its hardening with both unit suites green and **none of it exercised on a
+real MacBook + Galaxy**. Tier 3 transfer itself is hardware-proven in both directions (checksums
+matched 2026-11-02), but every guard added afterwards is unverified. The announce/decline path is
+the one to distrust most: notification-action plumbing compiles cleanly and does nothing on
+device more often than any other kind of UI code.
+
+**Platforms**: both
+**Done when**:
+- [ ] a `../` filename lands inside the download directory flattened, or is refused, and nothing
+      outside it is created — both platforms
+- [ ] a share request declaring a size above the 2 GiB cap is refused before any bytes are
+      written or any port opened, and the user is told — both platforms
+- [ ] a third LAN host connecting to the payload port during a transfer window gets nothing while
+      the real transfer still completes
+- [ ] an incoming file is announced before it is written, and Accept actually starts the fetch
+- [ ] Decline leaves nothing behind, and the sender's window closes on its own timeout
+- [ ] a forced receive failure tells the user on both platforms, with no partial file left
+- [ ] with two devices pinned, the handshake verifies against the connected peer's pin
+      (BR-19's untested task 9.2, carried forward again)
+**Notes**: carried out of BR-8 on 2026-11-03 at the user's request, so BR-8 could merge. The
+reproduction harness is cheap and already proven: a phone→Mac Tier 3 transfer can be driven
+entirely over adb with no Mac clicking — `run-as com.bridge.app` to place the file inside the app
+sandbox, then `am start -a android.intent.action.SEND … ShareReceiverActivity`. **Check
+`pgrep -fc "Bridge.app/Contents/MacOS/Bridge"` reads 1 before trusting any result**: a stray
+`/Applications/Bridge.app` beside a DerivedData build silently breaks Tier 3 and cost most of a
+day on 2026-11-02. That guard gap is BR-11's.

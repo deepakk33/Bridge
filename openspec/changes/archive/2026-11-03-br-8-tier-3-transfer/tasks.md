@@ -65,6 +65,12 @@
 
 ## 6. Device test — MacBook Air M3 + Galaxy S25
 
+> **6.3–6.9 were NOT run.** Deferred to **BR-25** on 2026-11-03 at the user's request so this
+> item could merge. 6.1 and 6.2 did run and passed with matching checksums. Everything added
+> after them — the filename reduction, the size cap, the payload-port restriction, announce and
+> decline, and failure surfacing — is covered by unit tests only and has never executed on
+> hardware.
+
 > Exclusive: this window holds the devices for all of section 6, and no second `Bridge.app` runs.
 > Say so before starting and when done. If pairing fails with a fingerprint mismatch, clear
 > `shared_prefs/bridge_trust_store.xml` via `run-as` — not `pm clear`, which drops the runtime
@@ -79,18 +85,18 @@
       *PASS 17:39, after killing a second Mac instance. 716800 B, Mac `Payload client connected`
       → `Saved file`. sha256 `8b04913dc904fa561f1e0d05ba9c1e401906c7820dc7ac742d707c573c3ba79d`
       on both sides. Failed at 17:36 with two instances running.*
-- [ ] 6.3 With two devices pinned in the trust store, repeat one direction and confirm the
+- [ ] (deferred to BR-25) 6.3 With two devices pinned in the trust store, repeat one direction and confirm the
       handshake verified against the connected peer's pin (BR-19's untested task 9.2).
-- [ ] 6.4 Send a file named with a `../` traversal and confirm it lands inside the download
+- [ ] (deferred to BR-25) 6.4 Send a file named with a `../` traversal and confirm it lands inside the download
       directory flattened, or is refused — and that nothing outside it was created.
-- [ ] 6.5 Send a share request declaring an absurd `payloadSize` and confirm it is refused before
+- [ ] (deferred to BR-25) 6.5 Send a share request declaring an absurd `payloadSize` and confirm it is refused before
       any bytes are written, and that the user is told.
-- [ ] 6.6 From a third LAN host, connect to the payload port during a transfer window and confirm
+- [ ] (deferred to BR-25) 6.6 From a third LAN host, connect to the payload port during a transfer window and confirm
       it gets nothing while the real transfer still completes.
-- [ ] 6.7 Confirm an incoming file is announced before it is written, and that declining leaves
+- [ ] (deferred to BR-25) 6.7 Confirm an incoming file is announced before it is written, and that declining leaves
       nothing behind and does not strand the sender.
-- [ ] 6.8 Force a receive failure and confirm the user is told, on both platforms.
-- [ ] 6.9 Record each `Done when` criterion pass/fail with what was observed. Anything not run is
+- [ ] (deferred to BR-25) 6.8 Force a receive failure and confirm the user is told, on both platforms.
+- [ ] (deferred to BR-25) 6.9 Record each `Done when` criterion pass/fail with what was observed. Anything not run is
       reported as untested, never as passed.
 
 ## 7. Close out

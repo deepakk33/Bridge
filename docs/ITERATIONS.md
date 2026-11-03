@@ -1563,3 +1563,89 @@ BR-23 is now diagnosable and is the direct successor: the Tier 3 payload handsha
 thing between here and a working Mac→phone transfer. `TierRouter` sends anything under 512 KB over
 Tier 2 with `port: nil`, which the receiver rejects as "missing payload info" — worth a look while
 in there. The BLE control channel remains unencrypted, untouched since BR-4+BR-5.
+
+---
+
+## BR-8 — File transfer: make Tier 3 work, then make it safe (2026-11-03)
+
+Absorbs BR-23. Tier 3 now transfers; the hardening around it ships unverified on hardware.
+
+### In plain words
+
+Sending a file over Wi-Fi had never once worked, in either direction, for as long as the feature
+had existed. The two devices would agree to talk, start a secure conversation, and then one of
+them would go silent and hang up without saying why.
+
+The phone could not sign its half of that conversation. Android keeps the phone's private key in
+a vault and only lets it be used in ways declared when the key was made — and the way TLS actually
+needs to use it had not been declared. Pairing kept working the whole time, which is what hid it:
+pairing only compares fingerprints, and reading a fingerprint never touches the key.
+
+With that fixed, files cross in both directions and arrive byte for byte identical.
+
+Then the same path's safety gaps were closed: a sender could previously choose a filename that
+escaped the downloads folder, claim any size at all, or have its file quietly taken by whichever
+machine on the network connected first. Files are now announced before they are written, with a
+way to refuse, and a transfer that fails says so instead of leaving an empty file behind.
+
+### Technically
+
+**The cause.** `CertificateManager.generateCertificate()` authorised the device key for
+`DIGEST_SHA256` only. Conscrypt does not hash-and-sign; it hashes the handshake transcript itself
+and asks the key to sign the raw digest via `NONEwithECDSA`. AndroidKeyStore enforces the
+authorised digest list and refused, throwing `InvalidKeyException: Keystore operation failed`
+inside `startHandshake()`. Adding `DIGEST_NONE` fixes it, but a key's authorisations are fixed at
+generation, so `ensureCertificate()` now detects an unusable key, replaces it, and reports that it
+did — which changes the fingerprint and voids existing pairings, so the service posts a notification
+telling the user to pair again.
+
+**How it was found.** Suspending the Mac process with `kill -STOP` kept the phone's listener open
+past the race, and `openssl s_client` then showed a full 196-byte ClientHello going out and **zero
+bytes** coming back. That ruled out Mac interop entirely and put the fault on the phone's side,
+where the stack trace named it.
+
+**The hardening.** Filename reduction and a 2 GiB payload cap at the trust boundary on both
+platforms, driven from a shared vector (`incoming-file-guard.json`, 12 names and 6 sizes including
+the cap value) so the two cannot drift. The payload listener now claims its single slot only once
+a connection completes the pinned handshake, and keeps accepting meanwhile. Incoming files are
+offered before anything is written, reusing each platform's existing notification surface.
+
+### Known issues and degradations
+
+- **The hardening is unverified on hardware.** Both unit suites are green and the two checksum
+  transfers passed, but the filename guard, the size cap, the port restriction, announce/decline
+  and failure surfacing have never run on a real MacBook and Galaxy. Carried to **BR-25**. The
+  notification-action plumbing deserves the most suspicion: it compiles cleanly whether or not it
+  works.
+- **Declining does not tell the sender.** Its payload window closes on its own 30 s timeout rather
+  than at once. Deliberate, to avoid a new packet type; the spec says so rather than describing an
+  immediate close it does not do.
+- **Tier 3 depends on there being exactly one Mac instance.** A `/Applications/Bridge.app` running
+  beside a dev build silently breaks it. That is BR-11's guard gap, and it is an operational
+  landmine until fixed.
+- **Tier 2 remains broken.** `TierRouter` routes anything under 512 KB to Tier 2 with `port: nil`,
+  which the receiver rejects as "missing payload info". Out of scope here, untouched.
+
+### Worth knowing for next time
+
+Two things cost most of a day, and neither was the bug:
+
+1. **The phone's Wi-Fi was off** during the first "Tier 3" test, so it had no route to the Mac's
+   LAN address at all. Check `adb shell ip route` before trusting any transport result.
+2. **Two Mac instances were running** for hours of diagnosis. Every symptom that pointed at macOS
+   Local Network authorization — a connection stuck in `waiting` under a satisfied path, symmetric
+   30 s timeouts, an empty Privacy pane — was that second instance instead. The Local Network
+   hypothesis was wrong and is marked wrong in the archived design. Check
+   `pgrep -fc "Bridge.app/Contents/MacOS/Bridge"` first.
+
+Also: each DerivedData build carries its own self-signed certificate, so switching build
+directories makes the phone reject the link on a pin mismatch with no pairing prompt — it reads as
+a hang. Clear `shared_prefs/bridge_trust_store.xml` with `run-as`, not `pm clear`, to keep the
+runtime permissions.
+
+### What the next item builds on
+
+BR-25 holds the seven device checks. BR-11 matters more than its position suggests: until the
+single-instance guard covers a different bundle path, Tier 3 can break for a reason no one can see.
+A phone→Mac transfer can now be driven entirely over adb, so BR-25's harness is already proven and
+needs no Mac clicking.
