@@ -30,19 +30,53 @@ class FileReceiver(
 ) {
     companion object {
         private const val TAG = "FileReceiver"
+
+        /** Offers awaiting an answer, keyed by the id carried in the notification. */
+        private val pendingOffers = java.util.concurrent.ConcurrentHashMap<String, () -> Unit>()
+
+        /** An unknown id is an offer already answered; ignore it rather than act twice. */
+        fun answerOffer(id: String, accepted: Boolean) {
+            val start = pendingOffers.remove(id) ?: return
+            if (accepted) {
+                start()
+            } else {
+                Log.i(TAG, "Incoming file declined; nothing fetched and nothing written")
+            }
+        }
     }
 
     fun receive(scope: CoroutineScope, packet: BridgePacket) {
         val size = packet.payloadSize
         val host = packet.payloadHost
         val port = packet.payloadPort
-        val filename = packet.body["filename"]?.jsonPrimitive?.content ?: "BridgeFile"
+        // The peer picks this name; reduce it before it reaches MediaStore.
+        val filename = IncomingFileGuard.safeName(
+            packet.body["filename"]?.jsonPrimitive?.content ?: ""
+        )
 
         if (size <= 0 || host == null || port == null) {
             Log.w(TAG, "share.request missing payload info (size=$size host=$host port=$port)")
             return
         }
-        Log.i(TAG, "Receiving $filename ($size bytes) from $host:$port")
+        // A declared size is a claim, not a fact: refuse it before opening anything.
+        if (!IncomingFileGuard.isAcceptableSize(size)) {
+            Log.w(TAG, "Refusing $filename: declared $size bytes exceeds the cap")
+            notifier.failure(notifier.startReceive(filename, size), filename, "file is too large")
+            return
+        }
+        // Announce before anything is written; the fetch waits for the answer.
+        val offerId = java.util.UUID.randomUUID().toString()
+        val offerNotifId = notifier.offerReceive(filename, size, offerId)
+        pendingOffers[offerId] = {
+            notifier.cancel(offerNotifId)
+            Log.i(TAG, "Receiving $filename ($size bytes) from $host:$port")
+            startFetch(scope, filename, size, host, port)
+        }
+    }
+
+    private fun startFetch(
+        scope: CoroutineScope, filename: String, size: Long, host: String, port: Int
+    ) {
         val notifId = notifier.startReceive(filename, size)
 
         scope.launch(Dispatchers.IO) {

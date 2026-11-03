@@ -5,8 +5,11 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Log
 import java.math.BigInteger
+import android.security.keystore.KeyInfo
+import java.security.KeyFactory
 import java.security.KeyPairGenerator
 import java.security.KeyStore
+import java.security.PrivateKey
 import java.security.MessageDigest
 import java.security.cert.X509Certificate
 import java.util.Calendar
@@ -39,12 +42,36 @@ class CertificateManager private constructor(private val context: Context) {
 
     private val keyStore: KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
 
-    fun ensureCertificate() {
-        if (keyStore.containsAlias(KEYSTORE_ALIAS)) {
-            Log.i(TAG, "Certificate already exists")
-            return
+    /**
+     * Ensures a key that can actually sign a TLS handshake. Returns true when an unusable key had
+     * to be replaced, which changes this device's fingerprint and invalidates existing pairings.
+     */
+    fun ensureCertificate(): Boolean {
+        if (!keyStore.containsAlias(KEYSTORE_ALIAS)) {
+            generateCertificate()
+            return false
         }
+        if (!KeyDigestPolicy.needsRegeneration(authorisedDigests())) {
+            Log.i(TAG, "Certificate already exists")
+            return false
+        }
+        // Pre-BR-8 keys permit SHA-256 only, so conscrypt's raw-digest signing is refused and no
+        // TLS handshake can complete. Authorisations are fixed at generation: replace the key.
+        Log.w(TAG, "Replacing a key that cannot sign for TLS; this device must be paired again")
+        keyStore.deleteEntry(KEYSTORE_ALIAS)
         generateCertificate()
+        return true
+    }
+
+    /** Empty when the key reports no digest restriction, or when they cannot be read. */
+    private fun authorisedDigests(): List<String> = try {
+        val key = keyStore.getKey(KEYSTORE_ALIAS, null) as PrivateKey
+        val info = KeyFactory.getInstance(key.algorithm, ANDROID_KEYSTORE)
+            .getKeySpec(key, KeyInfo::class.java)
+        info.digests.toList()
+    } catch (e: Exception) {
+        Log.w(TAG, "Could not read key digests: ${e.message}")
+        emptyList()
     }
 
     fun getFingerprint(): String {
@@ -82,7 +109,7 @@ class CertificateManager private constructor(private val context: Context) {
             .setCertificateSerialNumber(BigInteger.ONE)
             .setCertificateNotBefore(start.time)
             .setCertificateNotAfter(end.time)
-            .setDigests(KeyProperties.DIGEST_SHA256)
+            .setDigests(KeyProperties.DIGEST_NONE, KeyProperties.DIGEST_SHA256)
             .setUserAuthenticationRequired(false)
             .build()
 

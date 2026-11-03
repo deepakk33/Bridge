@@ -44,6 +44,7 @@ class BridgeService : Service() {
         const val EXTRA_FILE_NAME = "com.bridge.EXTRA_FILE_NAME"
         private const val PERMISSION_WARNING_NOTIFICATION_ID = 2
         private const val PAIR_CONFIRMATION_NOTIFICATION_ID = 3
+        private const val KEY_REPLACED_NOTIFICATION_ID = 4
         var clipboardBridge: ClipboardBridge? = null
             private set
 
@@ -141,6 +142,20 @@ class BridgeService : Service() {
     private var batteryMonitor: BatteryMonitor? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+    /** Carries the user's answer to an incoming-file offer back from the notification. */
+    private val fileOfferReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val offerId = intent.getStringExtra(TransferNotifier.EXTRA_OFFER_ID) ?: return
+            val accepted = intent.getBooleanExtra(TransferNotifier.EXTRA_ACCEPTED, false)
+            val notifId = intent.getIntExtra(TransferNotifier.EXTRA_NOTIF_ID, -1)
+            if (notifId >= 0) {
+                (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(notifId)
+            }
+            Log.i(TAG, "Incoming file offer answered: accepted=$accepted")
+            FileReceiver.answerOffer(offerId, accepted)
+        }
+    }
+
     private val clipboardTestReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val testText = intent.getStringExtra("text")
@@ -195,7 +210,11 @@ class BridgeService : Service() {
         TrustStore.init(this)
 
         try {
-            CertificateManager.getInstance().ensureCertificate()
+            if (CertificateManager.getInstance().ensureCertificate()) {
+                // The old key could not sign a TLS handshake, so file transfer never worked.
+                // Replacing it changes this device's fingerprint and voids existing pairings.
+                postKeyReplaced()
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to init certificate", e)
         }
@@ -275,6 +294,12 @@ class BridgeService : Service() {
             blePeripheral?.sendPacket(packet)
         }
         clipboardBridge?.start()
+        registerReceiver(
+            fileOfferReceiver,
+            IntentFilter(TransferNotifier.ACTION_ANSWER_OFFER),
+            RECEIVER_NOT_EXPORTED
+        )
+
         registerReceiver(
             clipboardTestReceiver,
             IntentFilter("com.bridge.SEND_CLIPBOARD"),
@@ -385,6 +410,17 @@ class BridgeService : Service() {
         }
     }
 
+    private fun postKeyReplaced() {
+        val notification = Notification.Builder(this, BridgeConstants.NOTIFICATION_CHANNEL_ID)
+            .setContentTitle("Pair this phone with your Mac again")
+            .setContentText("Bridge replaced a security key that could not be used for file transfer.")
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setAutoCancel(true)
+            .build()
+        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+            .notify(KEY_REPLACED_NOTIFICATION_ID, notification)
+    }
+
     private fun postPairConfirmation(deviceName: String, code: String) {
         val open = Intent(this, com.bridge.security.PairConfirmationActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -435,6 +471,7 @@ class BridgeService : Service() {
         com.bridge.security.PairConfirmation.clear()
         clearPairConfirmation()
         try { unregisterReceiver(clipboardTestReceiver) } catch (_: Exception) {}
+        try { unregisterReceiver(fileOfferReceiver) } catch (_: Exception) {}
         clipboardBridge?.stop()
         clipboardBridge = null
         batteryMonitor?.stop()

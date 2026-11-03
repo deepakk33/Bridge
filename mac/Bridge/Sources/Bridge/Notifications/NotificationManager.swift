@@ -54,7 +54,22 @@ final class NotificationManager: NSObject, ObservableObject {
             options: .customDismissAction
         )
 
-        UNUserNotificationCenter.current().setNotificationCategories([replyCategory, defaultCategory])
+        // An incoming file is offered before it is written, so the answer has to come from the
+        // notification itself.
+        let incomingFileCategory = UNNotificationCategory(
+            identifier: "BRIDGE_INCOMING_FILE",
+            actions: [
+                UNNotificationAction(identifier: "ACCEPT_FILE_ACTION", title: "Accept"),
+                UNNotificationAction(
+                    identifier: "DECLINE_FILE_ACTION", title: "Decline", options: .destructive
+                )
+            ],
+            intentIdentifiers: [],
+            options: .customDismissAction
+        )
+
+        UNUserNotificationCenter.current()
+            .setNotificationCategories([replyCategory, defaultCategory, incomingFileCategory])
         Self.logger.info("Notification categories registered")
     }
 
@@ -148,6 +163,19 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let userInfo = response.notification.request.content.userInfo
+
+        if response.actionIdentifier == "ACCEPT_FILE_ACTION"
+            || response.actionIdentifier == "DECLINE_FILE_ACTION" {
+            // Dismissing the offer is not an answer; only these two buttons are.
+            let accepted = response.actionIdentifier == "ACCEPT_FILE_ACTION"
+            if let offerId = userInfo["bridgeFileOfferId"] as? String {
+                Task { @MainActor in
+                    FileReceiveController.answerOffer(offerId, accepted: accepted)
+                }
+            }
+            completionHandler()
+            return
+        }
 
         if response.actionIdentifier == "REPLY_ACTION",
            let textResponse = response as? UNTextInputNotificationResponse {

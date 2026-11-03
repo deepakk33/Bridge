@@ -26,7 +26,7 @@ place a work item is born. One row per item, one detail block per row.
 | BR-5 | Pairing: six-digit confirmation and a device picker | done | `work/br-4-transport-security-and-pairing` |
 | BR-6 | Notification mirroring: dismissal, replies, app names | done | `work/br-6-notification-mirroring` |
 | BR-7 | Link control: Disconnect, Unpair, and a pairing timeout that fits a human | ready | |
-| BR-8 | File transfer: make Tier 3 work, then make it safe | ready | |
+| BR-8 | File transfer: make Tier 3 work, then make it safe | done | `work/br-8-tier-3-transfer` |
 | BR-9 | Clipboard: stop the dead poll, stop the silent send | done | `work/br-9-clipboard` |
 | BR-10 | Android: permission rows, resume modal, denied-path recovery | done | `work/br-10-permission-rows-and-denied-path-recovery` |
 | BR-11 | Mac app shell: permission truth, labels, and the instance guard | ready | |
@@ -42,6 +42,8 @@ place a work item is born. One row per item, one detail block per row.
 | BR-21 | Mac: the single-instance guard misses a different bundle path | merged | BR-11 |
 | BR-22 | Pairing: 30 seconds is not long enough to compare six digits | merged | BR-7 |
 | BR-23 | File transfer: the Tier 3 payload handshake fails before certificates | merged | BR-8 |
+| BR-24 | Phone call relay: take the call on the Mac | idea | |
+| BR-25 | File transfer: verify the Tier 3 hardening on hardware | ready | |
 
 All of BR-2…BR-12 come from [AUDIT-2026-10-26.md](AUDIT-2026-10-26.md), which holds the
 evidence, file:line references and reproduction for each. The audit's own ordering
@@ -291,15 +293,21 @@ the file. Both sides write silently; receive failures on the Mac are logged only
 
 **Platforms**: both
 **Done when**:
-- [ ] a file transfers Mac→phone over Tier 3 and the bytes match by checksum
-- [ ] a file transfers phone→Mac over Tier 3 and the bytes match by checksum
+- [x] a file transfers Mac→phone over Tier 3 and the bytes match by checksum — 2026-11-02,
+      716800 B, sha256 `8b04913d…` both sides
+- [x] a file transfers phone→Mac over Tier 3 and the bytes match by checksum — 2026-11-02,
+      same digest both sides
 - [ ] with two devices pinned, the handshake verifies against the connected peer's pin
-      (BR-19's untested task 9.2, folded in here)
-- [ ] a `../` filename lands inside Downloads with a flattened name, or is refused
-- [ ] a payload declaring an absurd size is refused before any bytes are written
-- [ ] a connection to the payload port from an unrelated LAN host gets nothing
-- [ ] an incoming file is announced before it is written, with a way to decline
-- [ ] a failed receive tells the user
+      (BR-19's untested task 9.2, folded in here) → **carried to BR-25, never run**
+- [ ] a `../` filename lands inside Downloads with a flattened name, or is refused →
+      **implemented and unit-tested on both platforms, not run on hardware; BR-25**
+- [ ] a payload declaring an absurd size is refused before any bytes are written →
+      **implemented and unit-tested, not run on hardware; BR-25**
+- [ ] a connection to the payload port from an unrelated LAN host gets nothing →
+      **implemented; the loopback test skips in this environment, so never observed; BR-25**
+- [ ] an incoming file is announced before it is written, with a way to decline →
+      **implemented on both platforms, never seen on a real screen; BR-25**
+- [ ] a failed receive tells the user → **implemented, not observed on hardware; BR-25**
 **Notes**: `AUD-E`, plus BR-23 merged in 2026-11-02. **Depends on BR-16**: until a BLE restart
 stops unregistering `setShareRequestHandler`, a Mac→phone transfer cannot be device-tested at
 all. BR-11 matters too — `PermissionChecker.setLocalNetwork` has no callers, so the Local
@@ -754,3 +762,125 @@ Filed 2026-11-02 from BR-19's device testing; the ID stays so it is never reused
 and a device test. The full scope, reasoning and criteria live in BR-8's detail block.
 Filed 2026-11-02 from BR-19's device testing; the ID stays so it is never reused.
 
+### BR-24 — Phone call relay: take the call on the Mac
+
+**Scope**: when the phone rings, the Mac shows who is calling and lets the user answer, speak,
+mute and hang up without touching the phone — call audio full duplex, call control from the Mac.
+**Why**: the phone sits a metre away and is the one thing that still forces a reach. Bridge
+already carries notifications, clipboard and files; a ringing phone is the remaining interrupt
+that only the phone can service. Requirements captured by the user 2026-11-02.
+**Platforms**: both
+**Status**: `idea` — not `ready`. One question decides whether the item exists at all; see
+*First question* below.
+
+**First question (gate — answer before anything else is built).** Can a MacBook Air M3 present
+itself to the S25 as a Bluetooth Hands-Free unit — i.e. a headset — and carry SCO audio?
+Everything in the recommended design hangs off this, and it is the one part nothing in the repo
+already proves. The known shape of the problem:
+
+- macOS natively plays the *Audio Gateway* role (it drives headsets); the Bridge Mac app would
+  need the *Hands-Free* role (it is the headset). `IOBluetooth` exposes SDP service records and
+  RFCOMM channels — enough for the HFP control channel — but it publishes no supported API for
+  opening or reading an **SCO audio link**. If SCO audio is not reachable from a locally signed,
+  sandboxed, non-notarised app, Approach 1 is dead and the whole item becomes "stream call audio
+  over the existing Wi-Fi path", which runs straight into the Android capture problem below.
+- Timebox this as a spike on real hardware. The output is a yes/no plus the codec actually
+  negotiated (mSBC 16 kHz, or CVSD 8 kHz fallback). No production code.
+
+**The Android audio problem, stated once.** Since Android 11 `MediaRecorder.AudioSource.VOICE_CALL`
+is refused to every non-system app, so the phone cannot hand Bridge the call audio as a stream.
+Three paths exist and only one survives:
+
+1. **Bluetooth HFP/SCO** — Android routes call audio to a connected headset itself. No audio
+   permission is involved; the Mac simply *is* the headset. Full duplex, 20–40 ms, ~10 m range
+   (fine at 1 m, no remote relay ever). Needs `BLUETOOTH_CONNECT`, `BLUETOOTH_SCAN`,
+   `BluetoothHeadset` profile proxy, `AudioManager.startBluetoothSco()`. This is the path, if the
+   Mac side is possible.
+2. **Telecom `ConnectionService`** — gives per-call lifecycle objects and `setAudioRoute()` /
+   `requestBluetoothAudio()`. It selects *which device* gets the audio; it never exposes the audio
+   itself. Needs `MANAGE_OWN_CALLS` and a `PhoneAccount` registered via
+   `TelecomManager.registerPhoneAccount()`, plus a service guarded by
+   `BIND_TELECOM_CONNECTION_SERVICE`. Useful only alongside path 1, to force the route to the Mac
+   instead of asking the user to pick it each call.
+3. **`AudioPlaybackCapture` + an Accessibility Service** — captures the far end only, never the
+   user's own mic; call streams commonly set `ALLOW_CAPTURE_BY_NONE`; needs a MediaProjection
+   consent dialog every session. Rejected. Recorded here so it is not re-proposed.
+
+**Call detection** is the easy half and is independent of the audio question:
+`TelephonyManager.registerTelephonyCallback()` (API 31+, not the deprecated `PhoneStateListener`)
+for `CALL_STATE_RINGING` / `OFFHOOK` / `IDLE`, `READ_PHONE_STATE` for the states and
+`READ_CALL_LOG` for the number, kept alive by a foreground service of type `phoneCall`
+(`FOREGROUND_SERVICE_PHONE_CALL`). Caller name/number travels to the Mac as a new `bridge.call`
+packet on the existing BLE control channel — small, single-line JSON, same as every other type.
+
+**Mac side**, assuming the gate passes: `AVAudioEngine` for playback and
+`inputNode.installTap()` for the mic, 16 kHz mono float32, 320-sample (20 ms) buffers, resampled
+from whatever the hardware runs at; `kAudioUnitSubType_VoiceProcessingIO` for echo cancellation,
+noise suppression and AGC — not optional, the Mac's speaker feeds its own mic. UI: a floating
+always-on-top `NSPanel` with caller, answer, decline, mute, end, and Space / M / Esc; the existing
+`NSStatusItem` grows an in-call indicator; incoming calls also post through the notification path
+Bridge already owns.
+
+**What already exists in Bridge — do not rebuild it.** The requirements document describes
+discovery, pairing and signing as if from scratch; three of its four sections are already shipped:
+
+- *mDNS discovery* — `mac/.../FileTransfer/MdnsBrowser.swift` and
+  `android/.../filetransfer/NsdTransfer.kt` already advertise and resolve over `NsdManager` /
+  `NWBrowser`. A call channel reuses them; it does not get its own service type unless there is a
+  reason.
+- *Pairing and identity* — `PairingManager`, `TrustStore`, `CertificateManager` and the six-digit
+  confirmation from BR-4+BR-5 already establish a shared trusted identity with pinned certs.
+  There is no second pairing flow, no SRP, no separate AES-256-GCM layer to write.
+- *Signing and distribution* — locally signed, no Developer Program, right-click-open on first
+  launch. Unchanged. The new entitlements are the Bluetooth and `audio-input` ones plus
+  `NSMicrophoneUsageDescription`.
+
+What is genuinely new: the HFP/SCO link, the audio engine, the call packets, and the call UI.
+
+**Done when**:
+- [ ] the spike above has a written yes/no on Mac-side HFP/SCO, with the negotiated codec named
+- [ ] an incoming call on the S25 raises a panel on the Mac naming the caller, within ~1 s of ring
+- [ ] answering from the Mac connects the call: both parties hear each other, no echo loop
+- [ ] mute and end from the Mac take effect on the phone, and the phone's own UI agrees
+- [ ] ending on the phone closes the Mac panel and releases the audio route
+- [ ] declining a call from the Mac stops the ring on the phone
+- [ ] with Bridge not running, or the Mac out of range, calls behave exactly as before — no
+      swallowed rings, no stuck audio route
+**Notes**: min SDK stays 31 (`TelephonyCallback` needs it); the new packet types must be added to
+the allow-lists at `android/.../ble/L2capServer.kt` and `mac/.../BLE/BLEManager.swift` and to the
+trust gate, same as BR-17 flags. Internet relay is explicitly out — the PRD's "same room, no
+cloud" rule stands, and HFP's 10 m is a hard ceiling anyway. Split this into at least two items
+(detection + metadata; audio) once the gate is answered; as one ticket it is too large to run
+through `/work`.
+
+
+### BR-25 — File transfer: verify the Tier 3 hardening on hardware
+
+**Scope**: run BR-8's seven device checks against the shipped build — the four security guards,
+the announce/decline flow, a forced failure, and a second pinned device — and record each result.
+**Why**: BR-8 shipped its hardening with both unit suites green and **none of it exercised on a
+real MacBook + Galaxy**. Tier 3 transfer itself is hardware-proven in both directions (checksums
+matched 2026-11-02), but every guard added afterwards is unverified. The announce/decline path is
+the one to distrust most: notification-action plumbing compiles cleanly and does nothing on
+device more often than any other kind of UI code.
+
+**Platforms**: both
+**Done when**:
+- [ ] a `../` filename lands inside the download directory flattened, or is refused, and nothing
+      outside it is created — both platforms
+- [ ] a share request declaring a size above the 2 GiB cap is refused before any bytes are
+      written or any port opened, and the user is told — both platforms
+- [ ] a third LAN host connecting to the payload port during a transfer window gets nothing while
+      the real transfer still completes
+- [ ] an incoming file is announced before it is written, and Accept actually starts the fetch
+- [ ] Decline leaves nothing behind, and the sender's window closes on its own timeout
+- [ ] a forced receive failure tells the user on both platforms, with no partial file left
+- [ ] with two devices pinned, the handshake verifies against the connected peer's pin
+      (BR-19's untested task 9.2, carried forward again)
+**Notes**: carried out of BR-8 on 2026-11-03 at the user's request, so BR-8 could merge. The
+reproduction harness is cheap and already proven: a phone→Mac Tier 3 transfer can be driven
+entirely over adb with no Mac clicking — `run-as com.bridge.app` to place the file inside the app
+sandbox, then `am start -a android.intent.action.SEND … ShareReceiverActivity`. **Check
+`pgrep -fc "Bridge.app/Contents/MacOS/Bridge"` reads 1 before trusting any result**: a stray
+`/Applications/Bridge.app` beside a DerivedData build silently breaks Tier 3 and cost most of a
+day on 2026-11-02. That guard gap is BR-11's.

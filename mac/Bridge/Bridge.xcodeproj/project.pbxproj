@@ -40,6 +40,7 @@
 		970A6E486B671EAF219376D9 /* AllVectorsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86DD549D144C99B0C9AAC869 /* AllVectorsTests.swift */; };
 		9749CC395955B3C5BFA2C962 /* BridgePacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92405DBC9DC528F2C17A32E3 /* BridgePacket.swift */; };
 		9752467E7B12213672547F27 /* ClipboardPacketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 352D3EE8282E7F7AC124CB70 /* ClipboardPacketTests.swift */; };
+		B8GRD0010000000000000001 /* IncomingFileGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8GRD0020000000000000002 /* IncomingFileGuardTests.swift */; };
 		B16CM0010000000000000001 /* ClipboardMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B16CM0020000000000000002 /* ClipboardMonitorTests.swift */; };
 		99F4E19ACCB8A684DF26DFC0 /* PacketGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3071735B9747EF25CCCA2308 /* PacketGate.swift */; };
 		9ACBB3F90ADF8D6C4C01346F /* PingWatchdogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D45ADCE55DFC7BFCCB054D67 /* PingWatchdogTests.swift */; };
@@ -92,6 +93,7 @@
 		31FE223B2DF8A794FBA6D277 /* MirroringState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MirroringState.swift; sourceTree = "<group>"; };
 		3241536C325DAFEBA01D62D9 /* PermissionCheckerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionCheckerTests.swift; sourceTree = "<group>"; };
 		352D3EE8282E7F7AC124CB70 /* ClipboardPacketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardPacketTests.swift; sourceTree = "<group>"; };
+		B8GRD0020000000000000002 /* IncomingFileGuardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomingFileGuardTests.swift; sourceTree = "<group>"; };
 		B16CM0020000000000000002 /* ClipboardMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitorTests.swift; sourceTree = "<group>"; };
 		3B1D256091EBDB7F2BF16157 /* PacketGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketGateTests.swift; sourceTree = "<group>"; };
 		481843FD2F6EA3B41D37D96C /* DeviceDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceDirectory.swift; sourceTree = "<group>"; };
@@ -165,6 +167,7 @@
 				ABD9184A949EFAF49F053D20 /* BridgePacketTests.swift */,
 				4B996C9B1C7ADA8B0F5410CF /* CertificateManagerTests.swift */,
 				B16CM0020000000000000002 /* ClipboardMonitorTests.swift */,
+				B8GRD0020000000000000002 /* IncomingFileGuardTests.swift */,
 				352D3EE8282E7F7AC124CB70 /* ClipboardPacketTests.swift */,
 				8FBB403934BDB28B43D5D3C2 /* DeviceDirectoryTests.swift */,
 				A5AF27C7B66F8ADEEB4537D6 /* FramedWriterTests.swift */,
@@ -368,6 +371,7 @@
 				BBB52C374052D155182228CA /* BridgePacketTests.swift in Sources */,
 				78D299EBB2963C9ACE3DF245 /* CertificateManagerTests.swift in Sources */,
 				B16CM0010000000000000001 /* ClipboardMonitorTests.swift in Sources */,
+				B8GRD0010000000000000001 /* IncomingFileGuardTests.swift in Sources */,
 				9752467E7B12213672547F27 /* ClipboardPacketTests.swift in Sources */,
 				52D08B4E081AF43EE77BB067 /* DeviceDirectoryTests.swift in Sources */,
 				79281DEFD35F2E69D77A034B /* FramedWriterTests.swift in Sources */,

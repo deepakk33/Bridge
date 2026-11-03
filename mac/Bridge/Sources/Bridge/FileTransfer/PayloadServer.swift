@@ -97,13 +97,30 @@ final class PayloadServer: @unchecked Sendable {
     }
 
     private func serve(_ conn: NWConnection) {
-        // Only the first connection is served; ignore any extras.
-        guard connection == nil else {
-            conn.cancel()
-            return
+        // The slot belongs to whoever completes the pinned handshake, not to whoever dials
+        // first: on a shared network a stranger reaching the port would otherwise cost the real
+        // peer its transfer. Claim nothing until TLS is up, and keep listening meanwhile.
+        conn.stateUpdateHandler = { [weak self] state in
+            guard let self else { return }
+            switch state {
+            case .ready:
+                guard self.connection == nil else {
+                    conn.cancel()
+                    return
+                }
+                self.connection = conn
+                self.send(over: conn)
+            case .failed, .cancelled:
+                // A connection that never verified never held the slot; nothing to release.
+                break
+            default:
+                break
+            }
         }
-        connection = conn
         conn.start(queue: queue)
+    }
+
+    private func send(over conn: NWConnection) {
         conn.send(content: payload, completion: .contentProcessed { [weak self] error in
             guard let self else { return }
             if let error {
